@@ -40,7 +40,13 @@
                 height: 0 !important;
             }
 
-            html,
+            /* 【修改1】给 html 设置背景色，解决 iOS/Safari 边界回弹露白问题 */
+            html {
+                height: 100%;
+                overflow: hidden;
+                background: var(--bg-body);
+            }
+
             body {
                 height: 100%;
                 overflow: hidden;
