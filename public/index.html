@@ -1,0 +1,1378 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+        />
+        <meta name="theme-color" content="#101014" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+        <title>RetroRom Hub</title>
+        <link rel="stylesheet" href="https://fastly.jsdelivr.net/npm/vant@4/lib/index.css" />
+        <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet" />
+        <style>
+            :root {
+                --bg-body: #101014;
+                --bg-card: #1c1c22;
+                --text-main: #f2f2f2;
+                --text-sub: #8a8a9b;
+                --primary: #705df2;
+                --accent: #ff4757;
+                --van-rate-icon-size: 10px !important;
+                --van-rate-icon-gutter: 2px !important;
+                --van-search-content-background: rgba(255, 255, 255, 0.1) !important;
+                --van-search-input-height: 36px !important;
+                --van-search-label-color: #fff !important;
+                --van-text-color: #fff !important;
+            }
+
+            * {
+                scrollbar-width: none !important;
+                -ms-overflow-style: none !important;
+            }
+            ::-webkit-scrollbar {
+                display: none !important;
+                width: 0 !important;
+                height: 0 !important;
+            }
+
+            body {
+                background: var(--bg-body);
+                color: var(--text-main);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                margin: 0;
+                -webkit-tap-highlight-color: transparent;
+                overflow-y: auto;
+                overscroll-behavior-y: none;
+            }
+
+            /* === 弹窗黑化样式 === */
+            .van-popup.van-dialog {
+                background: #25252b !important;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 16px !important;
+            }
+            .van-dialog__header {
+                color: #fff !important;
+                padding-top: 24px;
+                font-weight: 800;
+            }
+            .van-dialog__message {
+                color: #ccc !important;
+                font-size: 14px;
+                line-height: 1.6;
+                padding: 24px !important;
+                text-align: center;
+            }
+            .van-dialog__footer {
+                background: transparent !important;
+                padding: 0 20px 20px 20px !important;
+                display: flex !important;
+                gap: 0 !important;
+            }
+            .van-hairline--top::after,
+            .van-hairline--left::after {
+                border: none !important;
+            }
+            .van-dialog__button {
+                flex: 1;
+                border-radius: 0 !important;
+                overflow: hidden;
+            }
+            .van-dialog__cancel {
+                background: #3a3a44 !important;
+                color: #fff !important;
+                border: none !important;
+                height: 44px !important;
+                border-top-left-radius: 8px !important;
+                border-bottom-left-radius: 8px !important;
+            }
+            .van-dialog__confirm {
+                background: linear-gradient(135deg, #ff4757, #ff6b81) !important;
+                color: white !important;
+                border: none !important;
+                height: 44px !important;
+                border-top-right-radius: 8px !important;
+                border-bottom-right-radius: 8px !important;
+            }
+
+            .van-search__field .van-field__control {
+                color: #fff !important;
+            }
+            .van-search__field .van-field__left-icon {
+                color: rgba(255, 255, 255, 0.5) !important;
+            }
+
+            @keyframes fadeUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            @keyframes gradientMove {
+                0% {
+                    background-position: 0% 50%;
+                }
+                50% {
+                    background-position: 100% 50%;
+                }
+                100% {
+                    background-position: 0% 50%;
+                }
+            }
+            @keyframes spin {
+                from {
+                    transform: rotate(0deg);
+                }
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .anim-item {
+                animation: fadeUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+                opacity: 0;
+            }
+
+            .fade-img {
+                opacity: 0;
+                transition: opacity 0.5s ease-in-out;
+            }
+            .fade-img.loaded {
+                opacity: 1;
+            }
+
+            .spin-anim {
+                animation: spin 1s linear infinite;
+                opacity: 1;
+            }
+
+            /* 导航栏 */
+            .navbar {
+                background: rgba(28, 28, 34, 0.85);
+                backdrop-filter: blur(20px);
+                height: 56px;
+                display: flex;
+                align-items: center;
+                padding: 0 16px;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 100;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            }
+            .nav-title {
+                font-weight: 800;
+                font-size: 18px;
+                flex: 1;
+                text-align: center;
+                letter-spacing: 0.5px;
+            }
+            .nav-btn {
+                font-size: 24px;
+                padding: 8px;
+                color: var(--text-main);
+                cursor: pointer;
+                transition: opacity 0.2s;
+            }
+            .nav-btn:active {
+                opacity: 0.6;
+            }
+
+            .container {
+                padding: 72px 16px 40px;
+                max-width: 1200px;
+                margin: 0 auto;
+                min-height: 100vh;
+                box-sizing: border-box;
+            }
+
+            /* === 1. 主机列表 === */
+            .sys-list {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .sys-card {
+                background: var(--bg-card);
+                border-radius: 20px;
+                overflow: hidden;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.3);
+                display: flex;
+                height: 140px;
+                position: relative;
+                transition:
+                    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    box-shadow 0.3s;
+            }
+            .sys-card:active {
+                transform: scale(0.96);
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            }
+
+            .sys-visual {
+                width: 120px;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                position: relative;
+                overflow: hidden;
+                background: linear-gradient(135deg, #2d3436, #000);
+            }
+            .sys-visual::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
+            }
+            .sys-abbr {
+                font-size: 32px;
+                font-weight: 900;
+                color: rgba(255, 255, 255, 0.95);
+                text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                z-index: 2;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                text-align: center;
+            }
+            .sys-count-badge {
+                position: absolute;
+                bottom: 6px;
+                right: 6px;
+                font-size: 9px;
+                color: rgba(255, 255, 255, 0.9);
+                font-weight: 700;
+                z-index: 2;
+                background: rgba(0, 0, 0, 0.4);
+                padding: 1px 5px;
+                border-radius: 4px;
+            }
+
+            .sys-content {
+                flex: 1;
+                padding: 18px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                min-width: 0;
+            }
+            .sys-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+            .sys-name {
+                font-size: 19px;
+                font-weight: 800;
+                color: #fff;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .sys-meta {
+                font-size: 12px;
+                color: var(--primary);
+                margin-bottom: 10px;
+                font-weight: 600;
+                letter-spacing: 0.5px;
+            }
+            .sys-desc {
+                font-size: 13px;
+                color: var(--text-sub);
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+                line-height: 1.5;
+            }
+
+            /* === 主机介绍头部区域 === */
+            .intro-header {
+                margin: 16px 16px 20px 16px;
+                padding: 24px;
+                border-radius: 24px;
+                color: #fff;
+                box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.4);
+                position: relative;
+                overflow: hidden;
+                background-size: 200% 200% !important;
+                animation: gradientMove 8s ease infinite;
+                opacity: 1 !important;
+            }
+            .intro-bg-icon {
+                position: absolute;
+                right: -25px;
+                bottom: -35px;
+                font-size: 160px;
+                opacity: 0.12;
+                transform: rotate(-15deg);
+                pointer-events: none;
+                animation: float 6s ease-in-out infinite;
+            }
+            .intro-title {
+                font-size: 24px;
+                font-weight: 900;
+                margin-bottom: 10px;
+                text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                position: relative;
+                z-index: 2;
+            }
+            .intro-text {
+                font-size: 13px;
+                line-height: 1.6;
+                opacity: 0.95;
+                position: relative;
+                z-index: 2;
+                font-weight: 500;
+            }
+
+            /* === 索引栏 (透明 + 阈值版) === */
+            .van-index-bar__sidebar {
+                position: fixed !important;
+                right: 8px !important;
+                z-index: 2000 !important;
+
+                width: 32px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+
+                background: transparent !important;
+                backdrop-filter: none !important;
+                box-shadow: none !important;
+                padding: 8px 0;
+
+                transition:
+                    opacity 0.2s ease,
+                    transform 0.2s ease;
+                opacity: 0;
+                pointer-events: none;
+
+                top: 50vh !important;
+                top: 50svh !important;
+                transform: translateY(-50%) scale(0.9) !important;
+
+                user-select: none;
+                -webkit-user-select: none;
+                touch-action: none;
+            }
+
+            body.show-sidebar .van-index-bar__sidebar {
+                opacity: 1;
+                pointer-events: auto;
+                transform: translateY(-50%) scale(1) !important;
+            }
+
+            .van-index-bar__index {
+                width: 100%;
+                padding: 4px 0 !important;
+                text-align: center;
+                /* 【修改】降低默认透明度，使其更隐蔽 */
+                color: rgba(255, 255, 255, 0.3) !important;
+                font-size: 10px;
+                font-weight: 900 !important;
+                line-height: 1.2;
+                min-height: 18px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            /* 选中的字符保持高亮 */
+            .van-index-bar__index--active {
+                color: var(--primary) !important;
+                transform: scale(1.6); /* 选中时放大更多 */
+                opacity: 1 !important;
+                text-shadow: 0 0 10px rgba(0, 0, 0, 0.8) !important;
+            }
+            .van-index-anchor {
+                background: var(--bg-body) !important;
+                color: var(--primary);
+                font-weight: 800;
+                font-size: 18px;
+                padding-left: 20px;
+            }
+
+            .game-grid-section {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+                gap: 16px;
+                padding: 0 16px 24px 16px;
+            }
+
+            /* 游戏卡片 */
+            .game-card {
+                background: var(--bg-card);
+                border-radius: 14px;
+                overflow: hidden;
+                position: relative;
+                aspect-ratio: 3/4;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.4);
+                transform: translateZ(0);
+                transition:
+                    transform 0.2s,
+                    box-shadow 0.2s,
+                    filter 0.2s;
+            }
+            .game-card:active {
+                transform: scale(0.95);
+                filter: brightness(0.8);
+            }
+            .thumb-box {
+                width: 100%;
+                height: 100%;
+                position: relative;
+            }
+            .thumb-bg {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                filter: blur(15px) brightness(0.4) saturate(1.2);
+                transform: scale(1.2);
+            }
+            .thumb-img {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                z-index: 2;
+            }
+            .game-card:active .thumb-img {
+                transform: scale(1.05);
+            }
+
+            .no-img {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background: #18181c;
+                color: #444;
+            }
+
+            .ver-badge {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                z-index: 5;
+                background: rgba(0, 0, 0, 0.75);
+                backdrop-filter: blur(4px);
+                color: #fff;
+                font-size: 9px;
+                padding: 3px 8px;
+                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                font-weight: bold;
+            }
+
+            .game-info-overlay {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 5;
+                background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 10%, rgba(0, 0, 0, 0.6) 60%, transparent);
+                padding: 30px 8px 10px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            .g-title {
+                font-size: 12px;
+                color: #fff;
+                text-align: center;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-weight: 700;
+                letter-spacing: 0.3px;
+                width: 100%;
+            }
+            .g-year {
+                font-size: 10px;
+                color: #bbb;
+                text-align: center;
+                margin-top: 3px;
+            }
+            .g-rating {
+                margin-top: 1px;
+                height: 12px;
+                line-height: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .van-popover__action-text {
+                white-space: nowrap;
+            }
+
+            /* === 详情页 === */
+            .detail-popup {
+                background: #121212 !important;
+                display: block;
+            }
+
+            .detail-scroll-container {
+                height: 100%;
+                overflow-y: scroll;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+            .detail-scroll-container::-webkit-scrollbar {
+                display: none;
+                width: 0;
+                height: 0;
+            }
+
+            .swipe-area {
+                height: 380px;
+                background: #000;
+                position: relative;
+                flex-shrink: 0;
+            }
+            .swipe-inner {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                overflow: hidden;
+            }
+            .swipe-bg {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                filter: blur(40px) brightness(0.3);
+                z-index: 1;
+            }
+            .swipe-img {
+                max-width: 100%;
+                max-height: 100%;
+                z-index: 2;
+                object-fit: contain;
+                box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            }
+
+            .thumb-strip {
+                display: flex;
+                gap: 12px;
+                padding: 20px 16px;
+                background: #18181c;
+                overflow-x: auto;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                flex-shrink: 0;
+            }
+            .ts-item {
+                width: 64px;
+                height: 64px;
+                border-radius: 10px;
+                overflow: hidden;
+                position: relative;
+                flex-shrink: 0;
+                border: 2px solid transparent;
+                opacity: 0.5;
+                transition: all 0.2s;
+            }
+            .ts-item.active {
+                border-color: var(--primary);
+                opacity: 1;
+                transform: scale(1.05);
+                box-shadow: 0 0 15px rgba(112, 93, 242, 0.3);
+            }
+            .ts-img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+            .d-body {
+                padding: 24px;
+                overflow: visible;
+                height: auto;
+            }
+            .d-title {
+                font-size: 26px;
+                font-weight: 800;
+                margin-bottom: 16px;
+                line-height: 1.2;
+                color: #fff;
+            }
+            .d-tags {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                margin-bottom: 24px;
+            }
+            .tag {
+                background: rgba(255, 255, 255, 0.1);
+                padding: 6px 12px;
+                border-radius: 8px;
+                font-size: 12px;
+                color: #ddd;
+                font-weight: 500;
+            }
+            .d-desc {
+                font-size: 15px;
+                line-height: 1.7;
+                color: #a0a0b0;
+                margin-bottom: 30px;
+                white-space: pre-wrap;
+            }
+
+            .ver-item {
+                background: #25252b;
+                border-radius: 16px;
+                padding: 16px;
+                margin-bottom: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                transition: background 0.2s;
+            }
+            .ver-item:active {
+                background: #303038;
+            }
+            .ver-item.selected {
+                border-color: var(--primary);
+                background: #2d2d36;
+            }
+            .v-file {
+                font-family: 'Roboto Mono', monospace;
+                font-size: 13px;
+                color: #fff;
+                margin-bottom: 4px;
+                word-break: break-all;
+            }
+
+            .dl-btn {
+                background: linear-gradient(135deg, #705df2, #a29bfe);
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 24px;
+                font-size: 13px;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                box-shadow: 0 4px 15px rgba(112, 93, 242, 0.4);
+                transition: transform 0.1s;
+            }
+            .dl-btn:active {
+                transform: scale(0.95);
+            }
+
+            /* Log Popup 样式 */
+            .log-popup {
+                background: #1c1c22 !important;
+                color: #ccc;
+                font-family: monospace;
+                padding: 20px;
+                max-height: 70vh;
+                overflow-y: auto;
+            }
+            .log-item {
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                padding: 6px 0;
+                font-size: 12px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app">
+            <div class="navbar">
+                <div class="nav-btn" v-if="currentSystemObj" @click="handleUiBack">
+                    <i class="ri-arrow-left-line"></i>
+                </div>
+                <div class="nav-title">{{ currentSystemObj ? currentSystemObj.fullname : 'RetroHub' }}</div>
+                <div class="nav-btn" v-if="currentSystemObj" style="opacity: 0; pointer-events: none">
+                    <i class="ri-search-2-line"></i>
+                </div>
+            </div>
+
+            <div class="container" v-if="!currentSystemObj">
+                <div class="sys-list">
+                    <div
+                        v-for="(sys, index) in systems"
+                        :key="sys.name"
+                        class="sys-card anim-item"
+                        :style="{ animationDelay: Math.min(index * 0.03, 0.4) + 's' }"
+                        @click="enterSystem(sys)"
+                    >
+                        <div class="sys-visual" :style="{ background: getSysColor(sys.name) }">
+                            <div class="sys-abbr">{{ sys.abbr }}</div>
+                            <div class="sys-count-badge">{{ sys.count }}</div>
+                        </div>
+
+                        <div class="sys-content">
+                            <div class="sys-header">
+                                <div class="sys-name">{{ sys.fullname }}</div>
+                            </div>
+                            <div class="sys-meta" v-if="sys.year">{{ sys.maker }} • {{ sys.year }}</div>
+                            <div class="sys-desc">{{ sys.desc }}</div>
+                        </div>
+                    </div>
+                </div>
+                <van-empty v-if="systems.length===0" description="Library Empty" image="search" />
+            </div>
+
+            <div v-else style="padding-top: 56px; min-height: 100vh; box-sizing: border-box">
+                <div class="intro-header" :style="{ background: getSysColor(currentSystemObj.name) }">
+                    <i class="ri-gamepad-fill intro-bg-icon"></i>
+                    <div class="intro-title">{{ currentSystemObj.fullname }}</div>
+                    <div class="intro-text">{{ currentSystemObj.history }}</div>
+                </div>
+
+                <div style="display: flex; align-items: center; padding: 0 16px; margin-bottom: 10px; gap: 10px">
+                    <van-search
+                        v-model="keyword"
+                        placeholder="Find your memory..."
+                        shape="round"
+                        background="transparent"
+                        style="flex: 1; padding: 0"
+                        @search="onSearch"
+                        @clear="onClearSearch"
+                    ></van-search>
+
+                    <div
+                        @click="viewLogs"
+                        style="
+                            background: rgba(255, 255, 255, 0.1);
+                            padding: 8px;
+                            border-radius: 50%;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        "
+                    >
+                        <i class="ri-file-list-2-line" style="color: #bbb; font-size: 20px"></i>
+                    </div>
+
+                    <div
+                        @click="triggerSync"
+                        style="
+                            background: rgba(255, 255, 255, 0.1);
+                            padding: 8px;
+                            border-radius: 50%;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        "
+                    >
+                        <i
+                            class="ri-refresh-line"
+                            :class="{ 'spin-anim': isSyncing }"
+                            style="color: var(--primary); font-size: 20px"
+                        ></i>
+                    </div>
+                </div>
+
+                <van-loading v-if="loading" vertical style="padding: 100px 0; color: #666"
+                    >Loading Index...</van-loading
+                >
+
+                <van-index-bar v-else :index-list="indexList" :sticky="true" highlight-color="var(--primary)">
+                    <div v-for="(group, letter) in groupedGames" :key="letter">
+                        <van-index-anchor :index="letter">{{ letter }}</van-index-anchor>
+
+                        <div class="game-grid-section">
+                            <div v-for="game in group" :key="game.name" class="game-card" @click="openDetail(game)">
+                                <div class="thumb-box">
+                                    <div v-if="!game.image_path" class="no-img">
+                                        <i class="ri-gamepad-line" style="font-size: 32px"></i>
+                                    </div>
+                                    <template v-else>
+                                        <img
+                                            class="thumb-bg fade-img"
+                                            :src="getImgUrl(game.image_path)"
+                                            loading="lazy"
+                                            @load="onImgLoad"
+                                        />
+                                        <img
+                                            class="thumb-img fade-img"
+                                            :src="getImgUrl(game.image_path)"
+                                            loading="lazy"
+                                            @load="onImgLoad"
+                                        />
+                                    </template>
+                                    <div class="ver-badge" v-if="game.version_count > 1">
+                                        {{ game.version_count }} Ver
+                                    </div>
+
+                                    <div class="game-info-overlay">
+                                        <div class="g-title">{{ game.name }}</div>
+                                        <div class="g-year">
+                                            {{ game.releasedate ? game.releasedate.substring(0,4) : '' }}
+                                        </div>
+                                        <div class="g-rating" v-if="game.rating && game.rating > 0">
+                                            <van-rate
+                                                :model-value="Number(game.rating) * 5"
+                                                readonly
+                                                allow-half
+                                                size="10px"
+                                                color="#ffd21e"
+                                                void-icon="star"
+                                                void-color="#555"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </van-index-bar>
+
+                <div style="height: 40px"></div>
+            </div>
+
+            <van-popup
+                :show="showDetail"
+                @update:show="handlePopupClose"
+                position="bottom"
+                round
+                closeable
+                class="detail-popup"
+                :style="{ height: '95%' }"
+            >
+                <div v-if="selectedGame" class="detail-scroll-container">
+                    <div class="swipe-area">
+                        <van-swipe
+                            ref="imgSwipe"
+                            :autoplay="0"
+                            indicator-color="white"
+                            style="height: 100%"
+                            @change="onSwipeChange"
+                        >
+                            <template v-if="displayImages.length > 0">
+                                <van-swipe-item v-for="(img, idx) in displayImages" :key="idx" @click="previewBig(idx)">
+                                    <div class="swipe-inner">
+                                        <img class="swipe-bg fade-img" :src="getImgUrl(img.url)" @load="onImgLoad" />
+                                        <img class="swipe-img fade-img" :src="getImgUrl(img.url)" @load="onImgLoad" />
+                                    </div>
+                                </van-swipe-item>
+                            </template>
+                            <van-swipe-item v-else>
+                                <div class="swipe-inner" style="background: #111; color: #555; flex-direction: column">
+                                    <i class="ri-image-line" style="font-size: 50px"></i>
+                                    <span>No Preview</span>
+                                </div>
+                            </van-swipe-item>
+                        </van-swipe>
+                    </div>
+
+                    <div class="thumb-strip" v-if="displayImages.length > 1">
+                        <div
+                            v-for="(img, idx) in displayImages"
+                            :key="idx"
+                            class="ts-item"
+                            :class="{ active: currentSwipeIndex === idx }"
+                            @click="swipeTo(idx)"
+                        >
+                            <img class="ts-img fade-img" :src="getImgUrl(img.url)" @load="onImgLoad" />
+                        </div>
+                    </div>
+
+                    <div class="d-body">
+                        <div class="d-title">{{ selectedGame.name }}</div>
+                        <div class="d-tags">
+                            <span class="tag" v-if="selectedGame.releasedate"
+                                >{{ selectedGame.releasedate.substring(0,4) }}</span
+                            >
+                            <span class="tag" v-if="selectedGame.developer">{{ selectedGame.developer }}</span>
+                            <span class="tag" v-if="selectedGame.genre">{{ selectedGame.genre }}</span>
+                        </div>
+
+                        <div style="margin-bottom: 16px" v-if="selectedGame.rating && selectedGame.rating > 0">
+                            <van-rate
+                                :model-value="Number(selectedGame.rating) * 5"
+                                readonly
+                                allow-half
+                                color="#ffd21e"
+                                void-icon="star"
+                                void-color="#333"
+                            />
+                        </div>
+
+                        <div class="d-desc">{{ selectedGame.desc || '暂无描述信息。' }}</div>
+
+                        <van-divider content-position="left" style="border-color: rgba(255, 255, 255, 0.1)">
+                            Available Files ({{ versions.length }})
+                        </van-divider>
+
+                        <div
+                            class="ver-item"
+                            v-for="ver in versions"
+                            :key="ver.id"
+                            :class="{ selected: currentVersionId === ver.id }"
+                            @click="switchVersion(ver)"
+                        >
+                            <div style="flex: 1; min-width: 0; padding-right: 10px">
+                                <div class="v-file">{{ ver.filename }}</div>
+                                <div style="font-size: 11px; color: #888">
+                                    <i class="ri-image-2-line"></i> {{ ver.gallery.length }} Images
+                                </div>
+                            </div>
+                            <button class="dl-btn" @click.stop="download(ver.id)">
+                                <i class="ri-download-cloud-2-line"></i> GET
+                            </button>
+                        </div>
+                        <div style="height: 40px"></div>
+                    </div>
+                </div>
+            </van-popup>
+
+            <van-popup
+                :show="showLogPopup"
+                @click-overlay="handleLogClose"
+                position="bottom"
+                round
+                class="log-popup"
+                :style="{ height: '60%' }"
+            >
+                <div style="text-align: center; margin-bottom: 10px; font-weight: bold; color: #fff">Running Logs</div>
+                <div v-if="logs.length === 0" style="text-align: center; padding: 20px; color: #666">
+                    No logs available.
+                </div>
+                <div v-for="(log, i) in logs" :key="i" class="log-item">{{ log }}</div>
+            </van-popup>
+        </div>
+
+        <script src="https://fastly.jsdelivr.net/npm/vue@3"></script>
+        <script src="https://fastly.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
+
+        <script>
+            const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
+
+            const app = createApp({
+                setup() {
+                    const systems = ref([]);
+                    const currentSystemObj = ref(null);
+
+                    const allGames = ref([]);
+                    const loading = ref(false);
+                    const showSearch = ref(false);
+                    const keyword = ref('');
+
+                    const showDetail = ref(false);
+                    const selectedGame = ref(null);
+                    const versions = ref([]);
+                    const currentVersionId = ref(null);
+                    const currentSwipeIndex = ref(0);
+                    const imgSwipe = ref(null);
+                    const isPreviewOpen = ref(false);
+                    const isSyncing = ref(false);
+                    const showLogPopup = ref(false);
+                    const logs = ref([]);
+
+                    const showIndexBar = ref(false);
+                    let indexBarTimer = null;
+                    const isTouchingSidebar = ref(false);
+                    // 【新增】恢复阈值判断所需的变量
+                    let lastScrollTop = 0;
+                    let lastTime = 0;
+
+                    let statusPollTimer = null;
+
+                    const fetchSystems = async () => {
+                        try {
+                            const res = await fetch('/api/systems');
+                            systems.value = await res.json();
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    };
+
+                    const pollStatus = async () => {
+                        if (!currentSystemObj.value) return;
+                        try {
+                            const res = await fetch(`/api/status/${currentSystemObj.value.name}`);
+                            const data = await res.json();
+                            isSyncing.value = data.syncing;
+                            logs.value = data.logs.reverse();
+
+                            if (isSyncing.value || showLogPopup.value) {
+                                if (statusPollTimer) clearTimeout(statusPollTimer);
+                                statusPollTimer = setTimeout(pollStatus, 2000);
+                            } else {
+                                if (statusPollTimer) {
+                                    clearTimeout(statusPollTimer);
+                                    statusPollTimer = null;
+                                    loadGames(currentSystemObj.value);
+                                }
+                            }
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    };
+
+                    const loadGames = async (sysObj) => {
+                        loading.value = true;
+                        allGames.value = [];
+                        try {
+                            const res = await fetch(`/api/games?system=${sysObj.name}&all=1`);
+                            const data = await res.json();
+                            allGames.value = data.data;
+                        } finally {
+                            loading.value = false;
+                        }
+                    };
+
+                    const enterSystem = async (sysObj) => {
+                        window.scrollTo(0, 0);
+                        window.history.pushState({ page: 'gamelist', systemName: sysObj.name }, '');
+                        currentSystemObj.value = sysObj;
+                        pollStatus();
+                        loadGames(sysObj);
+                    };
+
+                    const openDetail = async (game) => {
+                        window.history.pushState(
+                            { page: 'detail', systemName: currentSystemObj.value.name, gameName: game.name },
+                            ''
+                        );
+                        selectedGame.value = game;
+                        currentSwipeIndex.value = 0;
+                        showDetail.value = true;
+                        nextTick(() => {
+                            if (imgSwipe.value) imgSwipe.value.swipeTo(0, { immediate: true });
+                        });
+
+                        versions.value = [];
+                        currentVersionId.value = null;
+                        const res = await fetch(
+                            `/api/game-versions?system=${currentSystemObj.value.name}&name=${encodeURIComponent(game.name)}`
+                        );
+                        versions.value = await res.json();
+                        if (versions.value.length > 0) currentVersionId.value = versions.value[0].id;
+                    };
+
+                    const viewLogs = () => {
+                        window.history.pushState(
+                            { page: 'log', systemName: currentSystemObj.value && currentSystemObj.value.name },
+                            ''
+                        );
+                        showLogPopup.value = true;
+                        pollStatus();
+                    };
+
+                    const handleUiBack = () => {
+                        if (currentSystemObj.value && !showDetail.value && !showLogPopup.value) {
+                            if (window.history.state && window.history.state.page === 'gamelist') {
+                                if (window.history.length <= 2) {
+                                    currentSystemObj.value = null;
+                                    window.history.replaceState({ page: 'home' }, '');
+                                    return;
+                                }
+                            }
+                        }
+                        window.history.back();
+                    };
+
+                    const handlePopupClose = (val) => {
+                        if (val === false) window.history.back();
+                    };
+
+                    const handleLogClose = () => {
+                        window.history.back();
+                    };
+
+                    window.addEventListener('popstate', (event) => {
+                        const state = event.state;
+
+                        if (isPreviewOpen.value) {
+                            isPreviewOpen.value = false;
+                            vant.closeImagePreview();
+                            return;
+                        }
+
+                        const targetPage = state && state.page ? state.page : 'home';
+
+                        if (targetPage === 'log') {
+                            showLogPopup.value = true;
+                            showDetail.value = false;
+                        } else if (targetPage === 'detail') {
+                            showLogPopup.value = false;
+                            showDetail.value = true;
+                        } else if (targetPage === 'gamelist') {
+                            showLogPopup.value = false;
+                            showDetail.value = false;
+
+                            if (!currentSystemObj.value && state.systemName) {
+                                const sys = systems.value.find((s) => s.name === state.systemName);
+                                if (sys) {
+                                    currentSystemObj.value = sys;
+                                    loadGames(sys);
+                                    pollStatus();
+                                }
+                            }
+                        } else {
+                            showLogPopup.value = false;
+                            showDetail.value = false;
+                            currentSystemObj.value = null;
+                            showSearch.value = false;
+                            allGames.value = [];
+                            if (statusPollTimer) clearTimeout(statusPollTimer);
+                        }
+                    });
+
+                    // 索引栏控制 (依赖 Body Class)
+                    watch(showIndexBar, (val) => {
+                        if (val) document.body.classList.add('show-sidebar');
+                        else document.body.classList.remove('show-sidebar');
+                    });
+
+                    // 【恢复】智能滚动阈值判断
+                    const handleScroll = () => {
+                        if (!currentSystemObj.value) return;
+                        if (isTouchingSidebar.value) return;
+
+                        const now = Date.now();
+                        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                        const distance = Math.abs(scrollTop - lastScrollTop);
+                        const timeDiff = now - lastTime;
+                        const speed = timeDiff > 0 ? distance / timeDiff : 0;
+
+                        // 判据：速度 > 2 (快速甩动) 或 距离 > 150 (长距离滑动)
+                        if (speed > 2 || distance > 150) {
+                            showIndexBar.value = true;
+
+                            if (indexBarTimer) clearTimeout(indexBarTimer);
+                            indexBarTimer = setTimeout(() => {
+                                if (!isTouchingSidebar.value) {
+                                    showIndexBar.value = false;
+                                }
+                            }, 2000);
+                        }
+
+                        lastScrollTop = scrollTop;
+                        lastTime = now;
+                    };
+
+                    const onSidebarTouchStart = (e) => {
+                        if (e.target.closest('.van-index-bar__sidebar')) {
+                            isTouchingSidebar.value = true;
+                            showIndexBar.value = true;
+                            if (indexBarTimer) clearTimeout(indexBarTimer);
+                        }
+                    };
+
+                    const onSidebarTouchEnd = () => {
+                        isTouchingSidebar.value = false;
+                        if (indexBarTimer) clearTimeout(indexBarTimer);
+                        indexBarTimer = setTimeout(() => {
+                            showIndexBar.value = false;
+                        }, 2000);
+                    };
+
+                    const groupedGames = computed(() => {
+                        if (!allGames.value.length) return {};
+                        const groups = {};
+                        allGames.value.forEach((game) => {
+                            let letter = (game.name || '#')[0].toUpperCase();
+                            if (!/[A-Z]/.test(letter)) letter = '#';
+                            if (!groups[letter]) groups[letter] = [];
+                            groups[letter].push(game);
+                        });
+                        return Object.keys(groups)
+                            .sort((a, b) => {
+                                if (a === '#') return -1;
+                                if (b === '#') return 1;
+                                return a.localeCompare(b);
+                            })
+                            .reduce((obj, key) => {
+                                obj[key] = groups[key];
+                                return obj;
+                            }, {});
+                    });
+
+                    const indexList = computed(() => Object.keys(groupedGames.value));
+
+                    const displayImages = computed(() => {
+                        if (!currentVersionId.value) return [];
+                        const ver = versions.value.find((v) => v.id === currentVersionId.value);
+                        if (!ver) return [];
+                        if (!ver.gallery || ver.gallery.length === 0) {
+                            if (selectedGame.value.image_path)
+                                return [{ type: 'Cover', url: selectedGame.value.image_path }];
+                            return [];
+                        }
+                        return ver.gallery;
+                    });
+
+                    const switchVersion = (ver) => {
+                        currentVersionId.value = ver.id;
+                        currentSwipeIndex.value = 0;
+                        if (imgSwipe.value) imgSwipe.value.swipeTo(0);
+                    };
+
+                    const swipeTo = (idx) => {
+                        if (imgSwipe.value) imgSwipe.value.swipeTo(idx);
+                    };
+                    const onSwipeChange = (idx) => (currentSwipeIndex.value = idx);
+
+                    const previewBig = (startIdx) => {
+                        window.history.pushState({ page: 'preview' }, '');
+                        isPreviewOpen.value = true;
+                        const urls = displayImages.value.map((i) => getImgUrl(i.url));
+                        vant.showImagePreview({
+                            images: urls,
+                            startPosition: startIdx,
+                            closeable: true,
+                            loop: true,
+                            onClose: () => {
+                                if (isPreviewOpen.value) {
+                                    window.history.back();
+                                }
+                            }
+                        });
+                    };
+
+                    const triggerSync = async () => {
+                        if (isSyncing.value) {
+                            viewLogs();
+                            return;
+                        }
+
+                        vant.showConfirmDialog({
+                            title: '同步文件',
+                            message: '扫描当前目录下新增的ROM，并尝试联网抓取信息。\n这可能需要一些时间。',
+                            theme: 'round-button'
+                        })
+                            .then(async () => {
+                                isSyncing.value = true;
+                                logs.value = [];
+                                try {
+                                    await fetch(`/api/scan/${currentSystemObj.value.name}`, { method: 'POST' });
+                                    vant.showToast({ message: '后台扫描已启动', icon: 'success' });
+                                    pollStatus();
+                                } catch (e) {
+                                    isSyncing.value = false;
+                                    vant.showToast('请求失败');
+                                }
+                            })
+                            .catch(() => {});
+                    };
+
+                    const onMenuSelect = (action) => {
+                        if (action.text === '同步新文件') {
+                            triggerSync();
+                        }
+                    };
+
+                    onMounted(() => {
+                        fetchSystems();
+                        window.history.replaceState({ page: 'home' }, '');
+
+                        window.addEventListener('touchstart', onSidebarTouchStart, { passive: false });
+                        window.addEventListener('touchend', onSidebarTouchEnd);
+                        window.addEventListener('touchcancel', onSidebarTouchEnd);
+                        window.addEventListener('scroll', handleScroll);
+                    });
+
+                    const getSysColor = (sysName) => {
+                        const colors = [
+                            'linear-gradient(135deg, #ff5e57, #d63031)',
+                            'linear-gradient(135deg, #a29bfe, #6c5ce7)',
+                            'linear-gradient(135deg, #00b894, #00cec9)',
+                            'linear-gradient(135deg, #fdcb6e, #e17055)',
+                            'linear-gradient(135deg, #74b9ff, #0984e3)',
+                            'linear-gradient(135deg, #636e72, #2d3436)'
+                        ];
+                        let hash = 0;
+                        for (let i = 0; i < sysName.length; i++) {
+                            hash = sysName.charCodeAt(i) + ((hash << 5) - hash);
+                        }
+                        const index = Math.abs(hash) % colors.length;
+                        return colors[index];
+                    };
+
+                    const getImgUrl = (path) => {
+                        if (!path) return '';
+                        return (
+                            '/' +
+                            path
+                                .split('/')
+                                .map((p) => encodeURIComponent(p))
+                                .join('/')
+                        );
+                    };
+
+                    const onImgLoad = (e) => {
+                        e.target.classList.add('loaded');
+                    };
+
+                    const download = (id) => {
+                        window.location.href = `/api/download/${id}`;
+                    };
+
+                    return {
+                        systems,
+                        currentSystemObj,
+                        loading,
+                        showSearch,
+                        keyword,
+                        groupedGames,
+                        indexList,
+                        showDetail,
+                        selectedGame,
+                        versions,
+                        currentVersionId,
+                        displayImages,
+                        currentSwipeIndex,
+                        imgSwipe,
+                        enterSystem,
+                        handleUiBack,
+                        openDetail,
+                        switchVersion,
+                        swipeTo,
+                        onSwipeChange,
+                        previewBig,
+                        getSysColor,
+                        getImgUrl,
+                        download,
+                        onImgLoad,
+                        triggerSync,
+                        isSyncing,
+                        showLogPopup,
+                        logs,
+                        viewLogs,
+                        handlePopupClose,
+                        handleLogClose,
+                        onSearch: () => {},
+                        onClearSearch: () => {},
+                        onMenuSelect
+                    };
+                }
+            });
+
+            app.use(vant);
+            app.mount('#app');
+        </script>
+    </body>
+</html>

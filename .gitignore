@@ -1,0 +1,43 @@
+# === 依赖包 ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# === 系统文件 (Mac/Windows) ===
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# === 敏感配置 (绝对不能上传) ===
+config.js
+.env
+
+# === 用户数据/资源 (不需要上传) ===
+# 您的游戏 ROM 文件
+roms/*
+!roms/.gitkeep
+# (保留 roms 文件夹本身，但忽略里面的内容，除 .gitkeep 外)
+
+# 下载的图片 (封面、截图)
+# 建议保留目录结构，但不传图片
+public/images/*
+!public/images/.gitkeep
+
+# === 数据库文件 ===
+# 代码逻辑(js)要上传，但数据库数据(.db/.sqlite)不要上传
+*.db
+*.sqlite
+*.sqlite3
+db/*.db
+
+# === 临时文件/日志 ===
+logs/
+*.log
+tmp/
+temp/
+
+# === IDE 配置 (可选) ===
+.vscode/
+.idea/
