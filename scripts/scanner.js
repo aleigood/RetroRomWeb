@@ -1,3 +1,7 @@
+/*
+type: uploaded file
+fileName: 新建文件夹/scripts/scanner.js
+*/
 const fs = require('fs-extra');
 const path = require('path');
 const sax = require('sax');
@@ -49,7 +53,6 @@ const IGNORE_DIRS = [
 ];
 
 const dirCache = {};
-
 const systemStates = {};
 
 function getSystemStatus (system) {
@@ -114,9 +117,17 @@ function deleteLocalImages (system, romBasename) {
 
 function loadSystemMetadata () {
     return new Promise((resolve) => {
-        const xmlPath = path.join(config.romsDir, 'systems.xml');
+        // 【核心修改】改为从项目工程目录读取 systems.xml
+        // __dirname 是当前脚本所在目录 (scripts/)，../systems.xml 即项目根目录下的文件
+        const xmlPath = path.join(__dirname, '../systems.xml');
+
         const metadata = {};
-        if (!fs.existsSync(xmlPath)) return resolve(metadata);
+        if (!fs.existsSync(xmlPath)) {
+            console.warn(`[Scanner] 警告：未在项目根目录找到主机配置文件: ${xmlPath}`);
+            return resolve(metadata);
+        }
+
+        console.log(`[Scanner] 加载主机配置: ${xmlPath}`);
 
         const parser = sax.createStream(false, { trim: true, lowercase: true });
         let currentSystem = null;
@@ -181,6 +192,7 @@ async function syncHostList () {
             );
             diskDirs.forEach((dir) => {
                 const info = metadata[dir.toLowerCase()] || {};
+                // 这里将直接使用 XML 中的 abbr，只要你在 XML 里把 colecovision 的 abbr 改成 CV 即可
                 stmt.run(
                     dir,
                     info.fullname || dir.toUpperCase(),
@@ -293,7 +305,6 @@ function importGamelistXml (system) {
     });
 }
 
-// === 核心同步逻辑 ===
 async function syncSystem (system) {
     const state = getSystemStatus(system);
     if (state.syncing) return;
@@ -330,7 +341,6 @@ async function syncSystem (system) {
     const toUpdate = dbGames
         .filter((g) => {
             if (!diskFiles.includes(g.filename)) return false;
-            // 判断是否信息不全，需要重试抓取
             const isIncomplete = !g.desc || g.desc === '暂无简介' || !g.image_path || g.rating === '0';
             return isIncomplete;
         })
@@ -392,9 +402,9 @@ async function syncSystem (system) {
     addLog(system, `已将 ${taskList.length} 个任务加入后台队列 (新增+重试)，开始联网抓取...`);
 }
 
-// === 单个游戏处理函数 (已优化图片检查逻辑) ===
 async function processNewGame (system, filename) {
-    const romPath = path.join(system, filename).replace(/\\/g, '/');
+    const romPath = path.join(system, filename).replace(/\\/g, '/'); // 数据库相对路径
+    const fullPath = path.join(config.romsDir, system, filename); // 物理绝对路径
     const basename = path.basename(filename, path.extname(filename));
 
     // 先尝试找本地已有图片
@@ -412,7 +422,8 @@ async function processNewGame (system, filename) {
     addLog(system, `[处理中] ${filename} ...`);
 
     try {
-        const scraperData = await scraper.fetchGameInfo(system, filename);
+        const scraperData = await scraper.fetchGameInfo(system, filename, fullPath);
+
         if (scraperData) {
             gameInfo.name = scraperData.name;
             gameInfo.desc = scraperData.desc;
@@ -423,22 +434,16 @@ async function processNewGame (system, filename) {
 
             addLog(system, `[抓取成功] 匹配为: ${scraperData.name}`);
 
-            // === 封面处理 ===
             if (scraperData.boxArtUrl) {
                 const targetPath = path.join(config.imagesDir, system, 'covers', basename + '.png');
-
-                // 【核心修改】检查文件是否存在
                 if (fs.existsSync(targetPath)) {
                     addLog(system, '  -> 封面已存在，跳过下载');
                 } else {
                     await scraper.downloadFile(scraperData.boxArtUrl, targetPath);
                     addLog(system, '  -> 封面下载完成');
                 }
-                // 无论是否下载，都更新数据库路径
                 imagePath = path.join(system, 'covers', basename + '.png').replace(/\\/g, '/');
             }
-
-            // === 截图处理 ===
             if (scraperData.screenUrl) {
                 const targetPath = path.join(config.imagesDir, system, 'screenshots', basename + '.png');
                 if (fs.existsSync(targetPath)) {

@@ -108,7 +108,6 @@
             }
 
             /* === 弹窗样式修正 === */
-            /* 【修改1】增加明显的阴影 */
             .van-popup.van-dialog {
                 background: #25252b !important;
                 border: 1px solid rgba(255, 255, 255, 0.1);
@@ -163,7 +162,6 @@
             }
 
             /* === 索引栏 & 标记 === */
-            /* 【修改2】调整指示器透明度和交互 */
             .index-hint {
                 position: fixed;
                 right: 4px;
@@ -173,15 +171,26 @@
                 height: 40px;
                 background: rgba(255, 255, 255, 0.6);
                 border-radius: 4px;
-                z-index: 1900;
-                pointer-events: none;
+                z-index: 2500; /* 比 sidebar 高，确保优先响应 */
+                pointer-events: auto; /* 【关键】指示器可以点击 */
                 transition:
                     opacity 0.3s,
                     transform 0.2s;
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-                opacity: 0.1; /* 默认几乎透明 */
+                opacity: 0.1;
+                /* 增加点击热区，方便手指按压，但不改变视觉大小 */
+                touch-action: none;
             }
-            /* 滚动时高亮 */
+            .index-hint::before {
+                content: '';
+                position: absolute;
+                top: -10px;
+                bottom: -10px;
+                left: -20px;
+                right: -10px;
+                background: transparent;
+            }
+
             .index-hint.active-scroll {
                 opacity: 0.8;
             }
@@ -198,7 +207,7 @@
                 border-radius: 2px;
             }
             body.touching-sidebar .index-hint {
-                opacity: 0; /* 触摸激活索引栏时，隐藏这个静态指示器 */
+                opacity: 0;
             }
 
             .van-index-bar__sidebar {
@@ -215,6 +224,8 @@
                 user-select: none;
                 -webkit-user-select: none;
                 transition: opacity 0.2s;
+                /* 【核心修改】默认禁止点击，防止误触右边缘 */
+                pointer-events: none !important;
             }
             .van-index-bar__index {
                 padding: 0 !important;
@@ -224,6 +235,8 @@
                 line-height: 1.6;
                 font-weight: 700 !important;
             }
+
+            /* 当处于激活状态时，允许 sidebar 接收事件（为了 elementFromPoint 检测） */
             body.touching-sidebar .van-index-bar__sidebar {
                 background: rgba(0, 0, 0, 0.7) !important;
                 border-top-left-radius: 16px;
@@ -231,6 +244,7 @@
                 right: 0 !important;
                 opacity: 1 !important;
                 padding: 8px 0;
+                pointer-events: auto !important; /* 激活后允许交互 */
             }
             body.touching-sidebar .van-index-bar__index--active {
                 color: #fff !important;
@@ -362,7 +376,7 @@
                 background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
             }
             .sys-abbr {
-                font-size: 32px;
+                font-size: 28px;
                 font-weight: 900;
                 color: rgba(255, 255, 255, 0.95);
                 text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -733,6 +747,7 @@
                         :sticky="false"
                         highlight-color="var(--primary)"
                         @select="onIndexSelect"
+                        ref="systemIndexBarRef"
                     >
                         <div v-for="(group, letter) in groupedSystems" :key="letter">
                             <van-index-anchor :index="letter">{{ letter }}</van-index-anchor>
@@ -821,6 +836,7 @@
                         :sticky="false"
                         highlight-color="var(--primary)"
                         @select="onIndexSelect"
+                        ref="gameIndexBarRef"
                     >
                         <div v-for="(group, letter) in groupedGames" :key="letter">
                             <van-index-anchor :index="letter">{{ letter }}</van-index-anchor>
@@ -1007,8 +1023,12 @@
                     const currentLetter = ref('');
                     const bubbleY = ref(0);
                     const isTouchingIndex = ref(false);
-                    const isScrollingPage = ref(false); // 新增：页面滚动状态
-                    let scrollTimeout = null; // 新增：滚动防抖
+                    const isScrollingPage = ref(false);
+                    let scrollTimeout = null;
+
+                    /* 索引栏引用 */
+                    const systemIndexBarRef = ref(null);
+                    const gameIndexBarRef = ref(null);
 
                     let statusPollTimer = null;
                     const transitionName = ref('slide-left');
@@ -1072,53 +1092,71 @@
                         window.history.back();
                     };
 
-                    /* 新增：页面滚动处理 */
                     const handleScroll = () => {
                         isScrollingPage.value = true;
                         if (scrollTimeout) clearTimeout(scrollTimeout);
                         scrollTimeout = setTimeout(() => {
                             isScrollingPage.value = false;
-                        }, 1000); // 停止滚动1秒后变淡
+                        }, 1000);
                     };
 
+                    /* === 核心修改：精准触摸处理 === */
                     const handleIndexTouch = (e) => {
-                        // 【核心修改】只允许触摸最右侧 20px 区域触发索引
+                        // 1. 如果尚未处于触摸索引状态，则必须且只能由“指示器”触发
                         if (e.type === 'touchstart') {
-                            const touch = e.touches[0];
-                            const screenWidth = window.innerWidth;
-                            // 如果触摸点不在右侧边缘 20px 内，则忽略
-                            if (touch.clientX < screenWidth - 20) {
+                            const isHint = e.target.classList.contains('index-hint');
+                            if (!isHint) {
+                                // 如果不是点在指示器上，直接忽略，不启动索引模式
                                 return;
                             }
-                        }
-
-                        const sidebar = e.target.closest('.van-index-bar__sidebar');
-                        if (!sidebar) {
-                            if (isTouchingIndex.value) {
-                                isTouchingIndex.value = false;
-                                document.body.classList.remove('touching-sidebar');
-                                showLetterToast.value = false;
-                            }
-                            return;
-                        }
-
-                        if (e.type === 'touchstart') {
+                            // 点中指示器，启动索引模式
                             isTouchingIndex.value = true;
                             document.body.classList.add('touching-sidebar');
+                            e.preventDefault(); // 阻止页面滚动
                         }
 
-                        if (e.type === 'touchend' || e.type === 'touchcancel') {
-                            isTouchingIndex.value = false;
-                            document.body.classList.remove('touching-sidebar');
-                            setTimeout(() => (showLetterToast.value = false), 300);
-                            return;
-                        }
+                        // 2. 如果已激活索引模式（手指在滑动），处理逻辑
+                        if (isTouchingIndex.value) {
+                            e.preventDefault();
 
-                        const touch = e.touches[0];
-                        bubbleY.value = touch.clientY;
+                            // 触摸结束清理状态
+                            if (e.type === 'touchend' || e.type === 'touchcancel') {
+                                isTouchingIndex.value = false;
+                                document.body.classList.remove('touching-sidebar');
+                                setTimeout(() => (showLetterToast.value = false), 300);
+                                return;
+                            }
+
+                            // 3. 计算手指位置对应的字母
+                            const touch = e.touches[0];
+                            bubbleY.value = touch.clientY;
+
+                            // 核心：使用 elementFromPoint 在“已激活（pointer-events: auto）”的 sidebar 上找元素
+                            // 因为此时 body 有 .touching-sidebar 类，sidebar 是可见且可交互的
+                            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                            if (target) {
+                                // 找到手指下的索引项
+                                const indexItem = target.closest('.van-index-bar__index');
+                                if (indexItem) {
+                                    const char = indexItem.innerText;
+                                    if (char && char !== currentLetter.value) {
+                                        currentLetter.value = char;
+                                        showLetterToast.value = true;
+                                        // 调用 Vant 组件的 scrollTo 方法跳转
+                                        const activeBar = currentSystemObj.value
+                                            ? gameIndexBarRef.value
+                                            : systemIndexBarRef.value;
+                                        if (activeBar) {
+                                            activeBar.scrollTo(char);
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     };
 
                     const onIndexSelect = (index) => {
+                        // 配合 Vant 的回调，确保数据一致
                         if (isTouchingIndex.value) {
                             currentLetter.value = index;
                             showLetterToast.value = true;
@@ -1353,8 +1391,10 @@
                         onIndexSelect,
                         groupedSystems,
                         systemIndexList,
-                        handleScroll, // 新增导出
-                        isScrollingPage // 新增导出
+                        handleScroll,
+                        isScrollingPage,
+                        systemIndexBarRef, // 导出引用
+                        gameIndexBarRef // 导出引用
                     };
                 }
             });
