@@ -483,6 +483,9 @@
                 grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
                 gap: 16px;
                 padding-bottom: 20px;
+                /* 保留内容可见性优化 */
+                content-visibility: auto;
+                contain-intrinsic-size: 300px;
             }
             .game-card {
                 background: var(--bg-card);
@@ -493,7 +496,8 @@
                 border: 1px solid rgba(255, 255, 255, 0.05);
                 box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.4);
                 transform: translateZ(0);
-                transition: transform 0.2s;
+                /* 性能优化：严格隔离 */
+                contain: strict;
             }
             .game-card:active {
                 transform: scale(0.95);
@@ -502,18 +506,23 @@
                 width: 100%;
                 height: 100%;
                 position: relative;
+                /* 占位背景色 */
+                background: #15151a;
             }
             .thumb-bg {
                 position: absolute;
-                width: 10%;
-                height: 10%;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%) scale(12);
+                width: 100%;
+                height: 100%;
+                top: 0;
+                left: 0;
+                /* 保留你的光晕效果 */
+                transform: scale(1.2);
                 object-fit: cover;
-                filter: blur(2px) brightness(0.4) saturate(1.2);
+                filter: blur(15px) brightness(0.4) saturate(1.2);
                 z-index: 1;
                 pointer-events: none;
+                /* 开启GPU加速 */
+                will-change: transform, opacity;
             }
             .thumb-img {
                 position: absolute;
@@ -522,6 +531,17 @@
                 object-fit: contain;
                 z-index: 2;
             }
+
+            /* === 新增：懒加载状态样式 === */
+            .lazy-img {
+                opacity: 0;
+                transition: opacity 0.4s ease-out;
+                will-change: opacity;
+            }
+            .lazy-img.loaded {
+                opacity: 1;
+            }
+
             .no-img {
                 width: 100%;
                 height: 100%;
@@ -704,34 +724,29 @@
                 padding: 24px;
             }
 
-            /* 【修改】Logo 区域：无卡片样式，使用光晕铺满 */
             .d-marquee-box {
                 position: relative;
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                /* 【修改】上下间距调整为 80px */
                 margin-top: 80px;
                 margin-bottom: 80px;
                 border: none;
                 background: none;
                 box-shadow: none;
-                min-height: 20px; /* 防止无图时完全塌陷 */
+                min-height: 20px;
             }
 
-            /* 背景光晕：放大并虚化 */
             .d-marquee-bg {
                 position: absolute;
                 top: 50%;
                 left: 50%;
-                width: 120vw; /* 宽度远超容器，铺满左右 */
-                height: 120vw; /* 高度足够大，铺满上下 */
+                width: 120vw;
+                height: 120vw;
                 transform: translate(-50%, -50%);
                 object-fit: cover;
-                /* 强力模糊 */
                 filter: blur(40px) opacity(0.6);
                 z-index: -1;
-                /* 径向渐变遮罩：中心不透明，边缘透明，形成柔和光晕 */
                 mask-image: radial-gradient(circle, black 20%, transparent 70%);
                 -webkit-mask-image: radial-gradient(circle, black 20%, transparent 70%);
                 pointer-events: none;
@@ -986,20 +1001,8 @@
                                             <i class="ri-gamepad-line" style="font-size: 32px"></i>
                                         </div>
                                         <template v-else>
-                                            <img
-                                                class="thumb-bg fade-img"
-                                                :src="getImgUrl(game.image_path)"
-                                                loading="lazy"
-                                                decoding="async"
-                                                @load="onImgLoad"
-                                            />
-                                            <img
-                                                class="thumb-img fade-img"
-                                                :src="getImgUrl(game.image_path)"
-                                                loading="lazy"
-                                                decoding="async"
-                                                @load="onImgLoad"
-                                            />
+                                            <img class="thumb-bg lazy-img" v-lazy="getImgUrl(game.image_path)" />
+                                            <img class="thumb-img lazy-img" v-lazy="getImgUrl(game.image_path)" />
                                         </template>
                                         <div class="ver-badge" v-if="game.version_count > 1">
                                             {{ game.version_count }} Ver
@@ -1247,7 +1250,94 @@
         <script>
             const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
+            /* === 核心优化：智能懒加载管理器 (Android模式) === */
+            const useLazyObserver = () => {
+                let observer = null;
+                const elementStateMap = new WeakMap();
+
+                const initObserver = () => {
+                    if (observer) return;
+                    observer = new IntersectionObserver(
+                        (entries) => {
+                            entries.forEach((entry) => {
+                                const el = entry.target;
+                                const state = elementStateMap.get(el);
+
+                                if (entry.isIntersecting) {
+                                    // 只有当元素停留在视口内超过 200ms 才加载
+                                    // 这意味着快速滑过（索引跳转）时，中间的图片完全不会触发网络请求
+                                    if (!state.loaded && !state.timer) {
+                                        state.timer = setTimeout(() => {
+                                            loadImage(el, state.src);
+                                            state.loaded = true;
+                                            // 只需要加载一次，之后就不需要观察了
+                                            observer.unobserve(el);
+                                        }, 200);
+                                    }
+                                } else {
+                                    // 如果在 200ms 内滑出了视口，说明是快速滑动，取消加载
+                                    if (state.timer) {
+                                        clearTimeout(state.timer);
+                                        state.timer = null;
+                                    }
+                                }
+                            });
+                        },
+                        { rootMargin: '100px 0px' }
+                    ); // 预加载上下 100px 的区域
+                };
+
+                const loadImage = (el, src) => {
+                    // 使用 Image 对象在后台线程加载
+                    const img = new Image();
+                    img.src = src;
+                    // 关键技术：Image.decode()
+                    // 它会将图片解码工作移出主线程，解决“图片出现瞬间卡顿”的问题
+                    img.decode()
+                        .then(() => {
+                            el.src = src;
+                            el.classList.add('loaded'); // 触发 CSS 淡入
+                        })
+                        .catch((e) => {
+                            // 兼容性回退：如果 decode 失败，就直接赋值
+                            el.src = src;
+                            el.onload = () => el.classList.add('loaded');
+                        });
+                };
+
+                return {
+                    observe: (el, src) => {
+                        initObserver();
+                        if (!src) return;
+                        elementStateMap.set(el, { src, loaded: false, timer: null });
+                        observer.observe(el);
+                    },
+                    unobserve: (el) => {
+                        if (observer) observer.unobserve(el);
+                    }
+                };
+            };
+
+            const lazyManager = useLazyObserver();
+
+            // Vue 自定义指令 v-lazy
+            const vLazy = {
+                mounted: (el, binding) => {
+                    lazyManager.observe(el, binding.value);
+                },
+                updated: (el, binding) => {
+                    if (binding.value !== binding.oldValue) {
+                        el.classList.remove('loaded');
+                        lazyManager.observe(el, binding.value);
+                    }
+                },
+                unmounted: (el) => {
+                    lazyManager.unobserve(el);
+                }
+            };
+
             const app = createApp({
+                directives: { lazy: vLazy }, // 注册指令
                 setup() {
                     const systems = ref([]);
                     const currentSystemObj = ref(null);
