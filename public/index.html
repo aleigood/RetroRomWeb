@@ -503,13 +503,18 @@
                 height: 100%;
                 position: relative;
             }
+            /* 【优化】物理模糊方案：缩小渲染尺寸，强行拉伸 */
             .thumb-bg {
                 position: absolute;
-                width: 100%;
-                height: 100%;
+                width: 10%;           /* 核心：只渲染原图 10% 大小 */
+                height: 10%;          /* 核心：只渲染原图 10% 大小 */
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) scale(12); /* 核心：放大12倍铺满，自然产生模糊 */
                 object-fit: cover;
-                filter: blur(15px) brightness(0.4) saturate(1.2);
-                transform: scale(1.2);
+                filter: blur(2px) brightness(0.4) saturate(1.2); /* 辅助：只需极低成本的模糊抹平锯齿 */
+                z-index: 1;
+                pointer-events: none; /* 避免干扰点击 */
             }
             .thumb-img {
                 position: absolute;
@@ -897,12 +902,14 @@
                                                 class="thumb-bg fade-img"
                                                 :src="getImgUrl(game.image_path)"
                                                 loading="lazy"
+                                                decoding="async"
                                                 @load="onImgLoad"
                                             />
                                             <img
                                                 class="thumb-img fade-img"
                                                 :src="getImgUrl(game.image_path)"
                                                 loading="lazy"
+                                                decoding="async"
                                                 @load="onImgLoad"
                                             />
                                         </template>
@@ -1539,3 +1546,4 @@
         </script>
     </body>
 </html>
+}
