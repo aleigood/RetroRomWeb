@@ -997,12 +997,12 @@
                             <div class="game-grid-section">
                                 <div v-for="game in group" :key="game.name" class="game-card" @click="openDetail(game)">
                                     <div class="thumb-box">
-                                        <div v-if="!game.image_path" class="no-img">
+                                        <div v-if="!getGamePoster(game)" class="no-img">
                                             <i class="ri-gamepad-line" style="font-size: 32px"></i>
                                         </div>
                                         <template v-else>
-                                            <img class="thumb-bg lazy-img" v-lazy="getImgUrl(game.image_path)" />
-                                            <img class="thumb-img lazy-img" v-lazy="getImgUrl(game.image_path)" />
+                                            <img class="thumb-bg lazy-img" v-lazy="getGamePoster(game)" />
+                                            <img class="thumb-img lazy-img" v-lazy="getGamePoster(game)" />
                                         </template>
                                         <div class="ver-badge" v-if="game.version_count > 1">
                                             {{ game.version_count }} Ver
@@ -1036,11 +1036,15 @@
 
             <div
                 class="index-hint"
-                v-show="!showDetail"
+                v-show="!showDetail && !showLogPopup"
                 :class="{ 'active-scroll': isScrollingPage }"
                 :style="{ top: indicatorTop + 'px', transform: 'none' }"
             ></div>
-            <div class="side-bubble" :class="{ visible: showLetterToast }" :style="{ top: bubbleY + 'px' }">
+            <div
+                class="side-bubble"
+                :class="{ visible: showLetterToast && !showLogPopup }"
+                :style="{ top: bubbleY + 'px' }"
+            >
                 <span>{{ currentLetter }}</span>
             </div>
 
@@ -1093,15 +1097,10 @@
                                                 ></video>
                                             </div>
                                             <template v-else>
+                                                <img class="swipe-bg lazy-img" v-lazy="getImgUrl(media.url)" />
                                                 <img
-                                                    class="swipe-bg fade-img"
-                                                    :src="getImgUrl(media.url)"
-                                                    @load="onImgLoad"
-                                                />
-                                                <img
-                                                    class="swipe-img fade-img"
-                                                    :src="getImgUrl(media.url)"
-                                                    @load="onImgLoad"
+                                                    class="swipe-img lazy-img"
+                                                    v-lazy="getImgUrl(media.url)"
                                                     @click="previewBig(idx)"
                                                 />
                                             </template>
@@ -1134,13 +1133,13 @@
                                     />
                                     <i class="ri-play-circle-line ts-video-icon"></i>
                                 </template>
-                                <img v-else class="ts-img fade-img" :src="getImgUrl(media.url)" @load="onImgLoad" />
+                                <img v-else class="ts-img lazy-img" v-lazy="getImgUrl(media.url)" />
                             </div>
                         </div>
                         <div class="d-body">
                             <div v-if="marqueeUrl" class="d-marquee-box">
-                                <img :src="getImgUrl(marqueeUrl)" class="d-marquee-bg" />
-                                <img :src="getImgUrl(marqueeUrl)" class="d-marquee-img" />
+                                <img v-lazy="getImgUrl(marqueeUrl)" class="d-marquee-bg lazy-img" />
+                                <img v-lazy="getImgUrl(marqueeUrl)" class="d-marquee-img lazy-img" />
                             </div>
 
                             <div class="d-title">{{ selectedGame.name }}</div>
@@ -1756,6 +1755,14 @@
                     const onImgLoad = (e) => e.target.classList.add('loaded');
                     const download = (id) => (window.location.href = `/api/download/${id}`);
 
+                    // === 新增：游戏封面智能回退 ===
+                    const getGamePoster = (game) => {
+                        // 优先 Image -> Marquee -> Video -> 空
+                        // 如果 image_path 为空，尝试用 marquee_path 或 video_path 补位
+                        const url = game.image_path || game.marquee_path || game.video_path;
+                        return getImgUrl(url);
+                    };
+
                     const groupedGames = computed(() => {
                         if (!allGames.value.length) return {};
                         const groups = {};
@@ -1875,7 +1882,8 @@
                         systemIndexBarRef,
                         gameIndexBarRef,
                         indicatorTop,
-                        progress
+                        progress,
+                        getGamePoster // 导出新增函数
                     };
                 }
             });
