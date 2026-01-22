@@ -55,7 +55,7 @@
                 margin: 0;
                 -webkit-tap-highlight-color: transparent;
 
-                /* 【修改】默认值改为 70px (顶部)，防止首次加载出现在中间 */
+                /* 定义 CSS 变量初始值 */
                 --sidebar-top: 70px;
             }
 
@@ -671,6 +671,9 @@
                 border-radius: 8px;
                 font-size: 12px;
                 color: #ddd;
+                display: flex;
+                align-items: center;
+                gap: 4px;
             }
             .d-desc {
                 font-size: 15px;
@@ -991,7 +994,13 @@
                         <div class="d-tags">
                             <span class="tag" v-if="selectedGame.releasedate"
                                 >{{ selectedGame.releasedate.substring(0,4) }}</span
-                            ><span class="tag" v-if="selectedGame.developer">{{ selectedGame.developer }}</span>
+                            >
+                            <span class="tag" v-if="selectedGame.genre">{{ selectedGame.genre }}</span>
+                            <span class="tag" v-if="selectedGame.players"
+                                ><i class="ri-user-3-fill"></i> {{ selectedGame.players }}</span
+                            >
+                            <span class="tag" v-if="selectedGame.publisher">{{ selectedGame.publisher }}</span>
+                            <span class="tag" v-if="selectedGame.developer">{{ selectedGame.developer }}</span>
                         </div>
                         <div style="margin-bottom: 16px" v-if="selectedGame.rating > 0">
                             <van-rate
@@ -1034,7 +1043,10 @@
                 class="log-popup"
                 :style="{ height: '60%' }"
             >
-                <div style="text-align: center; margin-bottom: 10px; font-weight: bold; color: #fff">Running Logs</div>
+                <div style="text-align: center; margin-bottom: 10px; font-weight: bold; color: #fff">
+                    Running Logs
+                    <span v-if="isSyncing && progress.total > 0">({{ progress.current }} / {{ progress.total }})</span>
+                </div>
                 <div v-if="logs.length === 0" style="text-align: center; padding: 20px; color: #666">
                     No logs available.
                 </div>
@@ -1066,6 +1078,8 @@
                     const isSyncing = ref(false);
                     const showLogPopup = ref(false);
                     const logs = ref([]);
+                    // 【新增】进度状态
+                    const progress = ref({ current: 0, total: 0 });
 
                     const showLetterToast = ref(false);
                     const currentLetter = ref('');
@@ -1079,7 +1093,7 @@
                     const gameIndexBarRef = ref(null);
 
                     /* 【JS控制】指示器动态位置，初始位置放在安全的顶部 */
-                    const indicatorTop = ref(66); // 56px navbar + 10px padding
+                    const indicatorTop = ref(70); // 70px
 
                     // 缓存 sidebar 几何信息，避免重复计算
                     let sidebarRectCache = null;
@@ -1106,6 +1120,10 @@
                             const data = await res.json();
                             isSyncing.value = data.syncing;
                             logs.value = data.logs.reverse();
+                            // 【新增】更新进度
+                            if (data.progress) {
+                                progress.value = data.progress;
+                            }
                             if (isSyncing.value || showLogPopup.value) {
                                 if (statusPollTimer) clearTimeout(statusPollTimer);
                                 statusPollTimer = setTimeout(pollStatus, 2000);
@@ -1134,7 +1152,7 @@
                         window.history.pushState({ page: 'gamelist', systemName: sysObj.name }, '');
                         currentSystemObj.value = sysObj;
                         // 切换页面时，滚动条位置会归零，强制重置指示器位置
-                        indicatorTop.value = 66;
+                        indicatorTop.value = 70;
                         pollStatus();
                         loadGames(sysObj);
                     };
@@ -1146,7 +1164,7 @@
                                     transitionName.value = 'slide-right';
                                     currentSystemObj.value = null;
                                     window.history.replaceState({ page: 'home' }, '');
-                                    indicatorTop.value = 66; // 重置
+                                    indicatorTop.value = 70; // 重置
                                     return;
                                 }
                             }
@@ -1300,7 +1318,7 @@
                             currentSystemObj.value = null;
                             showSearch.value = false;
                             allGames.value = [];
-                            indicatorTop.value = 66; // 重置
+                            indicatorTop.value = 70; // 重置
                         } else if (targetPage === 'detail') {
                             showDetail.value = true;
                             showLogPopup.value = false;
@@ -1358,6 +1376,8 @@
                             .then(async () => {
                                 isSyncing.value = true;
                                 logs.value = [];
+                                // 重置前端进度显示
+                                progress.value = { current: 0, total: 0 };
                                 await fetch(`/api/scan/${currentSystemObj.value.name}`, { method: 'POST' });
                                 vant.showToast({ message: '后台扫描已启动', icon: 'success' });
                                 pollStatus();
@@ -1508,7 +1528,8 @@
                         isScrollingPage,
                         systemIndexBarRef,
                         gameIndexBarRef,
-                        indicatorTop // 导出供模板使用
+                        indicatorTop,
+                        progress // 导出 progress
                     };
                 }
             });

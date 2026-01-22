@@ -57,7 +57,7 @@ const systemStates = {};
 
 function getSystemStatus (system) {
     if (!systemStates[system]) {
-        systemStates[system] = { syncing: false, logs: [] };
+        systemStates[system] = { syncing: false, logs: [], progress: { current: 0, total: 0 } };
     }
     return systemStates[system];
 }
@@ -117,17 +117,9 @@ function deleteLocalImages (system, romBasename) {
 
 function loadSystemMetadata () {
     return new Promise((resolve) => {
-        // 【核心修改】改为从项目工程目录读取 systems.xml
-        // __dirname 是当前脚本所在目录 (scripts/)，../systems.xml 即项目根目录下的文件
         const xmlPath = path.join(__dirname, '../systems.xml');
-
         const metadata = {};
-        if (!fs.existsSync(xmlPath)) {
-            console.warn(`[Scanner] 警告：未在项目根目录找到主机配置文件: ${xmlPath}`);
-            return resolve(metadata);
-        }
-
-        console.log(`[Scanner] 加载主机配置: ${xmlPath}`);
+        if (!fs.existsSync(xmlPath)) return resolve(metadata);
 
         const parser = sax.createStream(false, { trim: true, lowercase: true });
         let currentSystem = null;
@@ -192,7 +184,6 @@ async function syncHostList () {
             );
             diskDirs.forEach((dir) => {
                 const info = metadata[dir.toLowerCase()] || {};
-                // 这里将直接使用 XML 中的 abbr，只要你在 XML 里把 colecovision 的 abbr 改成 CV 即可
                 stmt.run(
                     dir,
                     info.fullname || dir.toUpperCase(),
@@ -225,8 +216,8 @@ function importGamelistXml (system) {
             db.serialize(() => {
                 db.run('BEGIN TRANSACTION');
                 const stmt = db.prepare(`INSERT OR REPLACE INTO games 
-                    (path, system, filename, name, image_path, desc, rating, releasedate, developer, publisher, genre) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                    (path, system, filename, name, image_path, desc, rating, releasedate, developer, publisher, genre, players) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
                 gamesBatch.forEach((g) =>
                     stmt.run(
                         g.path,
@@ -239,7 +230,8 @@ function importGamelistXml (system) {
                         g.releasedate,
                         g.developer,
                         g.publisher,
-                        g.genre
+                        g.genre,
+                        g.players
                     )
                 );
                 stmt.finalize();
@@ -282,7 +274,8 @@ function importGamelistXml (system) {
                     releasedate: currentGame.releasedate || '',
                     developer: currentGame.developer || '',
                     publisher: currentGame.publisher || '',
-                    genre: currentGame.genre || ''
+                    genre: currentGame.genre || '',
+                    players: currentGame.players || ''
                 };
                 gamesBatch.push(gameData);
                 if (gamesBatch.length >= 500) flush();
@@ -311,6 +304,7 @@ async function syncSystem (system) {
 
     state.syncing = true;
     state.logs = [];
+    state.progress = { current: 0, total: 0 };
     addLog(system, '开始扫描文件系统...');
 
     const systemDir = path.join(config.romsDir, system);
@@ -324,10 +318,15 @@ async function syncSystem (system) {
     }
 
     const dbGames = await new Promise((resolve) => {
-        db.all('SELECT id, filename, desc, image_path, rating FROM games WHERE system = ?', [system], (err, rows) => {
-            if (err) resolve([]);
-            else resolve(rows || []);
-        });
+        // 【修改】查询时带上 players，否则下面 undefined 判定不准
+        db.all(
+            'SELECT id, filename, desc, image_path, rating, players FROM games WHERE system = ?',
+            [system],
+            (err, rows) => {
+                if (err) resolve([]);
+                else resolve(rows || []);
+            }
+        );
     });
 
     const dbFilenameMap = {};
@@ -341,7 +340,9 @@ async function syncSystem (system) {
     const toUpdate = dbGames
         .filter((g) => {
             if (!diskFiles.includes(g.filename)) return false;
-            const isIncomplete = !g.desc || g.desc === '暂无简介' || !g.image_path || g.rating === '0';
+            // 【核心修改】移除了 `|| g.rating === '0'` 的判断
+            // 保留了玩家人数的判断 `|| !g.players`，以确保数据完整性
+            const isIncomplete = !g.desc || g.desc === '暂无简介' || !g.image_path || !g.players;
             return isIncomplete;
         })
         .map((g) => g.filename);
@@ -372,7 +373,9 @@ async function syncSystem (system) {
         return;
     }
 
+    state.progress.total = taskList.length;
     let completedCount = 0;
+
     taskList.forEach((filename) => {
         queue.add(async () => {
             try {
@@ -385,12 +388,15 @@ async function syncSystem (system) {
                 await processNewGame(system, filename);
 
                 completedCount++;
+                state.progress.current = completedCount;
+
                 if (completedCount === taskList.length) {
                     addLog(system, '所有任务执行完毕。');
                     state.syncing = false;
                 }
             } catch (e) {
                 completedCount++;
+                state.progress.current = completedCount;
                 addLog(system, `处理失败: ${filename}`);
                 if (completedCount === taskList.length) {
                     state.syncing = false;
@@ -403,11 +409,10 @@ async function syncSystem (system) {
 }
 
 async function processNewGame (system, filename) {
-    const romPath = path.join(system, filename).replace(/\\/g, '/'); // 数据库相对路径
-    const fullPath = path.join(config.romsDir, system, filename); // 物理绝对路径
+    const romPath = path.join(system, filename).replace(/\\/g, '/');
+    const fullPath = path.join(config.romsDir, system, filename);
     const basename = path.basename(filename, path.extname(filename));
 
-    // 先尝试找本地已有图片
     let imagePath = findLocalImage(system, basename);
 
     const gameInfo = {
@@ -416,7 +421,8 @@ async function processNewGame (system, filename) {
         rating: '0',
         developer: '',
         publisher: '',
-        genre: ''
+        genre: '',
+        players: ''
     };
 
     addLog(system, `[处理中] ${filename} ...`);
@@ -431,6 +437,7 @@ async function processNewGame (system, filename) {
             gameInfo.publisher = scraperData.publisher;
             gameInfo.genre = scraperData.genre;
             gameInfo.rating = scraperData.rating;
+            gameInfo.players = scraperData.players;
 
             addLog(system, `[抓取成功] 匹配为: ${scraperData.name}`);
 
@@ -462,8 +469,8 @@ async function processNewGame (system, filename) {
 
     return new Promise((resolve) => {
         db.run(
-            `INSERT INTO games (path, system, filename, name, image_path, desc, rating, developer, publisher, genre) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO games (path, system, filename, name, image_path, desc, rating, developer, publisher, genre, players) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 romPath,
                 system,
@@ -474,7 +481,8 @@ async function processNewGame (system, filename) {
                 gameInfo.rating,
                 gameInfo.developer,
                 gameInfo.publisher,
-                gameInfo.genre
+                gameInfo.genre,
+                gameInfo.players
             ],
             (err) => {
                 if (!err) addLog(system, '[入库完成]');

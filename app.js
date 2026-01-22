@@ -144,11 +144,13 @@ router.get('/api/games', async (ctx) => {
     }
 
     return new Promise((resolve) => {
+        // 【修改】添加了 MAX(publisher) 和 MAX(players)
         if (Number(all) === 1) {
             const sql = `
                 SELECT name, MAX(image_path) as image_path, MAX(releasedate) as releasedate, 
-                       MAX(developer) as developer, MAX(genre) as genre, MAX(rating) as rating,
-                       MAX(desc) as desc,
+                       MAX(developer) as developer, MAX(publisher) as publisher, 
+                       MAX(genre) as genre, MAX(players) as players, 
+                       MAX(rating) as rating, MAX(desc) as desc,
                        COUNT(*) as version_count
                 FROM games ${where} 
                 GROUP BY name 
@@ -173,10 +175,12 @@ router.get('/api/games', async (ctx) => {
                 }
                 const total = row.total;
 
+                // 【修改】添加了 MAX(publisher) 和 MAX(players)
                 const sql = `
                     SELECT name, MAX(image_path) as image_path, MAX(releasedate) as releasedate, 
-                           MAX(developer) as developer, MAX(genre) as genre, MAX(rating) as rating,
-                           MAX(desc) as desc,
+                           MAX(developer) as developer, MAX(publisher) as publisher, 
+                           MAX(genre) as genre, MAX(players) as players, 
+                           MAX(rating) as rating, MAX(desc) as desc,
                            COUNT(*) as version_count
                     FROM games ${where} 
                     GROUP BY name 
