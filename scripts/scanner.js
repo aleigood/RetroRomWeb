@@ -1,3 +1,4 @@
+/* eslint-disable n/no-callback-literal */
 const fs = require('fs-extra');
 const path = require('path');
 const sax = require('sax');
@@ -34,6 +35,7 @@ const IGNORE_DIRS = [
     'screenshots',
     'titles',
     'wheel',
+    'marquees',
     'boxart',
     'marquee',
     'video',
@@ -55,7 +57,12 @@ const systemStates = {};
 
 function getSystemStatus (system) {
     if (!systemStates[system]) {
-        systemStates[system] = { syncing: false, logs: [], progress: { current: 0, total: 0 } };
+        systemStates[system] = {
+            syncing: false,
+            stopping: false,
+            logs: [],
+            progress: { current: 0, total: 0 }
+        };
     }
     return systemStates[system];
 }
@@ -113,7 +120,7 @@ function findLocalVideo (system, romBasename) {
 }
 
 function deleteLocalImages (system, romBasename) {
-    const types = ['covers', 'screenshots', 'miximages', 'titles', 'videos'];
+    const types = ['covers', 'screenshots', 'miximages', 'titles', 'videos', 'marquees'];
     types.forEach((type) => {
         const dir = path.join(config.mediaDir, system, type);
         [...IMG_EXTS, ...VIDEO_EXTS].forEach((ext) => {
@@ -315,14 +322,31 @@ function importGamelistXml (system) {
     });
 }
 
-async function syncSystem (system) {
+function stopSync (system) {
+    const state = getSystemStatus(system);
+    if (state.syncing) {
+        state.stopping = true;
+        addLog(system, '正在中止同步...');
+    }
+}
+
+async function syncSystem (system, options = {}) {
     const state = getSystemStatus(system);
     if (state.syncing) return;
 
     state.syncing = true;
+    state.stopping = false;
     state.logs = [];
     state.progress = { current: 0, total: 0 };
+
+    const hasOptions = Object.keys(options).length > 0;
+    const syncOps = hasOptions ? options : { syncInfo: true, syncImages: true, syncVideo: true, syncMarquees: true };
+
     addLog(system, '开始扫描文件系统...');
+    addLog(
+        system,
+        `同步选项: Info=${syncOps.syncInfo}, Img=${syncOps.syncImages}, Vid=${syncOps.syncVideo}, Marquee=${syncOps.syncMarquees}`
+    );
 
     const systemDir = path.join(config.romsDir, system);
     let diskFiles = [];
@@ -335,7 +359,6 @@ async function syncSystem (system) {
     }
 
     const dbGames = await new Promise((resolve) => {
-        // 【修改1】查询所有字段 (SELECT *) 以便保留旧数据
         db.all('SELECT * FROM games WHERE system = ?', [system], (err, rows) => {
             if (err) resolve([]);
             else resolve(rows || []);
@@ -353,13 +376,19 @@ async function syncSystem (system) {
     const toUpdate = dbGames
         .filter((g) => {
             if (!diskFiles.includes(g.filename)) return false;
-            // 完整性检查：如果没有视频路径，也视为 incomplete，需要重新处理
-            const isIncomplete = !g.desc || g.desc === '暂无简介' || !g.image_path || !g.video_path || !g.players;
-            return isIncomplete;
+            if (state.stopping) return false;
+
+            const missingInfo =
+                syncOps.syncInfo &&
+                (!g.desc || g.desc === '暂无简介' || !g.players || !g.developer || g.developer === '');
+            const missingImg = syncOps.syncImages && !g.image_path;
+            const missingVid = syncOps.syncVideo && !g.video_path;
+
+            return missingInfo || missingImg || missingVid || syncOps.syncMarquees;
         })
         .map((g) => g.filename);
 
-    addLog(system, `扫描结果: 新增 ${toAdd.length}, 删除 ${toDelete.length}, 需重试 ${toUpdate.length}`);
+    addLog(system, `扫描结果: 新增 ${toAdd.length}, 删除 ${toDelete.length}, 需检查/更新 ${toUpdate.length}`);
 
     if (toDelete.length > 0) {
         db.serialize(() => {
@@ -380,7 +409,7 @@ async function syncSystem (system) {
     const taskList = Array.from(taskSet);
 
     if (taskList.length === 0) {
-        addLog(system, '所有文件已完美同步，无需操作。');
+        addLog(system, '所有文件已同步，无需操作。');
         state.syncing = false;
         return;
     }
@@ -390,8 +419,16 @@ async function syncSystem (system) {
 
     taskList.forEach((filename) => {
         queue.add(async () => {
+            if (state.stopping) {
+                completedCount++;
+                if (completedCount === taskList.length) {
+                    state.syncing = false;
+                    addLog(system, '同步已由用户中止。');
+                }
+                return;
+            }
+
             try {
-                // 【修改2】获取旧数据
                 const oldData = dbFilenameMap[filename] || null;
 
                 if (oldData) {
@@ -400,8 +437,7 @@ async function syncSystem (system) {
                     });
                 }
 
-                // 【修改3】将 oldData 传递给 processNewGame
-                await processNewGame(system, filename, oldData);
+                await processNewGame(system, filename, oldData, syncOps);
 
                 completedCount++;
                 state.progress.current = completedCount;
@@ -421,22 +457,18 @@ async function syncSystem (system) {
         });
     });
 
-    addLog(system, `已将 ${taskList.length} 个任务加入后台队列 (新增+重试)，开始联网抓取...`);
+    addLog(system, `已将 ${taskList.length} 个任务加入队列...`);
 }
 
-// 【修改4】接收 oldData 参数
-async function processNewGame (system, filename, oldData = null) {
+async function processNewGame (system, filename, oldData = null, options = {}) {
     const romPath = path.join(system, filename).replace(/\\/g, '/');
     const fullPath = path.join(config.romsDir, system, filename);
     const basename = path.basename(filename, path.extname(filename));
 
-    // 优先尝试查找本地文件
     let imagePath = findLocalImage(system, basename);
     let videoPath = findLocalVideo(system, basename);
 
-    // 如果本地还没找到，但旧数据里有路径，且文件确实存在，则使用旧数据的路径
     if (!imagePath && oldData && oldData.image_path) {
-        // 简单校验一下文件是否还在（防止空指针）
         if (fs.existsSync(path.join(config.mediaDir, oldData.image_path))) {
             imagePath = oldData.image_path;
         }
@@ -447,10 +479,9 @@ async function processNewGame (system, filename, oldData = null) {
         }
     }
 
-    // 【修改5】初始化 gameInfo 时，优先使用 oldData 的值
     const gameInfo = {
         name: oldData && oldData.name ? oldData.name : basename,
-        desc: oldData && oldData.desc && oldData.desc !== '暂无简介' ? oldData.desc : '暂无简介',
+        desc: oldData && oldData.desc ? oldData.desc : '暂无简介',
         rating: oldData && oldData.rating ? oldData.rating : '0',
         developer: oldData && oldData.developer ? oldData.developer : '',
         publisher: oldData && oldData.publisher ? oldData.publisher : '',
@@ -458,57 +489,65 @@ async function processNewGame (system, filename, oldData = null) {
         players: oldData && oldData.players ? oldData.players : ''
     };
 
-    addLog(system, `[处理中] ${filename} ...`);
+    const shouldScrape =
+        options.syncInfo || options.syncImages || options.syncVideo || options.syncMarquees || !oldData;
 
-    try {
-        const scraperData = await scraper.fetchGameInfo(system, filename, fullPath);
+    if (shouldScrape) {
+        addLog(system, `[处理中] ${filename} ...`);
+        try {
+            const scraperData = await scraper.fetchGameInfo(system, filename, fullPath);
 
-        if (scraperData) {
-            // 如果抓取成功，覆盖旧数据
-            gameInfo.name = scraperData.name;
-            gameInfo.desc = scraperData.desc;
-            gameInfo.developer = scraperData.developer;
-            gameInfo.publisher = scraperData.publisher;
-            gameInfo.genre = scraperData.genre;
-            gameInfo.rating = scraperData.rating;
-            gameInfo.players = scraperData.players;
+            if (scraperData) {
+                addLog(system, `[抓取成功] 匹配: ${scraperData.name}`);
 
-            addLog(system, `[抓取成功] 匹配为: ${scraperData.name}`);
-
-            if (scraperData.boxArtUrl) {
-                const targetPath = path.join(config.mediaDir, system, 'covers', basename + '.png');
-                if (fs.existsSync(targetPath)) {
-                    addLog(system, '  -> 封面已存在，跳过下载');
-                } else {
-                    await scraper.downloadFile(scraperData.boxArtUrl, targetPath);
-                    addLog(system, '  -> 封面下载完成');
+                if (options.syncInfo) {
+                    gameInfo.name = scraperData.name;
+                    gameInfo.desc = scraperData.desc;
+                    gameInfo.developer = scraperData.developer;
+                    gameInfo.publisher = scraperData.publisher;
+                    gameInfo.genre = scraperData.genre;
+                    gameInfo.rating = scraperData.rating;
+                    gameInfo.players = scraperData.players;
                 }
-                imagePath = path.join(system, 'covers', basename + '.png').replace(/\\/g, '/');
-            }
-            if (scraperData.screenUrl) {
-                const targetPath = path.join(config.mediaDir, system, 'screenshots', basename + '.png');
-                if (fs.existsSync(targetPath)) {
-                    addLog(system, '  -> 截图已存在，跳过下载');
-                } else {
-                    await scraper.downloadFile(scraperData.screenUrl, targetPath);
-                    addLog(system, '  -> 截图下载完成');
+
+                if (options.syncImages) {
+                    if (scraperData.boxArtUrl) {
+                        const targetPath = path.join(config.mediaDir, system, 'covers', basename + '.png');
+                        if (!fs.existsSync(targetPath)) {
+                            await scraper.downloadFile(scraperData.boxArtUrl, targetPath);
+                            addLog(system, '  -> 封面下载');
+                        }
+                        imagePath = path.join(system, 'covers', basename + '.png').replace(/\\/g, '/');
+                    }
+                    if (scraperData.screenUrl) {
+                        const targetPath = path.join(config.mediaDir, system, 'screenshots', basename + '.png');
+                        if (!fs.existsSync(targetPath)) {
+                            await scraper.downloadFile(scraperData.screenUrl, targetPath);
+                            addLog(system, '  -> 截图下载');
+                        }
+                    }
+                }
+
+                if (options.syncVideo && scraperData.videoUrl) {
+                    const targetPath = path.join(config.mediaDir, system, 'videos', basename + '.mp4');
+                    if (!fs.existsSync(targetPath)) {
+                        await scraper.downloadFile(scraperData.videoUrl, targetPath);
+                        addLog(system, '  -> 视频下载');
+                    }
+                    videoPath = path.join(system, 'videos', basename + '.mp4').replace(/\\/g, '/');
+                }
+
+                if (options.syncMarquees && scraperData.marqueeUrl) {
+                    const targetPath = path.join(config.mediaDir, system, 'marquees', basename + '.png');
+                    if (!fs.existsSync(targetPath)) {
+                        await scraper.downloadFile(scraperData.marqueeUrl, targetPath);
+                        addLog(system, '  -> Logo下载');
+                    }
                 }
             }
-            if (scraperData.videoUrl) {
-                const targetPath = path.join(config.mediaDir, system, 'videos', basename + '.mp4');
-                if (fs.existsSync(targetPath)) {
-                    addLog(system, '  -> 视频已存在，跳过下载');
-                } else {
-                    await scraper.downloadFile(scraperData.videoUrl, targetPath);
-                    addLog(system, '  -> 视频下载完成');
-                }
-                videoPath = path.join(system, 'videos', basename + '.mp4').replace(/\\/g, '/');
-            }
-        } else {
-            addLog(system, '[抓取未果] 使用现有/本地信息');
+        } catch (e) {
+            addLog(system, `[错误] ${e.message} (保持原样)`);
         }
-    } catch (e) {
-        addLog(system, `[错误] ${e.message} (保留旧数据)`);
     }
 
     return new Promise((resolve) => {
@@ -530,7 +569,9 @@ async function processNewGame (system, filename, oldData = null) {
                 gameInfo.players
             ],
             (err) => {
-                if (!err) addLog(system, '[入库完成]');
+                if (err) {
+                    addLog(system, `[入库错误] ${err.message}`);
+                }
                 resolve();
             }
         );
@@ -559,6 +600,7 @@ if (require.main === module) {
 module.exports = {
     startScan,
     syncSystem,
+    stopSync,
     importGamelistXml,
     getSystemStatus
 };

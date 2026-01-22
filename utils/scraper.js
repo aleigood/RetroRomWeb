@@ -48,6 +48,8 @@ const SYSTEM_MAP = {
     fba: 75,
     fbneo: 75,
     cps1: 75,
+    cps2: 75,
+    cps3: 75,
     neogeo: 142,
     pce: 31,
     pcengine: 31,
@@ -251,7 +253,8 @@ function parseGameData (gameData, originalFilename) {
 
     let boxArtUrl = '';
     let screenUrl = '';
-    let videoUrl = ''; // 【修改】新增变量
+    let videoUrl = '';
+    let marqueeUrl = '';
 
     if (Array.isArray(gameData.medias)) {
         const box =
@@ -261,9 +264,12 @@ function parseGameData (gameData, originalFilename) {
         const shot = gameData.medias.find((m) => m.type === 'fanart') || gameData.medias.find((m) => m.type === 'ss');
         if (shot) screenUrl = shot.url;
 
-        // 【修改】解析视频 URL
         const video = gameData.medias.find((m) => m.type === 'video' || m.type === 'video-normalized');
         if (video) videoUrl = video.url;
+
+        // 【新增】解析 Marquee/Wheel
+        const wheel = gameData.medias.find((m) => m.type === 'wheel' || m.type === 'marquee');
+        if (wheel) marqueeUrl = wheel.url;
     }
 
     return {
@@ -277,7 +283,8 @@ function parseGameData (gameData, originalFilename) {
         releasedate,
         boxArtUrl,
         screenUrl,
-        videoUrl // 【修改】返回视频 URL
+        videoUrl,
+        marqueeUrl // 【新增】返回 Marquee URL
     };
 }
 

@@ -2,6 +2,7 @@ const Koa = require('koa');
 const Router = require('koa-router');
 const serve = require('koa-static');
 const range = require('koa-range');
+const { koaBody } = require('koa-body');
 const path = require('path');
 const fs = require('fs-extra');
 const config = require('./config');
@@ -12,6 +13,7 @@ const app = new Koa();
 const router = new Router();
 
 app.use(range);
+app.use(koaBody());
 
 // 【修改】使用 config.mediaDir 提供静态文件服务
 app.use(
@@ -87,8 +89,16 @@ router.get('/api/status/:system', async (ctx) => {
 // 触发后台扫描
 router.post('/api/scan/:system', async (ctx) => {
     const system = ctx.params.system;
-    scanner.syncSystem(system); // 不等待，直接返回
+    const options = ctx.request.body || {}; // 获取同步选项
+    scanner.syncSystem(system, options); // 传递选项
     ctx.body = { status: 'started', message: `后台扫描已启动: ${system}` };
+});
+
+// 【新增】停止后台扫描
+router.post('/api/stop-scan/:system', async (ctx) => {
+    const system = ctx.params.system;
+    scanner.stopSync(system);
+    ctx.body = { status: 'stopped', message: `扫描停止指令已发送: ${system}` };
 });
 
 router.get('/api/systems', async (ctx) => {
