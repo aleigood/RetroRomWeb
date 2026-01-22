@@ -506,8 +506,8 @@
             /* 【优化】物理模糊方案：缩小渲染尺寸，强行拉伸 */
             .thumb-bg {
                 position: absolute;
-                width: 10%;           /* 核心：只渲染原图 10% 大小 */
-                height: 10%;          /* 核心：只渲染原图 10% 大小 */
+                width: 10%; /* 核心：只渲染原图 10% 大小 */
+                height: 10%; /* 核心：只渲染原图 10% 大小 */
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%) scale(12); /* 核心：放大12倍铺满，自然产生模糊 */
@@ -726,6 +726,19 @@
                 border-bottom: 1px solid rgba(255, 255, 255, 0.05);
                 padding: 6px 0;
                 font-size: 12px;
+            }
+
+            /* 【新增】视频容器样式 */
+            .video-container {
+                margin-bottom: 20px;
+                border-radius: 16px;
+                overflow: hidden;
+                background: #000;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            }
+            .game-video {
+                width: 100%;
+                display: block;
             }
 
             @keyframes gradientMove {
@@ -1019,6 +1032,20 @@
                                 void-color="#333"
                             />
                         </div>
+
+                        <div v-if="selectedGame.video_path" class="video-container">
+                            <video
+                                :src="getImgUrl(selectedGame.video_path)"
+                                controls
+                                muted
+                                autoplay
+                                playsinline
+                                loop
+                                class="game-video"
+                                ref="videoPlayerRef"
+                            ></video>
+                        </div>
+
                         <div class="d-desc">{{ selectedGame.desc || '暂无描述信息。' }}</div>
                         <van-divider content-position="left" style="border-color: rgba(255, 255, 255, 0.1)"
                             >Available Files ({{ versions.length }})</van-divider
@@ -1085,7 +1112,6 @@
                     const isSyncing = ref(false);
                     const showLogPopup = ref(false);
                     const logs = ref([]);
-                    // 【新增】进度状态
                     const progress = ref({ current: 0, total: 0 });
 
                     const showLetterToast = ref(false);
@@ -1098,6 +1124,8 @@
                     /* 索引栏引用 */
                     const systemIndexBarRef = ref(null);
                     const gameIndexBarRef = ref(null);
+                    // 【新增】视频播放器引用
+                    const videoPlayerRef = ref(null);
 
                     /* 【JS控制】指示器动态位置，初始位置放在安全的顶部 */
                     const indicatorTop = ref(70); // 70px
@@ -1127,7 +1155,6 @@
                             const data = await res.json();
                             isSyncing.value = data.syncing;
                             logs.value = data.logs.reverse();
-                            // 【新增】更新进度
                             if (data.progress) {
                                 progress.value = data.progress;
                             }
@@ -1147,7 +1174,6 @@
                             const res = await fetch(`/api/games?system=${sysObj.name}&all=1`);
                             const data = await res.json();
                             allGames.value = data.data;
-                            // 【新增】数据加载完成后，立即触发一次布局计算
                             nextTick(() => updateLayoutFromScroll());
                         } finally {
                             loading.value = false;
@@ -1309,6 +1335,9 @@
                         if (targetPage === 'gamelist') {
                             showLogPopup.value = false;
                             showDetail.value = false;
+                            // 【新增】关闭视频
+                            if (videoPlayerRef.value) videoPlayerRef.value.pause();
+
                             if (!currentSystemObj.value && state.systemName) {
                                 transitionName.value = 'slide-left';
                                 const sys = systems.value.find((s) => s.name === state.systemName);
@@ -1321,6 +1350,9 @@
                         } else if (targetPage === 'home') {
                             showLogPopup.value = false;
                             showDetail.value = false;
+                            // 【新增】关闭视频
+                            if (videoPlayerRef.value) videoPlayerRef.value.pause();
+
                             transitionName.value = 'slide-right';
                             currentSystemObj.value = null;
                             showSearch.value = false;
@@ -1383,7 +1415,6 @@
                             .then(async () => {
                                 isSyncing.value = true;
                                 logs.value = [];
-                                // 重置前端进度显示
                                 progress.value = { current: 0, total: 0 };
                                 await fetch(`/api/scan/${currentSystemObj.value.name}`, { method: 'POST' });
                                 vant.showToast({ message: '后台扫描已启动', icon: 'success' });
@@ -1407,6 +1438,9 @@
                     const previewBig = (startIdx) => {
                         window.history.pushState({ page: 'preview' }, '');
                         isPreviewOpen.value = true;
+                        // 【新增】进入大图预览暂停视频
+                        if (videoPlayerRef.value) videoPlayerRef.value.pause();
+
                         vant.showImagePreview({
                             images: displayImages.value.map((i) => getImgUrl(i.url)),
                             startPosition: startIdx,
@@ -1503,6 +1537,7 @@
                         displayImages,
                         currentSwipeIndex,
                         imgSwipe,
+                        videoPlayerRef, // 导出 video ref
                         enterSystem,
                         handleUiBack,
                         openDetail,
@@ -1536,7 +1571,7 @@
                         systemIndexBarRef,
                         gameIndexBarRef,
                         indicatorTop,
-                        progress // 导出 progress
+                        progress
                     };
                 }
             });
@@ -1546,4 +1581,3 @@
         </script>
     </body>
 </html>
-}

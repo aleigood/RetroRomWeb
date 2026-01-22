@@ -13,8 +13,9 @@ const router = new Router();
 
 app.use(range);
 
+// 【修改】使用 config.mediaDir 提供静态文件服务
 app.use(
-    serve(config.imagesDir, {
+    serve(config.mediaDir, {
         hidden: false,
         defer: false,
         index: false,
@@ -55,7 +56,8 @@ const getImageCollection = (system, romFilename) => {
     const lowerBasename = basename.toLowerCase();
 
     types.forEach((type) => {
-        const typeDir = path.join(config.imagesDir, system, type);
+        // 【修改】使用 config.mediaDir
+        const typeDir = path.join(config.mediaDir, system, type);
         const fileMap = getDirFilesMap(typeDir);
 
         for (const ext of exts) {
@@ -144,10 +146,10 @@ router.get('/api/games', async (ctx) => {
     }
 
     return new Promise((resolve) => {
-        // 【修改】添加了 MAX(publisher) 和 MAX(players)
+        // 【修改】添加了 MAX(video_path)
         if (Number(all) === 1) {
             const sql = `
-                SELECT name, MAX(image_path) as image_path, MAX(releasedate) as releasedate, 
+                SELECT name, MAX(image_path) as image_path, MAX(video_path) as video_path, MAX(releasedate) as releasedate, 
                        MAX(developer) as developer, MAX(publisher) as publisher, 
                        MAX(genre) as genre, MAX(players) as players, 
                        MAX(rating) as rating, MAX(desc) as desc,
@@ -175,9 +177,9 @@ router.get('/api/games', async (ctx) => {
                 }
                 const total = row.total;
 
-                // 【修改】添加了 MAX(publisher) 和 MAX(players)
+                // 【修改】添加了 MAX(video_path)
                 const sql = `
-                    SELECT name, MAX(image_path) as image_path, MAX(releasedate) as releasedate, 
+                    SELECT name, MAX(image_path) as image_path, MAX(video_path) as video_path, MAX(releasedate) as releasedate, 
                            MAX(developer) as developer, MAX(publisher) as publisher, 
                            MAX(genre) as genre, MAX(players) as players, 
                            MAX(rating) as rating, MAX(desc) as desc,
@@ -208,6 +210,7 @@ router.get('/api/game-versions', async (ctx) => {
     }
 
     return new Promise((resolve) => {
+        // 【修改】这里选择 * 即可，games 表结构已经包含了 video_path
         db.all(
             'SELECT * FROM games WHERE system = ? AND name = ? ORDER BY filename ASC',
             [system, name],

@@ -1,7 +1,3 @@
-/*
-type: uploaded file
-fileName: 新建文件夹/scripts/scanner.js
-*/
 const fs = require('fs-extra');
 const path = require('path');
 const sax = require('sax');
@@ -11,6 +7,8 @@ const scraper = require('../utils/scraper');
 const queue = require('../utils/queue');
 
 const IMG_EXTS = ['.png', '.jpg', '.jpeg', '.gif'];
+const VIDEO_EXTS = ['.mp4', '.webm', '.mkv', '.avi'];
+
 const ROM_EXTS = [
     '.zip',
     '.7z',
@@ -90,7 +88,7 @@ function getDirFilesMap (dirPath) {
 function findLocalImage (system, romBasename) {
     const types = ['covers', 'miximages', 'screenshots'];
     for (const type of types) {
-        const typeDir = path.join(config.imagesDir, system, type);
+        const typeDir = path.join(config.mediaDir, system, type);
         const fileMap = getDirFilesMap(typeDir);
         for (const ext of IMG_EXTS) {
             const searchKey = (romBasename + ext).toLowerCase();
@@ -102,11 +100,23 @@ function findLocalImage (system, romBasename) {
     return null;
 }
 
+function findLocalVideo (system, romBasename) {
+    const typeDir = path.join(config.mediaDir, system, 'videos');
+    const fileMap = getDirFilesMap(typeDir);
+    for (const ext of VIDEO_EXTS) {
+        const searchKey = (romBasename + ext).toLowerCase();
+        if (fileMap[searchKey]) {
+            return path.join(system, 'videos', fileMap[searchKey]).replace(/\\/g, '/');
+        }
+    }
+    return null;
+}
+
 function deleteLocalImages (system, romBasename) {
-    const types = ['covers', 'screenshots', 'miximages', 'titles'];
+    const types = ['covers', 'screenshots', 'miximages', 'titles', 'videos'];
     types.forEach((type) => {
-        const dir = path.join(config.imagesDir, system, type);
-        IMG_EXTS.forEach((ext) => {
+        const dir = path.join(config.mediaDir, system, type);
+        [...IMG_EXTS, ...VIDEO_EXTS].forEach((ext) => {
             const filePath = path.join(dir, romBasename + ext);
             if (fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);
@@ -216,8 +226,8 @@ function importGamelistXml (system) {
             db.serialize(() => {
                 db.run('BEGIN TRANSACTION');
                 const stmt = db.prepare(`INSERT OR REPLACE INTO games 
-                    (path, system, filename, name, image_path, desc, rating, releasedate, developer, publisher, genre, players) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                    (path, system, filename, name, image_path, video_path, desc, rating, releasedate, developer, publisher, genre, players) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
                 gamesBatch.forEach((g) =>
                     stmt.run(
                         g.path,
@@ -225,6 +235,7 @@ function importGamelistXml (system) {
                         g.filename,
                         g.name,
                         g.image_path,
+                        g.video_path,
                         g.desc,
                         g.rating,
                         g.releasedate,
@@ -263,12 +274,18 @@ function importGamelistXml (system) {
                 if (imgPath) imgPath = path.join(system, imgPath).replace(/\\/g, '/');
                 if (!imgPath) imgPath = findLocalImage(system, basename);
 
+                let videoPath = currentGame.video || '';
+                if (videoPath.startsWith('./')) videoPath = videoPath.substring(2);
+                if (videoPath) videoPath = path.join(system, videoPath).replace(/\\/g, '/');
+                if (!videoPath) videoPath = findLocalVideo(system, basename);
+
                 const gameData = {
                     path: path.join(system, romPath).replace(/\\/g, '/'),
                     system,
                     filename: romPath,
                     name: currentGame.name || basename,
                     image_path: imgPath,
+                    video_path: videoPath,
                     desc: currentGame.desc || '',
                     rating: currentGame.rating || '0',
                     releasedate: currentGame.releasedate || '',
@@ -318,15 +335,11 @@ async function syncSystem (system) {
     }
 
     const dbGames = await new Promise((resolve) => {
-        // 【修改】查询时带上 players，否则下面 undefined 判定不准
-        db.all(
-            'SELECT id, filename, desc, image_path, rating, players FROM games WHERE system = ?',
-            [system],
-            (err, rows) => {
-                if (err) resolve([]);
-                else resolve(rows || []);
-            }
-        );
+        // 【修改1】查询所有字段 (SELECT *) 以便保留旧数据
+        db.all('SELECT * FROM games WHERE system = ?', [system], (err, rows) => {
+            if (err) resolve([]);
+            else resolve(rows || []);
+        });
     });
 
     const dbFilenameMap = {};
@@ -340,9 +353,8 @@ async function syncSystem (system) {
     const toUpdate = dbGames
         .filter((g) => {
             if (!diskFiles.includes(g.filename)) return false;
-            // 【核心修改】移除了 `|| g.rating === '0'` 的判断
-            // 保留了玩家人数的判断 `|| !g.players`，以确保数据完整性
-            const isIncomplete = !g.desc || g.desc === '暂无简介' || !g.image_path || !g.players;
+            // 完整性检查：如果没有视频路径，也视为 incomplete，需要重新处理
+            const isIncomplete = !g.desc || g.desc === '暂无简介' || !g.image_path || !g.video_path || !g.players;
             return isIncomplete;
         })
         .map((g) => g.filename);
@@ -379,13 +391,17 @@ async function syncSystem (system) {
     taskList.forEach((filename) => {
         queue.add(async () => {
             try {
-                if (dbFilenameMap[filename]) {
+                // 【修改2】获取旧数据
+                const oldData = dbFilenameMap[filename] || null;
+
+                if (oldData) {
                     await new Promise((resolve) => {
                         db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], resolve);
                     });
                 }
 
-                await processNewGame(system, filename);
+                // 【修改3】将 oldData 传递给 processNewGame
+                await processNewGame(system, filename, oldData);
 
                 completedCount++;
                 state.progress.current = completedCount;
@@ -408,21 +424,38 @@ async function syncSystem (system) {
     addLog(system, `已将 ${taskList.length} 个任务加入后台队列 (新增+重试)，开始联网抓取...`);
 }
 
-async function processNewGame (system, filename) {
+// 【修改4】接收 oldData 参数
+async function processNewGame (system, filename, oldData = null) {
     const romPath = path.join(system, filename).replace(/\\/g, '/');
     const fullPath = path.join(config.romsDir, system, filename);
     const basename = path.basename(filename, path.extname(filename));
 
+    // 优先尝试查找本地文件
     let imagePath = findLocalImage(system, basename);
+    let videoPath = findLocalVideo(system, basename);
 
+    // 如果本地还没找到，但旧数据里有路径，且文件确实存在，则使用旧数据的路径
+    if (!imagePath && oldData && oldData.image_path) {
+        // 简单校验一下文件是否还在（防止空指针）
+        if (fs.existsSync(path.join(config.mediaDir, oldData.image_path))) {
+            imagePath = oldData.image_path;
+        }
+    }
+    if (!videoPath && oldData && oldData.video_path) {
+        if (fs.existsSync(path.join(config.mediaDir, oldData.video_path))) {
+            videoPath = oldData.video_path;
+        }
+    }
+
+    // 【修改5】初始化 gameInfo 时，优先使用 oldData 的值
     const gameInfo = {
-        name: basename,
-        desc: '暂无简介',
-        rating: '0',
-        developer: '',
-        publisher: '',
-        genre: '',
-        players: ''
+        name: oldData && oldData.name ? oldData.name : basename,
+        desc: oldData && oldData.desc && oldData.desc !== '暂无简介' ? oldData.desc : '暂无简介',
+        rating: oldData && oldData.rating ? oldData.rating : '0',
+        developer: oldData && oldData.developer ? oldData.developer : '',
+        publisher: oldData && oldData.publisher ? oldData.publisher : '',
+        genre: oldData && oldData.genre ? oldData.genre : '',
+        players: oldData && oldData.players ? oldData.players : ''
     };
 
     addLog(system, `[处理中] ${filename} ...`);
@@ -431,6 +464,7 @@ async function processNewGame (system, filename) {
         const scraperData = await scraper.fetchGameInfo(system, filename, fullPath);
 
         if (scraperData) {
+            // 如果抓取成功，覆盖旧数据
             gameInfo.name = scraperData.name;
             gameInfo.desc = scraperData.desc;
             gameInfo.developer = scraperData.developer;
@@ -442,7 +476,7 @@ async function processNewGame (system, filename) {
             addLog(system, `[抓取成功] 匹配为: ${scraperData.name}`);
 
             if (scraperData.boxArtUrl) {
-                const targetPath = path.join(config.imagesDir, system, 'covers', basename + '.png');
+                const targetPath = path.join(config.mediaDir, system, 'covers', basename + '.png');
                 if (fs.existsSync(targetPath)) {
                     addLog(system, '  -> 封面已存在，跳过下载');
                 } else {
@@ -452,7 +486,7 @@ async function processNewGame (system, filename) {
                 imagePath = path.join(system, 'covers', basename + '.png').replace(/\\/g, '/');
             }
             if (scraperData.screenUrl) {
-                const targetPath = path.join(config.imagesDir, system, 'screenshots', basename + '.png');
+                const targetPath = path.join(config.mediaDir, system, 'screenshots', basename + '.png');
                 if (fs.existsSync(targetPath)) {
                     addLog(system, '  -> 截图已存在，跳过下载');
                 } else {
@@ -460,23 +494,34 @@ async function processNewGame (system, filename) {
                     addLog(system, '  -> 截图下载完成');
                 }
             }
+            if (scraperData.videoUrl) {
+                const targetPath = path.join(config.mediaDir, system, 'videos', basename + '.mp4');
+                if (fs.existsSync(targetPath)) {
+                    addLog(system, '  -> 视频已存在，跳过下载');
+                } else {
+                    await scraper.downloadFile(scraperData.videoUrl, targetPath);
+                    addLog(system, '  -> 视频下载完成');
+                }
+                videoPath = path.join(system, 'videos', basename + '.mp4').replace(/\\/g, '/');
+            }
         } else {
-            addLog(system, '[抓取未果] 未找到匹配信息');
+            addLog(system, '[抓取未果] 使用现有/本地信息');
         }
     } catch (e) {
-        addLog(system, `[错误] ${e.message}`);
+        addLog(system, `[错误] ${e.message} (保留旧数据)`);
     }
 
     return new Promise((resolve) => {
         db.run(
-            `INSERT INTO games (path, system, filename, name, image_path, desc, rating, developer, publisher, genre, players) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO games (path, system, filename, name, image_path, video_path, desc, rating, developer, publisher, genre, players) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 romPath,
                 system,
                 filename,
                 gameInfo.name,
                 imagePath,
+                videoPath,
                 gameInfo.desc,
                 gameInfo.rating,
                 gameInfo.developer,

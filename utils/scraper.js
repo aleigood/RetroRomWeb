@@ -1,47 +1,63 @@
-/*
-type: uploaded file
-fileName: 新建文件夹/utils/scraper.js
-*/
 const fs = require('fs-extra');
 const path = require('path');
 const axios = require('axios');
 const crypto = require('crypto');
 const config = require('../config');
 
-// 系统 ID 映射表
 const SYSTEM_MAP = {
+    // === Nintendo ===
     nes: 3,
     famicom: 3,
     snes: 4,
     sfc: 4,
     gb: 9,
+    gbc: 10, // 建议补充: Game Boy Color
     gba: 12,
+    n64: 14,
+    gc: 13,
+    ngc: 13,
+    wii: 16,
+    wiiu: 18, // 建议补充: Wii U
+    switch: 225, // 【修复】Switch ID 修正
+    nx: 225,
+    nsw: 225,
+    nds: 15,
+    '3ds': 17, // 建议补充: 3DS
+
+    // === Sega ===
+    sms: 2, // 建议补充: Master System
     md: 1,
     megadrive: 1,
     genesis: 1,
-    n64: 14,
-    nds: 15,
+    saturn: 22,
+    dc: 23,
+    dreamcast: 23,
+    gg: 21, // 建议补充: Game Gear
+
+    // === Sony ===
     psx: 57,
     ps1: 57,
-    psp: 150,
-    psv: 59,
-    psvita: 59,
+    ps2: 58, // 【新增】XML中存在: PS2
+    ps3: 59, // 【新增】XML中存在: PS3
+    psp: 61, // 【修复】PSP ID 修正 (原150错误)
+    psv: 62, // 【修复】PSV ID 修正 (原59是PS3)
+    psvita: 62,
+
+    // === Arcade / Other ===
     mame: 75,
     fba: 75,
     fbneo: 75,
+    cps1: 75,
     neogeo: 142,
-    wii: 16,
-    gc: 13,
-    ngc: 13,
-    dc: 23,
-    dreamcast: 23,
-    saturn: 22,
     pce: 31,
     pcengine: 31,
     x68000: 79,
-    switch: 145,
-    nx: 145,
-    nsw: 145
+
+    // === Vintage / Rare ===
+    colecovision: 48, // 【新增】XML中存在: ColecoVision
+    wonderswan: 45,
+    wsc: 46,
+    neogeocd: 70
 };
 
 const MD5_THRESHOLD = 256 * 1024 * 1024;
@@ -235,6 +251,7 @@ function parseGameData (gameData, originalFilename) {
 
     let boxArtUrl = '';
     let screenUrl = '';
+    let videoUrl = ''; // 【修改】新增变量
 
     if (Array.isArray(gameData.medias)) {
         const box =
@@ -243,6 +260,10 @@ function parseGameData (gameData, originalFilename) {
 
         const shot = gameData.medias.find((m) => m.type === 'fanart') || gameData.medias.find((m) => m.type === 'ss');
         if (shot) screenUrl = shot.url;
+
+        // 【修改】解析视频 URL
+        const video = gameData.medias.find((m) => m.type === 'video' || m.type === 'video-normalized');
+        if (video) videoUrl = video.url;
     }
 
     return {
@@ -255,7 +276,8 @@ function parseGameData (gameData, originalFilename) {
         rating,
         releasedate,
         boxArtUrl,
-        screenUrl
+        screenUrl,
+        videoUrl // 【修改】返回视频 URL
     };
 }
 

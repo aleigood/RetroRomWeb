@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs-extra');
 const config = require('../config');
 
-// 使用配置中的路径，确保和 patch 脚本以及系统运行时的路径一致
+// 使用配置中的路径
 const dbPath = config.dbPath;
 fs.ensureDirSync(path.dirname(dbPath));
 
@@ -22,7 +22,8 @@ db.serialize(() => {
         count INTEGER DEFAULT 0
     )`);
 
-    // 游戏表 - 【修改】增加了 players 字段
+    // 游戏表 - 【修改】增加了 video_path 字段
+    // 注意：原来的 image_path 就是用来存封面的
     db.run(`CREATE TABLE IF NOT EXISTS games (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         path TEXT UNIQUE,
@@ -30,6 +31,7 @@ db.serialize(() => {
         filename TEXT,
         name TEXT,
         image_path TEXT,
+        video_path TEXT,
         desc TEXT,
         rating TEXT,
         releasedate TEXT,
