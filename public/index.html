@@ -483,7 +483,6 @@
                 grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
                 gap: 16px;
                 padding-bottom: 20px;
-                /* 保留内容可见性优化 */
                 content-visibility: auto;
                 contain-intrinsic-size: 300px;
             }
@@ -496,7 +495,6 @@
                 border: 1px solid rgba(255, 255, 255, 0.05);
                 box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.4);
                 transform: translateZ(0);
-                /* 性能优化：严格隔离 */
                 contain: strict;
             }
             .game-card:active {
@@ -506,7 +504,6 @@
                 width: 100%;
                 height: 100%;
                 position: relative;
-                /* 占位背景色 */
                 background: #15151a;
             }
             .thumb-bg {
@@ -515,13 +512,11 @@
                 height: 100%;
                 top: 0;
                 left: 0;
-                /* 保留你的光晕效果 */
                 transform: scale(1.2);
                 object-fit: cover;
                 filter: blur(15px) brightness(0.4) saturate(1.2);
                 z-index: 1;
                 pointer-events: none;
-                /* 开启GPU加速 */
                 will-change: transform, opacity;
             }
             .thumb-img {
@@ -532,7 +527,6 @@
                 z-index: 2;
             }
 
-            /* === 新增：懒加载状态样式 === */
             .lazy-img {
                 opacity: 0;
                 transition: opacity 0.4s ease-out;
@@ -960,6 +954,7 @@
                             @search="onSearch"
                             @clear="onClearSearch"
                         ></van-search>
+
                         <div
                             @click="triggerSync"
                             style="
@@ -973,10 +968,18 @@
                             "
                         >
                             <i
-                                class="ri-refresh-line"
-                                :class="{ 'spin-anim': isSyncing }"
+                                v-if="globalStatus.runningSystem === currentSystemObj.name"
+                                class="ri-loader-4-line spin-anim"
                                 style="color: var(--primary); font-size: 20px"
                             ></i>
+
+                            <i
+                                v-else-if="globalStatus.pendingQueue.includes(currentSystemObj.name)"
+                                class="ri-hourglass-line"
+                                style="color: #aaa; font-size: 20px"
+                            ></i>
+
+                            <i v-else class="ri-refresh-line" style="color: var(--primary); font-size: 20px"></i>
                         </div>
                     </div>
 
@@ -1219,7 +1222,7 @@
                 <div class="log-header">
                     <div style="font-weight: bold; color: #fff; font-size: 14px">
                         Running Logs
-                        <span v-if="isSyncing && progress.total > 0" style="color: #705df2; margin-left: 5px">
+                        <span v-if="globalStatus.runningSystem" style="color: #705df2; margin-left: 5px">
                             ({{ progress.current }} / {{ progress.total }})
                         </span>
                     </div>
@@ -1227,11 +1230,11 @@
                         size="small"
                         type="danger"
                         icon="stop-circle-line"
-                        :disabled="!isSyncing"
+                        :disabled="!globalStatus.runningSystem"
                         @click="stopSync"
                         style="height: 28px; padding: 0 12px"
                     >
-                        中止
+                        全部中止
                     </van-button>
                 </div>
                 <div class="log-content">
@@ -1263,18 +1266,15 @@
                                 const state = elementStateMap.get(el);
 
                                 if (entry.isIntersecting) {
-                                    // 只有当元素停留在视口内超过 200ms 才加载
-                                    // 这意味着快速滑过（索引跳转）时，中间的图片完全不会触发网络请求
+                                    // 【修改】300ms 防抖，确保滚动停止才加载
                                     if (!state.loaded && !state.timer) {
                                         state.timer = setTimeout(() => {
                                             loadImage(el, state.src);
                                             state.loaded = true;
-                                            // 只需要加载一次，之后就不需要观察了
                                             observer.unobserve(el);
-                                        }, 200);
+                                        }, 300);
                                     }
                                 } else {
-                                    // 如果在 200ms 内滑出了视口，说明是快速滑动，取消加载
                                     if (state.timer) {
                                         clearTimeout(state.timer);
                                         state.timer = null;
@@ -1283,22 +1283,18 @@
                             });
                         },
                         { rootMargin: '100px 0px' }
-                    ); // 预加载上下 100px 的区域
+                    );
                 };
 
                 const loadImage = (el, src) => {
-                    // 使用 Image 对象在后台线程加载
                     const img = new Image();
                     img.src = src;
-                    // 关键技术：Image.decode()
-                    // 它会将图片解码工作移出主线程，解决“图片出现瞬间卡顿”的问题
                     img.decode()
                         .then(() => {
                             el.src = src;
-                            el.classList.add('loaded'); // 触发 CSS 淡入
+                            el.classList.add('loaded');
                         })
                         .catch((e) => {
-                            // 兼容性回退：如果 decode 失败，就直接赋值
                             el.src = src;
                             el.onload = () => el.classList.add('loaded');
                         });
@@ -1319,7 +1315,6 @@
 
             const lazyManager = useLazyObserver();
 
-            // Vue 自定义指令 v-lazy
             const vLazy = {
                 mounted: (el, binding) => {
                     lazyManager.observe(el, binding.value);
@@ -1336,7 +1331,7 @@
             };
 
             const app = createApp({
-                directives: { lazy: vLazy }, // 注册指令
+                directives: { lazy: vLazy },
                 setup() {
                     const systems = ref([]);
                     const currentSystemObj = ref(null);
@@ -1351,7 +1346,15 @@
                     const currentSwipeIndex = ref(0);
                     const imgSwipe = ref(null);
                     const isPreviewOpen = ref(false);
+
+                    const globalStatus = ref({
+                        runningSystem: null,
+                        pendingQueue: [],
+                        logs: [],
+                        progress: { current: 0, total: 0 }
+                    });
                     const isSyncing = ref(false);
+
                     const showLogPopup = ref(false);
                     const logs = ref([]);
                     const progress = ref({ current: 0, total: 0 });
@@ -1364,6 +1367,8 @@
                         syncMarquees: true
                     });
 
+                    const viewingLogSystem = ref(null);
+
                     const showLetterToast = ref(false);
                     const currentLetter = ref('');
                     const bubbleY = ref(0);
@@ -1371,15 +1376,12 @@
                     const isScrollingPage = ref(false);
                     let scrollTimeout = null;
 
-                    /* 索引栏引用 */
                     const systemIndexBarRef = ref(null);
                     const gameIndexBarRef = ref(null);
                     const swipeVideoRef = ref(null);
 
-                    /* 【JS控制】指示器动态位置，初始位置放在安全的顶部 */
                     const indicatorTop = ref(70);
 
-                    // 缓存 sidebar 几何信息，避免重复计算
                     let sidebarRectCache = null;
                     let animationFrameId = null;
 
@@ -1396,19 +1398,21 @@
                         }
                     };
 
+                    // 【修复】移除开头的条件判断，确保刷新页面后能立即获取状态
                     const pollStatus = async () => {
-                        if (!currentSystemObj.value) return;
                         try {
-                            const res = await fetch(`/api/status/${currentSystemObj.value.name}`);
+                            const res = await fetch('/api/status/global');
                             const data = await res.json();
-                            isSyncing.value = data.syncing;
+
+                            globalStatus.value = data;
                             logs.value = data.logs.reverse();
-                            if (data.progress) {
-                                progress.value = data.progress;
-                            }
+                            progress.value = data.progress;
+                            isSyncing.value = !!data.runningSystem;
+
+                            // 如果正在同步或打开了日志窗口，继续轮询
                             if (isSyncing.value || showLogPopup.value) {
                                 if (statusPollTimer) clearTimeout(statusPollTimer);
-                                statusPollTimer = setTimeout(pollStatus, 2000);
+                                statusPollTimer = setTimeout(pollStatus, 1500);
                             }
                         } catch (e) {
                             console.error(e);
@@ -1433,7 +1437,7 @@
                         window.history.pushState({ page: 'gamelist', systemName: sysObj.name }, '');
                         currentSystemObj.value = sysObj;
                         indicatorTop.value = 70;
-                        pollStatus();
+                        if (globalStatus.value.runningSystem) pollStatus();
                         loadGames(sysObj);
                     };
 
@@ -1444,7 +1448,7 @@
                                     transitionName.value = 'slide-right';
                                     currentSystemObj.value = null;
                                     window.history.replaceState({ page: 'home' }, '');
-                                    indicatorTop.value = 70; // 重置
+                                    indicatorTop.value = 70;
                                     return;
                                 }
                             }
@@ -1522,7 +1526,15 @@
                             if (animationFrameId) cancelAnimationFrame(animationFrameId);
                             animationFrameId = requestAnimationFrame(() => {
                                 const touch = e.touches[0];
-                                bubbleY.value = touch.clientY;
+
+                                if (sidebarRectCache) {
+                                    const minY = sidebarRectCache.top;
+                                    const maxY = sidebarRectCache.top + sidebarRectCache.height;
+                                    bubbleY.value = Math.max(minY, Math.min(touch.clientY, maxY));
+                                } else {
+                                    bubbleY.value = touch.clientY;
+                                }
+
                                 if (sidebarRectCache && sidebarRectCache.list.length > 0) {
                                     const relativeY = touch.clientY - sidebarRectCache.top;
                                     let index = Math.floor(relativeY / sidebarRectCache.itemHeight);
@@ -1582,7 +1594,7 @@
                             currentSystemObj.value = null;
                             showSearch.value = false;
                             allGames.value = [];
-                            indicatorTop.value = 70; // 重置
+                            indicatorTop.value = 70;
                         } else if (targetPage === 'detail') {
                             showDetail.value = true;
                             showLogPopup.value = false;
@@ -1593,6 +1605,8 @@
 
                     onMounted(() => {
                         fetchSystems();
+                        // 启动时检查是否有后台任务在跑
+                        pollStatus();
                         window.history.replaceState({ page: 'home' }, '');
                         window.addEventListener('touchstart', handleIndexTouch, { passive: false });
                         window.addEventListener('touchmove', handleIndexTouch, { passive: false });
@@ -1632,42 +1646,57 @@
                         });
                     };
 
-                    /* 【修改】closeDetail 方法 */
                     const closeDetail = () => {
                         window.history.back();
                     };
 
                     const viewLogs = () => {
-                        window.history.pushState({ page: 'log', systemName: currentSystemObj.value?.name }, '');
+                        window.history.pushState({ page: 'log' }, '');
                         showLogPopup.value = true;
                         pollStatus();
                     };
 
                     const triggerSync = async () => {
-                        if (isSyncing.value) {
+                        if (showLogPopup.value) return;
+
+                        const currentSysName = currentSystemObj.value.name;
+                        const isRunning = globalStatus.value.runningSystem === currentSysName;
+                        const isQueued = globalStatus.value.pendingQueue.includes(currentSysName);
+
+                        if (isRunning || isQueued) {
                             viewLogs();
-                            return;
+                        } else {
+                            showSyncDialog.value = true;
                         }
-                        showSyncDialog.value = true;
                     };
 
                     const startSync = async () => {
-                        isSyncing.value = true;
-                        logs.value = [];
-                        progress.value = { current: 0, total: 0 };
-                        await fetch(`/api/scan/${currentSystemObj.value.name}`, {
+                        const sysName = currentSystemObj.value.name;
+
+                        if (globalStatus.value.runningSystem) {
+                            if (!globalStatus.value.pendingQueue.includes(sysName)) {
+                                globalStatus.value.pendingQueue.push(sysName);
+                            }
+                        } else {
+                            globalStatus.value.runningSystem = sysName;
+                        }
+
+                        await fetch(`/api/scan/${sysName}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(syncOps.value)
                         });
-                        vant.showToast({ message: '后台扫描已启动', icon: 'success' });
+
+                        vant.showToast({ message: '请求已提交', icon: 'success' });
+
+                        pollStatus();
                         viewLogs();
                     };
 
                     const stopSync = async () => {
                         try {
-                            await fetch(`/api/stop-scan/${currentSystemObj.value.name}`, { method: 'POST' });
-                            vant.showToast('已发送中止指令');
+                            await fetch(`/api/stop-scan`, { method: 'POST' });
+                            vant.showToast('已清空队列并中止');
                         } catch (e) {
                             console.error(e);
                         }
@@ -1755,10 +1784,7 @@
                     const onImgLoad = (e) => e.target.classList.add('loaded');
                     const download = (id) => (window.location.href = `/api/download/${id}`);
 
-                    // === 新增：游戏封面智能回退 ===
                     const getGamePoster = (game) => {
-                        // 优先 Image -> Marquee -> Video -> 空
-                        // 如果 image_path 为空，尝试用 marquee_path 或 video_path 补位
                         const url = game.image_path || game.marquee_path || game.video_path;
                         return getImgUrl(url);
                     };
@@ -1883,7 +1909,8 @@
                         gameIndexBarRef,
                         indicatorTop,
                         progress,
-                        getGamePoster // 导出新增函数
+                        getGamePoster,
+                        globalStatus
                     };
                 }
             });

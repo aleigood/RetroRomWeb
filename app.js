@@ -15,7 +15,6 @@ const router = new Router();
 app.use(range);
 app.use(koaBody());
 
-// 【修改】使用 config.mediaDir 提供静态文件服务
 app.use(
     serve(config.mediaDir, {
         hidden: false,
@@ -58,7 +57,6 @@ const getImageCollection = (system, romFilename) => {
     const lowerBasename = basename.toLowerCase();
 
     types.forEach((type) => {
-        // 【修改】使用 config.mediaDir
         const typeDir = path.join(config.mediaDir, system, type);
         const fileMap = getDirFilesMap(typeDir);
 
@@ -79,26 +77,39 @@ const getImageCollection = (system, romFilename) => {
 
 // ================= API =================
 
-// 获取状态和日志
-router.get('/api/status/:system', async (ctx) => {
-    const system = ctx.params.system;
-    const status = scanner.getSystemStatus(system);
-    ctx.body = status;
+// 【新增】获取全局同步状态 (包含队列信息、当前运行任务、全局日志)
+router.get('/api/status/global', async (ctx) => {
+    const status = scanner.getGlobalStatus();
+    ctx.body = {
+        runningSystem: status.runningSystem,
+        // 只返回等待队列的主机名列表给前端显示
+        pendingQueue: status.pendingQueue.map((t) => t.system),
+        logs: status.logs,
+        progress: status.progress,
+        isSyncing: !!status.runningSystem
+    };
 });
 
-// 触发后台扫描
+// 【修改】请求扫描（加入队列）
 router.post('/api/scan/:system', async (ctx) => {
     const system = ctx.params.system;
-    const options = ctx.request.body || {}; // 获取同步选项
-    scanner.syncSystem(system, options); // 传递选项
-    ctx.body = { status: 'started', message: `后台扫描已启动: ${system}` };
+    const options = ctx.request.body || {};
+
+    // 调用队列方法
+    const result = await scanner.addToSyncQueue(system, options);
+
+    if (!result.success) {
+        // 如果重复点击或正在运行，返回 info，前端可以忽略
+        ctx.body = { status: 'ignored', message: result.message };
+    } else {
+        ctx.body = { status: 'queued', message: 'Request accepted' };
+    }
 });
 
-// 【新增】停止后台扫描
-router.post('/api/stop-scan/:system', async (ctx) => {
-    const system = ctx.params.system;
-    scanner.stopSync(system);
-    ctx.body = { status: 'stopped', message: `扫描停止指令已发送: ${system}` };
+// 【修改】全局停止扫描（清空队列）
+router.post('/api/stop-scan', async (ctx) => {
+    scanner.stopSync();
+    ctx.body = { status: 'stopped', message: 'Stopping all tasks...' };
 });
 
 router.get('/api/systems', async (ctx) => {
@@ -156,7 +167,6 @@ router.get('/api/games', async (ctx) => {
     }
 
     return new Promise((resolve) => {
-        // 【修改】添加了 MAX(video_path)
         if (Number(all) === 1) {
             const sql = `
                 SELECT name, MAX(image_path) as image_path, MAX(video_path) as video_path, MAX(releasedate) as releasedate, 
@@ -187,7 +197,6 @@ router.get('/api/games', async (ctx) => {
                 }
                 const total = row.total;
 
-                // 【修改】添加了 MAX(video_path)
                 const sql = `
                     SELECT name, MAX(image_path) as image_path, MAX(video_path) as video_path, MAX(releasedate) as releasedate, 
                            MAX(developer) as developer, MAX(publisher) as publisher, 
@@ -220,7 +229,6 @@ router.get('/api/game-versions', async (ctx) => {
     }
 
     return new Promise((resolve) => {
-        // 【修改】这里选择 * 即可，games 表结构已经包含了 video_path
         db.all(
             'SELECT * FROM games WHERE system = ? AND name = ? ORDER BY filename ASC',
             [system, name],
@@ -273,5 +281,5 @@ router.get('/api/download/:id', async (ctx) => {
 
 app.use(router.routes()).use(router.allowedMethods());
 app.listen(config.port, () => {
-    console.log(`RetroRomWeb V11 (API+Queue) started on http://localhost:${config.port}`);
+    console.log(`RetroRomWeb V13 (Queue Mode) started on http://localhost:${config.port}`);
 });

@@ -5,9 +5,11 @@ const axios = require('axios');
 const crypto = require('crypto');
 const config = require('../config');
 
-// 【修改】移除硬编码的 SYSTEM_MAP，现在由配置文件控制
+// 【修改】降低阈值到 64MB，加速大文件处理
+const MD5_THRESHOLD = 64 * 1024 * 1024;
 
-const MD5_THRESHOLD = 256 * 1024 * 1024;
+// 【修改】定义跳过 MD5 的大文件后缀
+const LARGE_FILE_EXTS = ['.iso', '.chd', '.cso', '.wbfs', '.rvz'];
 
 function calculateMD5 (filePath) {
     return new Promise((resolve, reject) => {
@@ -54,17 +56,14 @@ async function downloadFile (url, savePath) {
     }
 }
 
-// 【修改】新增 explicitSystemId 参数
 async function fetchGameInfo (system, filename, fullPath, explicitSystemId = null) {
     const ssConfig = config.screenScraper;
     if (!ssConfig || !ssConfig.devId || !ssConfig.devPassword) return null;
 
-    // 优先使用传入的 ID，如果没有，则无法精确抓取
     const systemId = explicitSystemId;
 
     if (!systemId) {
         console.log(`[Scraper] 目录 ${system} 未配置 Scraper ID，跳过精准匹配，仅尝试全局搜索...`);
-        // 如果没有 ID，直接去全局搜索，不计算 MD5 了，因为 MD5 接口通常需要 ID
         return await searchWithFallback(null, filename, ssConfig);
     }
 
@@ -75,8 +74,12 @@ async function fetchGameInfo (system, filename, fullPath, explicitSystemId = nul
         return null;
     }
 
-    if (romSize > MD5_THRESHOLD) {
-        console.log('[Scraper] 文件较大，跳过 MD5 计算，直接使用文件名搜索...');
+    // 【修改】检测大文件格式，直接跳过 MD5
+    const ext = path.extname(filename).toLowerCase();
+    const isLargeFormat = LARGE_FILE_EXTS.includes(ext);
+
+    if (romSize > MD5_THRESHOLD || isLargeFormat) {
+        console.log('[Scraper] 文件较大或格式特殊，跳过 MD5 计算，直接使用文件名搜索...');
         return await searchWithFallback(systemId, filename, ssConfig);
     }
 
@@ -124,7 +127,6 @@ async function tryJeuInfos (systemId, filename, romSize, romMD5, ssConfig) {
 async function searchWithFallback (systemId, filename, ssConfig) {
     let result = null;
 
-    // 如果有 ID，先在系统内搜索
     if (systemId) {
         result = await searchByText(systemId, filename, ssConfig);
         if (result) return result;
