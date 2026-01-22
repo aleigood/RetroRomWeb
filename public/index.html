@@ -40,7 +40,6 @@
                 height: 0 !important;
             }
 
-            /* 【修改1】给 html 设置背景色，解决 iOS/Safari 边界回弹露白问题 */
             html {
                 height: 100%;
                 overflow: hidden;
@@ -177,14 +176,13 @@
                 height: 40px;
                 background: rgba(255, 255, 255, 0.6);
                 border-radius: 4px;
-                z-index: 2500; /* 比 sidebar 高，确保优先响应 */
-                pointer-events: auto; /* 【关键】指示器可以点击 */
+                z-index: 2500;
+                pointer-events: auto;
                 transition:
                     opacity 0.3s,
                     transform 0.2s;
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
                 opacity: 0.1;
-                /* 增加点击热区，方便手指按压，但不改变视觉大小 */
                 touch-action: none;
             }
             .index-hint::before {
@@ -230,7 +228,6 @@
                 user-select: none;
                 -webkit-user-select: none;
                 transition: opacity 0.2s;
-                /* 【核心修改】默认禁止点击，防止误触右边缘 */
                 pointer-events: none !important;
             }
             .van-index-bar__index {
@@ -242,7 +239,6 @@
                 font-weight: 700 !important;
             }
 
-            /* 当处于激活状态时，允许 sidebar 接收事件（为了 elementFromPoint 检测） */
             body.touching-sidebar .van-index-bar__sidebar {
                 background: rgba(0, 0, 0, 0.7) !important;
                 border-top-left-radius: 16px;
@@ -250,7 +246,7 @@
                 right: 0 !important;
                 opacity: 1 !important;
                 padding: 8px 0;
-                pointer-events: auto !important; /* 激活后允许交互 */
+                pointer-events: auto !important;
             }
             body.touching-sidebar .van-index-bar__index--active {
                 color: #fff !important;
@@ -521,6 +517,23 @@
                 background: #18181c;
                 color: #444;
             }
+
+            .ver-badge {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                z-index: 5;
+                background: rgba(0, 0, 0, 0.75);
+                backdrop-filter: blur(4px);
+                color: #fff;
+                font-size: 9px;
+                padding: 3px 8px;
+                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                font-weight: bold;
+            }
+
+            /* 【核心修改1】调整遮罩层和内部元素的 CSS 顺序 */
             .game-info-overlay {
                 position: absolute;
                 bottom: 0;
@@ -542,12 +555,21 @@
                 text-overflow: ellipsis;
                 font-weight: 700;
                 width: 100%;
+                margin-top: 0; /* 游戏名在底部，无需上边距 */
             }
             .g-year {
                 font-size: 10px;
                 color: #bbb;
                 text-align: center;
-                margin-top: 3px;
+                margin-bottom: 2px; /* 给下方的游戏名留出空隙 */
+            }
+            .g-rating {
+                height: 12px;
+                line-height: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 2px; /* 给下方的年份留出空隙 */
             }
 
             .detail-popup {
@@ -765,7 +787,12 @@
                                     @click="enterSystem(sys)"
                                 >
                                     <div class="sys-visual" :style="{ background: getSysColor(sys.name) }">
-                                        <div class="sys-abbr">{{ sys.abbr }}</div>
+                                        <div
+                                            class="sys-abbr"
+                                            :style="{ fontSize: (sys.abbr && sys.abbr.length > 5) ? '26px' : '28px' }"
+                                        >
+                                            {{ sys.abbr }}
+                                        </div>
                                         <div class="sys-count-badge">{{ sys.count }}</div>
                                     </div>
                                     <div class="sys-content">
@@ -870,21 +897,22 @@
                                             {{ game.version_count }} Ver
                                         </div>
                                         <div class="game-info-overlay">
-                                            <div class="g-title">{{ game.name }}</div>
-                                            <div class="g-year">
-                                                {{ game.releasedate ? game.releasedate.substring(0,4) : '' }}
-                                            </div>
                                             <div class="g-rating" v-if="game.rating && game.rating > 0">
                                                 <van-rate
                                                     :model-value="Number(game.rating) * 5"
                                                     readonly
                                                     allow-half
                                                     size="10px"
+                                                    gutter="2px"
                                                     color="#ffd21e"
                                                     void-icon="star"
                                                     void-color="#555"
                                                 />
                                             </div>
+                                            <div class="g-year">
+                                                {{ game.releasedate ? game.releasedate.substring(0,4) : '' }}
+                                            </div>
+                                            <div class="g-title">{{ game.name }}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1106,26 +1134,20 @@
                         }, 1000);
                     };
 
-                    /* === 核心修改：精准触摸处理 === */
                     const handleIndexTouch = (e) => {
-                        // 1. 如果尚未处于触摸索引状态，则必须且只能由“指示器”触发
                         if (e.type === 'touchstart') {
                             const isHint = e.target.classList.contains('index-hint');
                             if (!isHint) {
-                                // 如果不是点在指示器上，直接忽略，不启动索引模式
                                 return;
                             }
-                            // 点中指示器，启动索引模式
                             isTouchingIndex.value = true;
                             document.body.classList.add('touching-sidebar');
-                            e.preventDefault(); // 阻止页面滚动
+                            e.preventDefault();
                         }
 
-                        // 2. 如果已激活索引模式（手指在滑动），处理逻辑
                         if (isTouchingIndex.value) {
                             e.preventDefault();
 
-                            // 触摸结束清理状态
                             if (e.type === 'touchend' || e.type === 'touchcancel') {
                                 isTouchingIndex.value = false;
                                 document.body.classList.remove('touching-sidebar');
@@ -1133,22 +1155,17 @@
                                 return;
                             }
 
-                            // 3. 计算手指位置对应的字母
                             const touch = e.touches[0];
                             bubbleY.value = touch.clientY;
 
-                            // 核心：使用 elementFromPoint 在“已激活（pointer-events: auto）”的 sidebar 上找元素
-                            // 因为此时 body 有 .touching-sidebar 类，sidebar 是可见且可交互的
                             const target = document.elementFromPoint(touch.clientX, touch.clientY);
                             if (target) {
-                                // 找到手指下的索引项
                                 const indexItem = target.closest('.van-index-bar__index');
                                 if (indexItem) {
                                     const char = indexItem.innerText;
                                     if (char && char !== currentLetter.value) {
                                         currentLetter.value = char;
                                         showLetterToast.value = true;
-                                        // 调用 Vant 组件的 scrollTo 方法跳转
                                         const activeBar = currentSystemObj.value
                                             ? gameIndexBarRef.value
                                             : systemIndexBarRef.value;
@@ -1162,7 +1179,6 @@
                     };
 
                     const onIndexSelect = (index) => {
-                        // 配合 Vant 的回调，确保数据一致
                         if (isTouchingIndex.value) {
                             currentLetter.value = index;
                             showLetterToast.value = true;
@@ -1399,8 +1415,8 @@
                         systemIndexList,
                         handleScroll,
                         isScrollingPage,
-                        systemIndexBarRef, // 导出引用
-                        gameIndexBarRef // 导出引用
+                        systemIndexBarRef,
+                        gameIndexBarRef
                     };
                 }
             });
