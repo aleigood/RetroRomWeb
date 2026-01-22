@@ -1,0 +1,1038 @@
+{
+    "type": "file",
+    "fileName": "RetroRomWeb/systems.json",
+    "content": {
+        "psx": {
+            "fullname": "Sony PlayStation",
+            "abbr": "PS1",
+            "maker": "Sony",
+            "release_year": "1994",
+            "desc": "索尼的开山之作，凭借 3D 技术彻底改变了游戏行业格局。",
+            "history": "【复仇诞生的王者】PlayStation 的诞生源于任天堂在 CD-ROM 合作项目上对索尼的一次“背叛”。索尼愤而独立开发主机，凭借大容量 CD 介质带来的 CG 电影化叙事（如《最终幻想 VII》）和卓越的 3D 处理能力，彻底击溃了世嘉与任天堂的长期垄断。它让电子游戏从儿童玩具转变为大众娱乐文化。",
+            "id": 57
+        },
+        "ps2": {
+            "fullname": "Sony PlayStation 2",
+            "abbr": "PS2",
+            "maker": "Sony",
+            "release_year": "2000",
+            "desc": "史上销量最高的游戏主机，也是一代人的 DVD 播放器。",
+            "history": "【黑石碑的传说】史上销量最高的游戏主机（超过 1.55 亿台）。除了极为恐怖的游戏阵容，它在当时也是最廉价的 DVD 播放器，这成为了它进入千家万户的“特洛伊木马”。PS2 时代诞生了开放世界标杆《侠盗猎车手：圣安地列斯》和动作游戏巅峰《战神》。",
+            "id": 58
+        },
+        "ps3": {
+            "fullname": "Sony PlayStation 3",
+            "abbr": "PS3",
+            "maker": "Sony",
+            "release_year": "2006",
+            "desc": "搭载蓝光与 CELL 处理器的性能怪兽，索尼的第一方大作爆发地。",
+            "history": "【不仅是游戏机】搭载了被称为“怪兽”的 CELL 处理器和蓝光光驱，初期定价高昂且开发困难，导致索尼在次世代战争初期陷入苦战。但凭借《神秘海域》、《最后生还者》等第一方神作的救场，最终在生命周期末期逆袭。",
+            "id": 59
+        },
+        "psp": {
+            "fullname": "PlayStation Portable",
+            "abbr": "PSP",
+            "maker": "Sony",
+            "release_year": "2004",
+            "desc": "索尼首款掌机，拥有接近 PS2 的画质和强大的多媒体功能。",
+            "history": "【21世纪的随身听】索尼对任天堂掌机霸权的第一次强力挑战。它拥有接近 PS2 级别的画质和多媒体功能（听歌、看电影）。虽然没能击败 NDS，但《怪物猎人》系列的爆发使其在日本成为了一种社交现象。",
+            "id": 61
+        },
+        "psvita": {
+            "fullname": "PlayStation Vita",
+            "abbr": "PSV",
+            "maker": "Sony",
+            "release_year": "2011",
+            "desc": "拥有双摇杆和 OLED 触摸屏的强大掌机，生不逢时的“宝石”。",
+            "history": "【生不逢时的贵族】拥有惊艳的双摇杆和 OLED 触摸屏，硬件机能远超同期的 3DS。然而由于昂贵的专用存储卡、智能手机的兴起以及索尼第一方支持的撤退，它最终成为了一台充满遗憾的“宝石”。",
+            "id": 62
+        },
+        "nes": {
+            "fullname": "Nintendo Entertainment System",
+            "abbr": "NES",
+            "maker": "Nintendo",
+            "release_year": "1983",
+            "desc": "现代电子游戏的奠基者，定义了十字键标准。",
+            "history": "【业界的救世主】在 1983 年“雅达利大崩溃”摧毁美国游戏市场后，NES 凭借严格的“质量印章”制度重建了行业秩序。它确立了十字键手柄的工业标准，诞生了《超级马力欧兄弟》、《塞尔达传说》等永恒经典。",
+            "id": 3
+        },
+        "famicom": {
+            "fullname": "Nintendo Family Computer",
+            "abbr": "FC",
+            "maker": "Nintendo",
+            "release_year": "1983",
+            "desc": "经典的红白机，无数中国玩家童年的起点。",
+            "history": "【红白机】日本版的 NES。其红白配色源于社长山内溥喜欢的围巾颜色。手柄麦克风设计在当时极具创意（如《塞尔达》中杀兔子）。它是无数中国玩家童年“小霸王”的原型，承载了80、90后最初的游戏记忆。",
+            "id": 3
+        },
+        "snes": {
+            "fullname": "Super Nintendo",
+            "abbr": "SNES",
+            "maker": "Nintendo",
+            "release_year": "1990",
+            "desc": "16位时代的王者，RPG 游戏的黄金平台。",
+            "history": "【16位战争的胜者】面对世嘉 Genesis 的强力挑战，SNES 凭借强大的 Mode-7 旋转放大特效和索尼提供的声音芯片笑到了最后。它是 JRPG 的黄金年代，拥有《最终幻想 VI》、《时空之轮》等史诗。",
+            "id": 4
+        },
+        "sufami": {
+            "fullname": "Bandai SuFami Turbo",
+            "abbr": "SF-T",
+            "maker": "Bandai",
+            "release_year": "1996",
+            "desc": "万代为 SFC 推出的双卡槽外设，支持游戏联动。",
+            "history": "【双插槽的奇思妙想】万代获得任天堂授权后推出的特殊外设，插在 SFC 卡槽上使用。它拥有两个小型卡槽，允许两款游戏进行数据联动（主要是《奥特曼》和《高达》系列），这种“合体”玩法非常有创意。",
+            "id": 108
+        },
+        "n64": {
+            "fullname": "Nintendo 64",
+            "abbr": "N64",
+            "maker": "Nintendo",
+            "release_year": "1996",
+            "desc": "3D 游戏的先驱，重新定义了 3D 动作游戏的操作逻辑。",
+            "history": "【3D 游戏的教科书】在所有人都转向 CD 光盘时，任天堂倔强地坚持使用卡带（为了消除读取时间）。但它凭借类比摇杆手柄、《超级马力欧 64》和《塞尔达传说：时之笛》，从零开始教给了全世界“如何在 3D 空间中玩游戏”。",
+            "id": 14
+        },
+        "gc": {
+            "fullname": "Nintendo GameCube",
+            "abbr": "NGC",
+            "maker": "Nintendo",
+            "release_year": "2001",
+            "desc": "小巧精致的方块主机，拥有《生化危机4》等高质量独占。",
+            "history": "【紫色的小方块】任天堂首款使用光盘（特殊的 8cm 光盘）的主机，外形像便当盒一样可爱。虽然销量不佳，但手柄手感极佳，且拥有《任天堂大乱斗 Melee》、《生化危机 4》（原独占）等高分大作。",
+            "id": 13
+        },
+        "wii": {
+            "fullname": "Nintendo Wii",
+            "abbr": "Wii",
+            "maker": "Nintendo",
+            "release_year": "2006",
+            "desc": "通过体感操作席卷全球的现象级主机，让全家人一起玩游戏。",
+            "history": "【蓝海战略的奇迹】在高清性能大战中，Wii 另辟蹊径，用简陋的机能配合革命性的“体感操作”席卷全球。它成功地让爷爷奶奶也拿起了手柄打网球。Wii Sports 成为了历史上销量最高的游戏之一。",
+            "id": 16
+        },
+        "wiiu": {
+            "fullname": "Nintendo Wii U",
+            "abbr": "WiiU",
+            "maker": "Nintendo",
+            "release_year": "2012",
+            "desc": "Switch 的探索先行者，引入了双屏互动的概念。",
+            "history": "【Switch 的铺路石】任天堂第一款高清主机，引入了带屏幕的 GamePad 手柄，试图创造非对称游戏体验。虽然因为命名混乱和缺乏第三方支持而惨败，但它的许多设计理念（如离屏游玩）直接孕育了后来的 Switch。",
+            "id": 18
+        },
+        "switch": {
+            "fullname": "Nintendo Switch",
+            "abbr": "NSW",
+            "maker": "Nintendo",
+            "release_year": "2017",
+            "desc": "主机掌机二合一的革命性设计，随时随地享受游戏乐趣。",
+            "history": "【形态的终极统一】打破了家用机和掌机的界限，“Switch”之名既指形态切换，也指生活方式的改变。Joy-Con 的拆卸设计天才般地解决了分享游玩的问题。它是任天堂游戏哲学的集大成者，也是独立游戏的天堂。",
+            "id": 225
+        },
+        "gb": {
+            "fullname": "Game Boy",
+            "abbr": "GB",
+            "maker": "Nintendo",
+            "release_year": "1989",
+            "desc": "便携掌机的鼻祖，凭借《俄罗斯方块》和《宝可梦》风靡世界。",
+            "history": "【枯萎技术的水平思考】横井军平的设计杰作。尽管屏幕是黑白的残影屏，机能也不如竞争对手，但凭借无敌的续航和耐用性，加上《俄罗斯方块》的捆绑销售，彻底统治了掌机市场。",
+            "id": 9
+        },
+        "gbc": {
+            "fullname": "Game Boy Color",
+            "abbr": "GBC",
+            "maker": "Nintendo",
+            "release_year": "1998",
+            "desc": "彩色屏幕的 Game Boy，完全兼容前代游戏。",
+            "history": "【迟来的色彩】在 GB 发售 9 年后，任天堂终于推出了彩色版。机能略有提升，并完全向下兼容 GB 卡带。它拥有透明紫等时尚外壳，专属游戏《塞尔达传说：梦见岛DX》是必玩之作。",
+            "id": 10
+        },
+        "gba": {
+            "fullname": "Game Boy Advance",
+            "abbr": "GBA",
+            "maker": "Nintendo",
+            "release_year": "2001",
+            "desc": "口袋里的 32 位强机，拥有大量优秀的 2D 动作游戏。",
+            "history": "【口袋里的 SNES】拥有强大的 32 位性能，是 2D 像素艺术最后的辉煌堡垒。在 3D 游戏大行其道的年代，GBA 贡献了《黄金太阳》、《恶魔城》、《火焰纹章》等无数 2D 巅峰作品。",
+            "id": 12
+        },
+        "nds": {
+            "fullname": "Nintendo DS",
+            "abbr": "NDS",
+            "maker": "Nintendo",
+            "release_year": "2004",
+            "desc": "双屏加触摸的创新设计，销量极高的掌机。",
+            "history": "【双屏的异质者】起初被认为是用来防御 PSP 的“第三支柱”，却凭借双屏幕、触摸屏和麦克风的创新交互成为了史上销量第二的游戏机。《脑锻炼》和《任天狗》拓展了非玩家群体。",
+            "id": 15
+        },
+        "n3ds": {
+            "fullname": "Nintendo 3DS",
+            "abbr": "3DS",
+            "maker": "Nintendo",
+            "release_year": "2011",
+            "desc": "支持裸眼 3D 显示的掌机，拥有极其丰富的游戏库。",
+            "history": "【裸眼 3D 的尝试】主打无需眼镜的 3D 显示技术。虽然初期定价失误，但岩田聪社长带头降价并推出“大使计划”挽回了局势。它是《马力欧 3D 大陆》和《路易吉洋楼》的舞台。",
+            "id": 17
+        },
+        "virtualboy": {
+            "fullname": "Nintendo Virtual Boy",
+            "abbr": "VB",
+            "maker": "Nintendo",
+            "release_year": "1995",
+            "desc": "任天堂对 VR 的早期尝试，虽然失败但极具收藏价值。",
+            "history": "【红色的失败实验】任天堂对 VR 技术的早期激进尝试。由于只能显示刺眼的红黑画面，且佩戴体验极差，它在市场上遭遇了惨败，不到一年就停产。但这台主机极具收藏价值。",
+            "id": 11
+        },
+        "gameandwatch": {
+            "fullname": "Nintendo Game and Watch",
+            "abbr": "G&W",
+            "maker": "Nintendo",
+            "release_year": "1980",
+            "desc": "任天堂最早的便携式电子游戏机系列。",
+            "history": "【灵感来自计算器】横井军平看到上班族在列车上按计算器消磨时间而发明的。每一台只内置一款简单的液晶游戏。它也是现代手柄“十字键”设计的诞生地。",
+            "id": 52
+        },
+        "fds": {
+            "fullname": "Nintendo Famicom Disk System",
+            "abbr": "FDS",
+            "maker": "Nintendo",
+            "release_year": "1986",
+            "desc": "FC 的磁碟机外设，诞生了《塞尔达传说》初代。",
+            "history": "【可读写的磁碟】FC 的底座外设，使用专用的软盘。它的优势是容量比早期卡带大且支持存档，还能在便利店廉价覆写新游戏。《塞尔达传说》和《银河战士》的初代都是在此平台首发。",
+            "id": 106
+        },
+        "pokemini": {
+            "fullname": "Nintendo Pokémon Mini",
+            "abbr": "MINI",
+            "maker": "Nintendo",
+            "release_year": "2001",
+            "desc": "史上最小的可更换卡带游戏机，专为宝可梦设计。",
+            "history": "【最小的可换卡掌机】任天堂推出的一款超袖珍掌机，比 GBA 卡带大不了多少，专为宝可梦小游戏设计。虽然内置了震动和红外功能，但更多被视为一款电子玩具而非严肃的游戏机。",
+            "id": 211
+        },
+        "satellaview": {
+            "fullname": "Nintendo Satellaview",
+            "abbr": "BS-X",
+            "maker": "Nintendo",
+            "release_year": "1995",
+            "desc": "SFC 的卫星调制解调器外设，曾通过卫星广播下载游戏。",
+            "history": "【卫星下载游戏】SFC 的黑科技外设，通过卫星广播信号接收游戏数据（SoundLink）。玩家要在特定时间守在电视前玩“直播游戏”，很多内容（如特殊的《塞尔达传说》版本）至今已难以寻觅。",
+            "id": 107
+        },
+        "sgb": {
+            "fullname": "Nintendo Super Game Boy",
+            "abbr": "SGB",
+            "maker": "Nintendo",
+            "release_year": "1994",
+            "desc": "能让 Game Boy 游戏在电视上游玩的 SFC 卡带适配器。",
+            "history": "【大屏幕的快乐】插在 SFC 上的转接卡，能让你在电视上玩 GB 游戏。它不仅仅是画面放大，还能为黑白游戏添加自定义配色边框，甚至利用 SFC 的声卡增强音效。",
+            "id": 127
+        },
+        "mastersystem": {
+            "fullname": "Sega Master System",
+            "abbr": "SMS",
+            "maker": "Sega",
+            "release_year": "1985",
+            "desc": "世嘉挑战 FC 的 8 位主机，在欧洲和巴西非常流行。",
+            "history": "【任天堂的挑战者】世嘉在全球范围挑战 FC 的 8 位主机。虽然在日本和北美不敌任天堂，但在欧洲和巴西却取得了惊人的成功（在巴西甚至卖到了 2010 年代）。",
+            "id": 2
+        },
+        "megadrive": {
+            "fullname": "Sega Mega Drive",
+            "abbr": "MD",
+            "maker": "Sega",
+            "release_year": "1988",
+            "desc": "世嘉最成功的主机，以高速动作游戏和《索尼克》闻名。",
+            "history": "【世嘉最辉煌的时刻】凭借 16 位摩托罗拉 68000 处理器带来的“高速处理能力”，世嘉打造了《索尼克》来对抗马力欧。通过激进的营销攻势，它成功夺取了北美市场的半壁江山，也是体育游戏和动作游戏迷的最爱。",
+            "id": 1
+        },
+        "genesis": {
+            "fullname": "Sega Genesis",
+            "abbr": "MD",
+            "maker": "Sega",
+            "release_year": "1988",
+            "desc": "美版 Mega Drive，曾在美国市场与任天堂分庭抗礼。",
+            "history": "【美版 MD】同 Mega Drive。在美国市场，它是酷、叛逆和青少年文化的象征。通过允许含有血腥内容的《真人快打》发售（而任天堂版被和谐），确立了其针对更年长玩家的定位。",
+            "id": 1
+        },
+        "segacd": {
+            "fullname": "Sega CD",
+            "abbr": "SegaCD",
+            "maker": "Sega",
+            "release_year": "1991",
+            "desc": "MD 的 CD-ROM 外设，引入了全动态视频（FMV）游戏。",
+            "history": "【FMV 的狂热】MD 的光盘扩展装置。虽然增加了存储空间和 CD 音质，但大量充斥着低成本真人视频（FMV）的互动电影游戏（如《午夜陷阱》）引发了巨大争议，最终促成了游戏分级制度（ESRB）的建立。",
+            "id": 20
+        },
+        "sega32x": {
+            "fullname": "Sega 32X",
+            "abbr": "32X",
+            "maker": "Sega",
+            "release_year": "1994",
+            "desc": "MD 的 32 位扩展模块，旨在延长 MD 的生命周期。",
+            "history": "【续命的蘑菇头】插在 MD 卡槽上的 32 位升级模块。这是世嘉日本与美国分部决策混乱的产物，试图以低成本延长 MD 寿命，结果却因为游戏稀缺且与即将发售的土星互抢资源而迅速暴死。",
+            "id": 19
+        },
+        "saturn": {
+            "fullname": "Sega Saturn",
+            "abbr": "SS",
+            "maker": "Sega",
+            "release_year": "1994",
+            "desc": "世嘉的 32 位主机，2D 格斗游戏的神器。",
+            "history": "【2D 之王，3D 之殇】为了应对 PlayStation，世嘉临时为土星塞入了双 CPU 架构，导致开发难度极高，3D 性能难以发挥。但它拥有完美的街机 2D 移植能力（如《卡普空 vs SNK》），是硬核玩家心中的“2D 格斗神机”。",
+            "id": 22
+        },
+        "dreamcast": {
+            "fullname": "Sega Dreamcast",
+            "abbr": "DC",
+            "maker": "Sega",
+            "release_year": "1998",
+            "desc": "世嘉最后一款主机，虽败犹荣，拥有大量创意游戏。",
+            "history": "【悲情的先驱】世嘉的绝唱，也是第一台 128 位主机。它极具创新：内置调制解调器支持联网对战、手柄上有可视化的存储卡（VMU）。尽管拥有《莎木》、《索尼克大冒险》等超前大作，但受累于财务危机，最终导致世嘉退出硬件市场。",
+            "id": 23
+        },
+        "gamegear": {
+            "fullname": "Sega Game Gear",
+            "abbr": "GG",
+            "maker": "Sega",
+            "release_year": "1990",
+            "desc": "世嘉的彩色掌机，性能相当于手持版 Master System。",
+            "history": "【耗电怪兽】世嘉对 Game Boy 的回击。本质上是一台手持版的 Master System，拥有彩色的背光屏幕，这在当时极具冲击力。但它巨大的体积和 6 节电池只能玩 3 小时的续航，让它难以真正撼动 GB 的地位。",
+            "id": 21
+        },
+        "sg-1000": {
+            "fullname": "Sega SG-1000",
+            "abbr": "SG1000",
+            "maker": "Sega",
+            "release_year": "1983",
+            "desc": "世嘉的第一款家用游戏机，与 FC 同时代。",
+            "history": "【世嘉的原点】世嘉的第一台家用游戏机，与任天堂 FC 同一天发售。虽然性能不如 FC 且缺少平滑卷轴功能，但它标志着世嘉从街机厂商向家用机市场的转型。",
+            "id": 109
+        },
+        "naomi": {
+            "fullname": "Sega NAOMI",
+            "abbr": "NAOMI",
+            "maker": "Sega",
+            "release_year": "1998",
+            "desc": "基于 Dreamcast 架构的著名街机基板。",
+            "history": "【街机与家用的桥梁】基于 Dreamcast 架构开发的街机基板。由于架构相同，街机游戏移植到 DC 变得易如反掌，这保证了 DC 初期拥有大量高质量的街机移植作，如《疯狂出租车》和《VR战士 4》。",
+            "id": 56
+        },
+        "model2": {
+            "fullname": "Sega Model 2",
+            "abbr": "Model2",
+            "maker": "Sega",
+            "release_year": "1993",
+            "desc": "引入纹理映射技术的 3D 街机基板。",
+            "history": "【3D 纹理的革命】引入了纹理映射技术，让多边形不再是纯色块。著名的《VR战士 2》和《第托纳 USA》就诞生于此，其画面表现力在 90 年代中期不仅吊打所有家用机，甚至超越了当时的许多 PC。",
+            "id": 75
+        },
+        "model3": {
+            "fullname": "Sega Model 3",
+            "abbr": "Model3",
+            "maker": "Sega",
+            "release_year": "1996",
+            "desc": "性能极其强大的街机基板，代表作《Scud Race》。",
+            "history": "【百万多边形的震撼】世嘉最强大的街机基板之一，代表作《Scud Race》和《VR战士 3》。在 1996 年，它呈现出的画面效果被认为是“黑科技”，以至于当年的家用机完全无法完美移植其作品。",
+            "id": 75
+        },
+        "atomiswave": {
+            "fullname": "Sammy Atomiswave",
+            "abbr": "AW",
+            "maker": "Sammy",
+            "release_year": "2003",
+            "desc": "基于 Dreamcast/NAOMI 架构的街机系统，SNK 后期的家。",
+            "history": "【SNK 的新家】基于 Dreamcast/NAOMI 架构的街机系统。在 Neo Geo 停止支持后，SNK 将其作为主力平台，推出了《拳皇 XI》和《合金弹头 6》。它的卡带易于更换，维护成本低，深受街机厅老板喜爱。",
+            "id": 53
+        },
+        "stv": {
+            "fullname": "Sega Titan Video",
+            "abbr": "ST-V",
+            "maker": "Sega",
+            "release_year": "1995",
+            "desc": "基于世嘉土星架构的街机基板。",
+            "history": "【土星的街机兄弟】ST-V 是 Sega Titan Video 的缩写，它与世嘉土星家用机架构几乎完全相同，使用的是卡带介质。这使得《苍穹红莲队》、《棉花小魔女》等街机游戏能够完美移植到土星上。",
+            "id": 75
+        },
+        "triforce": {
+            "fullname": "Namco/Sega/Nintendo Triforce",
+            "abbr": "Tri",
+            "maker": "Namco/Sega/Nintendo",
+            "release_year": "2002",
+            "desc": "基于 GameCube 架构的三厂联合基板。",
+            "history": "【三强联手】由任天堂、世嘉和南梦宫三家昔日对手联合开发的街机基板，基于 GameCube 架构（Triforce 也是塞尔达传说中的三角力量）。著名的《马力欧赛车 Arcade GP》和《F-Zero AX》就运行在此基板上。",
+            "id": 75
+        },
+        "atari2600": {
+            "fullname": "Atari 2600",
+            "abbr": "2600",
+            "maker": "Atari",
+            "release_year": "1977",
+            "desc": "普及了家用游戏机的先驱，经典无数。",
+            "history": "【木纹盒子的传奇】它不是第一台游戏机，但它真正普及了“可更换卡带”的概念。在 70 年代末，拥有一台 Atari 2600 是美国家庭的标配。虽然《E.T.》事件导致了 1983 年的大崩溃，但《太空侵略者》、《运河袭击》等经典永远载入史册。",
+            "id": 26
+        },
+        "atari5200": {
+            "fullname": "Atari 5200",
+            "abbr": "5200",
+            "maker": "Atari",
+            "release_year": "1982",
+            "desc": "基于 Atari 8-bit 电脑架构的主机，手柄极易损坏。",
+            "history": "【并不超级的系统】基于 Atari 400/800 电脑架构设计。尽管画面比 2600 强，但其模拟摇杆极其容易损坏且无法自动回中，加上不兼容 2600 游戏，导致它在市场上迅速被 ColecoVision 击败。",
+            "id": 40
+        },
+        "atari7800": {
+            "fullname": "Atari 7800",
+            "abbr": "7800",
+            "maker": "Atari",
+            "release_year": "1986",
+            "desc": "兼容 2600 游戏，画面更强，但为时已晚。",
+            "history": "【迟到的修正】旨在纠正 5200 的错误，完全兼容 2600 游戏。本来能与 NES 一战，却因雅达利公司被出售而推迟发售。等它上市时，任天堂已经统治了世界，它只能沦为配角。",
+            "id": 41
+        },
+        "atarijaguar": {
+            "fullname": "Atari Jaguar",
+            "abbr": "JAG",
+            "maker": "Atari",
+            "release_year": "1993",
+            "desc": "标榜“64位”的主机，雅达利的最后绝唱。",
+            "history": "【Do the Math】雅达利最后的绝唱。标榜自己是“64位主机”（实际上是双 32 位处理器），试图在参数上碾压 16 位主机。但由于手柄设计反人类（带电话拨号键盘）、开发极难且缺乏大作，最终悲惨退场。",
+            "id": 27
+        },
+        "atarijaguarcd": {
+            "fullname": "Atari Jaguar CD",
+            "abbr": "JAGCD",
+            "maker": "Atari",
+            "release_year": "1995",
+            "desc": "Jaguar 的光盘外设，因其造型像马桶而闻名。",
+            "history": "【马桶盖外设】Jaguar 的光驱附件，因其插入主机后的造型酷似马桶而闻名。可靠性极差，现存完好的设备非常稀少。它是雅达利在硬件市场最后的挣扎。",
+            "id": 171
+        },
+        "atarilynx": {
+            "fullname": "Atari Lynx",
+            "abbr": "Lynx",
+            "maker": "Atari",
+            "release_year": "1989",
+            "desc": "世界上第一款彩色液晶屏掌机，支持左右手反转。",
+            "history": "【彩屏先驱】世界上第一款彩色液晶掌机，支持左右手切换（可以翻转屏幕）。虽然机能强大，支持硬件缩放，但昂贵的价格和“吃电老虎”的属性（6节电池玩不久）让它输给了 Game Boy。",
+            "id": 28
+        },
+        "atarist": {
+            "fullname": "Atari ST",
+            "abbr": "ST",
+            "maker": "Atari",
+            "release_year": "1985",
+            "desc": "内置 MIDI 接口的 16 位电脑，深受音乐人喜爱。",
+            "history": "【音乐人的最爱】意为“Sixteen/Thirty-two”（16/32位）。由于内置了 MIDI 接口，它成为了 80、90 年代音乐工作室的标配电脑。在欧洲非常流行，与 Amiga 是死对头，拥有大量优秀的动作和策略游戏。",
+            "id": 42
+        },
+        "atari800": {
+            "fullname": "Atari 800",
+            "abbr": "A800",
+            "maker": "Atari",
+            "release_year": "1979",
+            "desc": "雅达利的高端 8 位电脑，拥有专用的协处理器。",
+            "history": "【8 位机的强者】Atari 8 位机系列（400/800）使用了 Jay Miner 设计的专用芯片来处理图形和声音（他后来设计了 Amiga）。这使得 Atari 800 的游戏画面在 1979 年处于绝对领先地位，也是《Star Raiders》的诞生地。",
+            "id": 43
+        },
+        "atarixe": {
+            "fullname": "Atari XEGS",
+            "abbr": "XEGS",
+            "maker": "Atari",
+            "release_year": "1987",
+            "desc": "伪装成游戏机的 Atari 65XE 电脑。",
+            "history": "【换壳的策略】XE Game System 实际上是一台重新包装的 Atari 65XE 电脑，配有可拆卸键盘。雅达利试图用它同时攻占游戏机和电脑市场，但效果平平。",
+            "id": 43
+        },
+        "mame": {
+            "fullname": "MAME Arcade",
+            "abbr": "MAME",
+            "maker": "MAME Team",
+            "release_year": "1997",
+            "desc": "街机历史博物馆，支持数万款街机游戏。",
+            "history": "【数字文物保护】MAME 不仅仅是一个模拟器，它是一项致力于保存游戏历史的工程。它力求精确复制硬件行为，支持从 70 年代至今的数万款街机基板。在这里，你可以重温那些已经消失在烟雾缭绕的街机厅里的回忆。",
+            "id": 75
+        },
+        "fba": {
+            "fullname": "FinalBurn Alpha",
+            "abbr": "FBA",
+            "maker": "Various",
+            "release_year": "2000",
+            "desc": "专注于格斗游戏的街机模拟器。",
+            "history": "【极速格斗】专注于 CPS1/2/3、NeoGeo 等特定基板的模拟器。相比 MAME 的追求精确，FBA 更注重运行速度和流畅度，是低配置设备上玩街机格斗和清版过关游戏的首选。",
+            "id": 75
+        },
+        "fbneo": {
+            "fullname": "FinalBurn Neo",
+            "abbr": "FBNeo",
+            "maker": "Various",
+            "release_year": "2019",
+            "desc": "FBA 的活跃继任者，支持更多基板。",
+            "history": "【薪火相传】在 FBA 停止更新后，社区接手并更名为 FBNeo。它修复了大量 bug，增加了对更多主机（如 MD、PCE）的支持，是目前最活跃的轻量级街机模拟核心。",
+            "id": 75
+        },
+        "neogeo": {
+            "fullname": "SNK Neo Geo",
+            "abbr": "MVS",
+            "maker": "SNK",
+            "release_year": "1990",
+            "desc": "把街机带回家，格斗游戏迷的圣殿。",
+            "history": "【土豪的玩具】SNK 的伟大构想：让家用机拥有与街机完全一致的性能（MVS/AES）。在 16 位时代，它是性能怪兽，但主机和卡带（容量高达 330Mb）都贵得离谱。它是《拳皇》、《合金弹头》、《侍魂》的故乡。",
+            "id": 142
+        },
+        "cps1": {
+            "fullname": "Capcom Play System I",
+            "abbr": "CPS1",
+            "maker": "Capcom",
+            "release_year": "1988",
+            "desc": "街霸2的诞生地。",
+            "history": "【格斗纪元】Capcom 的传奇基板。1991 年，《街头霸王 II》在此平台上横空出世，确立了现代格斗游戏的基本规则（连招、必杀技），引发了席卷全球的格斗热潮。此外还有《圆桌骑士》、《吞食天地》等经典清版游戏。",
+            "id": 75
+        },
+        "cps2": {
+            "fullname": "Capcom Play System II",
+            "abbr": "CPS2",
+            "maker": "Capcom",
+            "release_year": "1993",
+            "desc": "拥有 QSound 音效的强大 2D 基板。",
+            "history": "【QSound 的震撼】继承了 CPS1 的辉煌，引入了 QSound 环绕音效和更强的防盗版电池机制。这一时期的 Capcom 美术风格极其华丽，代表作包括《少年街霸》、《恶魔战士》和《龙与地下城》系列。",
+            "id": 75
+        },
+        "cps3": {
+            "fullname": "Capcom Play System III",
+            "abbr": "CPS3",
+            "maker": "Capcom",
+            "release_year": "1996",
+            "desc": "2D 像素艺术的巅峰，街霸3专属。",
+            "history": "【2D 的绝唱】在 3D 浪潮下，Capcom 逆势推出的极致 2D 基板。虽然游戏数量稀少（仅 6 款），但每一帧动画都细腻得令人发指。《街头霸王 III：三度冲击》至今仍被认为是 2D 格斗游戏流畅度的天花板。",
+            "id": 75
+        },
+        "daphne": {
+            "fullname": "Daphne",
+            "abbr": "LDP",
+            "maker": "Daphne Team",
+            "release_year": "2001",
+            "desc": "激光视盘（LaserDisc）街机游戏模拟器。",
+            "history": "【互动电影的先驱】Daphne 专门模拟那些基于激光视盘（LaserDisc）的街机游戏，如著名的《龙穴历险记》（Dragon's Lair）和《太空王牌》。这类游戏本质上是播放动画片，玩家需要在特定时刻按下按键来推进剧情。",
+            "id": 49
+        },
+        "type-x": {
+            "fullname": "Taito Type X",
+            "abbr": "TTX",
+            "maker": "Taito",
+            "release_year": "2004",
+            "desc": "基于 PC 架构的街机基板，弹幕射击游戏的神器。",
+            "history": "【PC 进驻街机】Taito Type X 本质上是一台运行 Windows Embedded 的 PC。由于开发容易，大量优秀的日式游戏在此平台发布，特别是 Cave 的弹幕射击游戏（如《虫姬》、《大复活》）和《街头霸王 IV》。",
+            "id": 75
+        },
+        "amiga": {
+            "fullname": "Commodore Amiga",
+            "abbr": "AMIGA",
+            "maker": "Commodore",
+            "release_year": "1985",
+            "desc": "图形和音效在当时具有革命性的家用电脑。",
+            "history": "【多媒体先驱】安迪·沃霍尔曾用它作画，美剧《巴比伦5号》曾用它制作特效。Amiga 拥有超越时代的图形（4096色）和多任务操作系统。虽然在美国被视为电脑，但在欧洲，它是玩游戏的最佳平台之一。",
+            "id": 64
+        },
+        "c64": {
+            "fullname": "Commodore 64",
+            "abbr": "C64",
+            "maker": "Commodore",
+            "release_year": "1982",
+            "desc": "历史上销量最高的家用电脑型号。",
+            "history": "【销量的吉尼斯】历史上销量最高的单一电脑型号（约 1700 万台）。它的 SID 音效芯片极具传奇色彩，至今仍被电子音乐人推崇。对于 80 年代的孩子来说，C64 就是通往编程和游戏世界的大门。",
+            "id": 66
+        },
+        "vic20": {
+            "fullname": "Commodore VIC-20",
+            "abbr": "VIC20",
+            "maker": "Commodore",
+            "release_year": "1980",
+            "desc": "C64 的前身，第一款销量过百万的微型计算机。",
+            "history": "【友好的电脑】C64 的前身，历史上第一款销量超过 100 万台的微型计算机。虽然只有 5KB 内存（用户可用仅 3.5KB），但价格低廉，《星际迷航》威廉·夏特纳的代言让它在家庭用户中极受欢迎。",
+            "id": 73
+        },
+        "dos": {
+            "fullname": "MS-DOS",
+            "abbr": "DOS",
+            "maker": "Microsoft",
+            "release_year": "1981",
+            "desc": "PC 游戏的黄金时代。",
+            "history": "【CONFIG.SYS 的回忆】在 Windows 统治一切之前，PC 游戏是在 DOS 提示符下运行的。这是属于 SoundBlaster 声卡和 3.5 寸软盘的时代，诞生了 FPS 鼻祖《毁灭战士》、RTS 鼻祖《沙丘2》以及《仙剑奇侠传》等中文 RPG 经典。",
+            "id": 135
+        },
+        "msx": {
+            "fullname": "MSX",
+            "abbr": "MSX",
+            "maker": "Microsoft/ASCII",
+            "release_year": "1983",
+            "desc": "在亚洲和南美非常流行的家用电脑标准。",
+            "history": "【统一标准的梦想】微软联合 ASCII 试图建立的统一家用电脑标准。虽然在美国失败，但在日本、韩国、巴西和阿拉伯地区极受欢迎。Konami 是 MSX 最坚定的支持者，小岛秀夫的处女作《合金装备》就诞生于此。",
+            "id": 113
+        },
+        "msx1": {
+            "fullname": "MSX1",
+            "abbr": "MSX1",
+            "maker": "Microsoft/ASCII",
+            "release_year": "1983",
+            "desc": "第一代 MSX 标准。",
+            "history": "【MSX 的起点】MSX 标准的第一代。硬件规格类似于 ColecoVision，虽然卷轴滚动能力较弱，但凭借海量的软件支持（尤其是 Konami 的卡带游戏），成为了 8 位电脑的一股重要力量。",
+            "id": 113
+        },
+        "msx2": {
+            "fullname": "MSX2",
+            "abbr": "MSX2",
+            "maker": "Microsoft/ASCII",
+            "release_year": "1985",
+            "desc": "MSX 的升级版，拥有更强的图形处理能力。",
+            "history": "【进化的标准】大幅增强了图形处理能力，支持 256 色显示和硬件卷轴。这使得 MSX2 能够运行画面精美的 RPG 和动作游戏。《合金装备 2：固蛇》是该平台上剧情叙事的巅峰之作。",
+            "id": 116
+        },
+        "x68000": {
+            "fullname": "Sharp X68000",
+            "abbr": "X68k",
+            "maker": "Sharp",
+            "release_year": "1987",
+            "desc": "性能强大的日本电脑，拥有完美的街机移植。",
+            "history": "【梦幻神机】夏普仅在日本发行的怪兽级电脑。其双塔造型极具辨识度。由于硬件架构与 Capcom 的 CPS 基板非常相似，它拥有当时最完美的街机移植游戏（如《街头霸王 II》、《快打旋风》），是 80 年代末日本硬核玩家的终极梦想。",
+            "id": 79
+        },
+        "sharp-x1": {
+            "fullname": "Sharp X1",
+            "abbr": "X1",
+            "maker": "Sharp",
+            "release_year": "1982",
+            "desc": "集成了电视功能的红色电脑，X68000 的前辈。",
+            "history": "【电视与电脑的融合】Sharp X1 的一大卖点是能够与电视画面叠加显示（Superimpose）。它拥有红色的时尚外观，是日本 8 位电脑御三家（NEC, Fujitsu, Sharp）之一，拥有许多优秀的街机移植作品。",
+            "id": 220
+        },
+        "zxspectrum": {
+            "fullname": "Sinclair ZX Spectrum",
+            "abbr": "ZX",
+            "maker": "Sinclair",
+            "release_year": "1982",
+            "desc": "英国最受欢迎的 8 位家用电脑。",
+            "history": "【英国的国民电脑】如果你问一个英国人他的第一台电脑是什么，大概率是“Speccy”。标志性的橡胶键盘和独特的色彩冲突（Color Clash）画面是它的特征。它孕育了著名的 Rare 工作室（当时叫 Ultimate Play the Game）。",
+            "id": 76
+        },
+        "apple2": {
+            "fullname": "Apple II",
+            "abbr": "Apple2",
+            "maker": "Apple",
+            "release_year": "1977",
+            "desc": "乔布斯和沃兹尼亚克的传奇之作。",
+            "history": "【车库传奇】史蒂夫·沃兹尼亚克的设计奇迹，让苹果公司起飞的产品。它拥有开放的架构和扩展槽，这在当时是革命性的。《波斯王子》、《德军总部》的初代版本都在此平台上开发。它是美国教育市场长达十几年的统治者。",
+            "id": 86
+        },
+        "apple2gs": {
+            "fullname": "Apple IIGS",
+            "abbr": "IIGS",
+            "maker": "Apple",
+            "release_year": "1986",
+            "desc": "Apple II 系列的 16 位巅峰，拥有出色的图形和声音。",
+            "history": "【GS 代表图形与声音】Apple IIGS 是为了应对 Amiga 和 Atari ST 而推出的。它使用了与 SNES 相同的 65816 处理器和 Ensoniq 声卡，音质极佳。它是苹果在全面转向 Macintosh 之前对 Apple II 最后的致敬。",
+            "id": 217
+        },
+        "macintosh": {
+            "fullname": "Macintosh",
+            "abbr": "MAC",
+            "maker": "Apple",
+            "release_year": "1984",
+            "desc": "普及了图形用户界面的经典电脑。",
+            "history": "【Hello】1984 年，Macintosh 凭借鼠标和图形窗口界面震惊了世界。虽然早期黑白 Mac 游戏不多，但《暗影门》、《模拟城市》和《波斯王子》等经典都在此留下了浓墨重彩的一笔。",
+            "id": 146
+        },
+        "pc98": {
+            "fullname": "NEC PC-9800",
+            "abbr": "PC98",
+            "maker": "NEC",
+            "release_year": "1982",
+            "desc": "日本国民级电脑，拥有大量日式 RPG 和 AVG。",
+            "history": "【日本的 IBM PC】在 Windows 95 普及前，统治日本电脑市场十余年的霸主。拥有高分辨率汉字显示能力，是日式美少女游戏（Galgame）、RPG（如《英雄传说》）和策略游戏（如《三国志》）的温床。以其独特的 FM 音源音乐著称。",
+            "id": 208
+        },
+        "pc88": {
+            "fullname": "NEC PC-8801",
+            "abbr": "PC88",
+            "maker": "NEC",
+            "release_year": "1981",
+            "desc": "PC-98 的 8 位前辈，Falcom 粉丝的圣地。",
+            "history": "【日式 RPG 的摇篮】在 PC-98 称霸之前，PC-88 是日本最流行的 8 位电脑。Falcom 的《伊苏》、《屠龙战士》等传说级 RPG 都首发于此。它的 Sound Board II 音乐卡定义了 80 年代日式游戏音乐的风格。",
+            "id": 221
+        },
+        "fmtowns": {
+            "fullname": "Fujitsu FM Towns",
+            "abbr": "FMT",
+            "maker": "Fujitsu",
+            "release_year": "1989",
+            "desc": "标配 CD-ROM 的日式多媒体电脑。",
+            "history": "【多媒体怪兽】富士通推出的 32 位电脑，最大特点是首发即标配 CD-ROM 光驱。这使得它拥有大量街机游戏的完美移植版（如《超级街霸II》），以及画质精美的 CD-ROM 冒险游戏。",
+            "id": 253
+        },
+        "amstradcpc": {
+            "fullname": "Amstrad CPC",
+            "abbr": "CPC",
+            "maker": "Amstrad",
+            "release_year": "1984",
+            "desc": "在欧洲（特别是法国）极受欢迎的 8 位电脑。",
+            "history": "【彩色个人电脑】CPC 代表 \"Colour Personal Computer\"。Amstrad 采取了将主机与显示器（内置电源）捆绑销售的策略，性价比极高。它在欧洲市场与 C64 和 ZX Spectrum 形成了三足鼎立的局面。",
+            "id": 65
+        },
+        "bbcmicro": {
+            "fullname": "BBC Micro",
+            "abbr": "BBC",
+            "maker": "Acorn",
+            "release_year": "1981",
+            "desc": "英国的教育电脑，ARM 架构的起源地。",
+            "history": "【教育的基石】由 BBC 委托 Acorn 公司制造，旨在提高英国民众的计算机素养。它造价昂贵但极其坚固和扩展性强。最重要的是，Acorn 团队后来在此基础上研发了 ARM 架构，这也就是今天每一台智能手机芯片的祖先。",
+            "id": 37
+        },
+        "ti99": {
+            "fullname": "Texas Instruments TI-99/4A",
+            "abbr": "TI99",
+            "maker": "Texas Instruments",
+            "release_year": "1981",
+            "desc": "第一台 16 位家用电脑，标志性的银黑外观。",
+            "history": "【德仪的野心】虽然它是世界上第一台家用 16 位电脑，但由于架构限制，速度并不快。它以其能够连接语音合成器模块并“说话”而闻名，这是 80 年代初的黑科技。",
+            "id": 205
+        },
+        "trs-80": {
+            "fullname": "Tandy TRS-80",
+            "abbr": "TRS80",
+            "maker": "Tandy",
+            "release_year": "1977",
+            "desc": "1977 年三位一体（Trinity）之一，在美国极其流行。",
+            "history": "【RadioShack 的电脑】通过 RadioShack 庞大的零售网络销售，TRS-80（被戏称为 Trash-80）是许多美国人接触的第一台电脑。它拥有庞大的文字冒险游戏库。",
+            "id": 144
+        },
+        "coco": {
+            "fullname": "Tandy Color Computer",
+            "abbr": "CoCo",
+            "maker": "Tandy",
+            "release_year": "1980",
+            "desc": "Tandy 的彩色电脑，基于摩托罗拉 6809。",
+            "history": "【CoCo】与 TRS-80 不同，Color Computer（爱称 CoCo）是一台真正的家用娱乐机器。它运行 OS-9 操作系统，拥有不错的街机移植游戏。",
+            "id": 144
+        },
+        "dragon32": {
+            "fullname": "Dragon 32/64",
+            "abbr": "Drag",
+            "maker": "Dragon Data",
+            "release_year": "1982",
+            "desc": "基于 CoCo 架构的英国电脑。",
+            "history": "【威尔士的龙】硬件架构与 Tandy CoCo 非常相似，在英国拥有忠实的追随者。",
+            "id": 91
+        },
+        "samcoupe": {
+            "fullname": "SAM Coupé",
+            "abbr": "SAM",
+            "maker": "Miles Gordon Technology",
+            "release_year": "1989",
+            "desc": "ZX Spectrum 的精神续作。",
+            "history": "【最后的 8 位机】在 16 位时代已经到来时推出的 8 位机。它兼容 ZX Spectrum，但拥有更强的图形和声音。虽然是一台优秀的机器，但生不逢时。",
+            "id": 213
+        },
+        "spectravideo": {
+            "fullname": "Spectravideo",
+            "abbr": "SVI",
+            "maker": "Spectravideo",
+            "release_year": "1983",
+            "desc": "MSX 标准的先驱。",
+            "history": "【MSX 的原型】Spectravideo SV-318/328 的架构在很大程度上影响了 MSX 标准的制定。实际上，很多为 Spectravideo 开发的游戏可以很容易地移植到 MSX 上。",
+            "id": 218
+        },
+        "thomson": {
+            "fullname": "Thomson TO8",
+            "abbr": "TO8",
+            "maker": "Thomson",
+            "release_year": "1986",
+            "desc": "法国的国民电脑。",
+            "history": "【法国制造】Thomson 电脑（MO/TO 系列）是 80 年代法国学校的标准设备。TO8 是该系列的后期型号，拥有光笔输入等特色功能。",
+            "id": 141
+        },
+        "zmachine": {
+            "fullname": "Z-Machine",
+            "abbr": "Zork",
+            "maker": "Infocom",
+            "release_year": "1979",
+            "desc": "纯文字冒险游戏的虚拟引擎。",
+            "history": "【文字的魅力】在图形尚未普及的年代，Infocom 用 Z-Machine 引擎创造了《Zork》等伟大的互动小说。玩家通过输入指令（如 \"Go North\"）进行探索，想象力是最好的显卡。",
+            "id": 215
+        },
+        "pcengine": {
+            "fullname": "NEC PC Engine",
+            "abbr": "PCE",
+            "maker": "NEC/Hudson",
+            "release_year": "1987",
+            "desc": "小巧强悍，STG 游戏的天堂。",
+            "history": "【小身材大能量】世界上最小的家用主机。虽然是 8 位 CPU，但拥有双 16 位显示芯片，画面表现力惊人。它是射击游戏（STG）的天堂，在日本甚至一度超越了 FC 的销量。也是世界上第一款采用 CD-ROM 的游戏主机。",
+            "id": 31
+        },
+        "tg16": {
+            "fullname": "NEC TurboGrafx-16",
+            "abbr": "TG16",
+            "maker": "NEC",
+            "release_year": "1989",
+            "desc": "美版 PC Engine，与 Genesis 和 SNES 竞争。",
+            "history": "【PCE 的美版】为了迎合美国市场，NEC 将主机重新设计得更大、更黑。营销上强调“16位”（实际是双显示芯片），试图挑战 Genesis 和 SNES。虽然拥有《邦克的冒险》等佳作，但在激烈的北美主机战争中处于下风。",
+            "id": 31
+        },
+        "tg-cd": {
+            "fullname": "NEC TurboGrafx-CD",
+            "abbr": "TGCD",
+            "maker": "NEC",
+            "release_year": "1989",
+            "desc": "美版 PC Engine 的 CD 外设。",
+            "history": "【昂贵的升级】TG-16 的 CD 扩展底座。虽然价格昂贵（399美元），但它带来了《伊苏 I & II》这样的史诗级 CD 游戏，拥有真人配音和管弦乐配乐，这在当时是前所未有的体验。",
+            "id": 114
+        },
+        "supergrafx": {
+            "fullname": "NEC SuperGrafx",
+            "abbr": "SGX",
+            "maker": "NEC",
+            "release_year": "1989",
+            "desc": "PC Engine 的增强版，仅有 5 款专用游戏。",
+            "history": "【短命的强化版】PCE 的增强型号，拥有四倍于原版的内存和双层背景卷轴。本意是应对 SNES，但由于价格昂贵且专属游戏仅有 5 款（如《大魔界村》），成为了一次商业上的惨败，现已成为收藏界的珍品。",
+            "id": 105
+        },
+        "neogeocd": {
+            "fullname": "SNK Neo Geo CD",
+            "abbr": "NGCD",
+            "maker": "SNK",
+            "release_year": "1994",
+            "desc": "光盘版的 Neo Geo。",
+            "history": "【漫长的 Loading】为了解决 Neo Geo 卡带过贵的问题，SNK 推出了光盘版。虽然游戏价格降到了十分之一，但只有单倍速的光驱导致了臭名昭著的读取时间（玩一局格斗可能要读盘一分钟），那只在读取画面跳舞的猴子成为了玩家的共同回忆。",
+            "id": 70
+        },
+        "ngp": {
+            "fullname": "Neo Geo Pocket",
+            "abbr": "NGP",
+            "maker": "SNK",
+            "release_year": "1998",
+            "desc": "SNK 的掌机尝试，摇杆手感极佳。",
+            "history": "【手感之王】SNK 进军掌机的第一战。最大的亮点是配置了带有微动开关的机械摇杆，手感极其出色，吊打当时所有掌机的十字键。可惜首发是黑白屏幕，在这个 GB Color 已经上市的年代显得格格不入。",
+            "id": 25
+        },
+        "ngpc": {
+            "fullname": "SNK Neo Geo Pocket Color",
+            "abbr": "NGPC",
+            "maker": "SNK",
+            "release_year": "1999",
+            "desc": "NGP 的彩色版本，拥有优秀的格斗游戏移植。",
+            "history": "【生不逢时】NGP 的彩色版，修正了前代的错误。拥有极其优秀的独占游戏，如《SNK vs. Capcom：卡片战士》和《顶上决战》。它本是一台优秀的掌机，却不幸撞上了任天堂的 GBA 和 SNK 自身的破产危机，最终黯然退场。",
+            "id": 82
+        },
+        "wonderswan": {
+            "fullname": "Bandai WonderSwan",
+            "abbr": "WS",
+            "maker": "Bandai",
+            "release_year": "1999",
+            "desc": "横井军平设计的掌机，拥有独特的横竖玩法。",
+            "history": "【横井军平的遗作】GB 之父离开任天堂后的最后设计。特点是仅用一节电池即可运行极长时间，以及独特的按键布局，支持横着玩和竖着玩（适合射击游戏）。拥有大量万代旗下的动漫 IP 游戏（如高达、数码宝贝）。",
+            "id": 45
+        },
+        "wonderswancolor": {
+            "fullname": "Bandai WonderSwan Color",
+            "abbr": "WSC",
+            "maker": "Bandai",
+            "release_year": "2000",
+            "desc": "WS 的彩色升级版，最终幻想系列曾在此重制。",
+            "history": "【彩色的天鹅】WS 的彩色升级版。不仅有万代的动漫支持，还成功拉拢了史克威尔，重制了《最终幻想 1/2/4》。虽然在日本取得了一定成绩（曾占据 8% 市场），但在 GBA 的强势碾压下最终未能走出日本。",
+            "id": 46
+        },
+        "xbox": {
+            "fullname": "Microsoft Xbox",
+            "abbr": "XBOX",
+            "maker": "Microsoft",
+            "release_year": "2001",
+            "desc": "微软进军游戏界的第一战，性能强劲。",
+            "history": "【巨硬的进击】微软进军客厅的第一战。本质上是一台伪装成游戏机的 PC（奔腾3处理器+硬盘）。凭借独占大作《光环：战斗进化》，它成功在美国站稳了脚跟，并确立了双摇杆射击游戏的标准。Xbox Live 更是彻底改变了主机联机体验。",
+            "id": 32
+        },
+        "xbox360": {
+            "fullname": "Microsoft Xbox 360",
+            "abbr": "X360",
+            "maker": "Microsoft",
+            "release_year": "2005",
+            "desc": "定义了高清游戏时代的主机。",
+            "history": "【高清世代的领跑者】领先 PS3 一年发售，凭借优秀的价格和《战争机器》等大作，在这一代主机战争中长时间压制索尼。引入了“成就系统”，永远改变了玩家玩游戏的方式。虽然早期的“三红”故障是其巨大的污点，但仍不失为一代经典。",
+            "id": 33
+        },
+        "scummvm": {
+            "fullname": "ScummVM",
+            "abbr": "SCUMM",
+            "maker": "ScummVM Team",
+            "release_year": "2001",
+            "desc": "经典的图形冒险游戏引擎。",
+            "history": "【点击冒险的引擎】它不是模拟器，而是一个重写的游戏引擎，专门用于运行 LucasArts 的经典点击式冒险游戏（如《猴岛小英雄》）。现在它已扩展支持数百款冒险游戏。它是重温那个幽默、解谜和像素艺术黄金年代的最佳方式。",
+            "id": 123
+        },
+        "pico8": {
+            "fullname": "PICO-8",
+            "abbr": "PICO8",
+            "maker": "Lexaloffle",
+            "release_year": "2015",
+            "desc": "备受喜爱的幻想游戏主机。",
+            "history": "【幻想主机】一台不存在硬件实体的“虚拟主机”。它人为地限制了分辨率（128x128）和色彩（16色），旨在激发开发者的创造力。著名的《Celeste》原型就诞生于此。社区活跃，充满了极具创意的微型游戏。",
+            "id": 234
+        },
+        "tic80": {
+            "fullname": "TIC-80",
+            "abbr": "TIC80",
+            "maker": "Nesbox",
+            "release_year": "2017",
+            "desc": "开源的幻想计算机。",
+            "history": "【开源幻想】类似于 PICO-8 的幻想计算机，但完全开源。支持多种编程语言（Lua, JS, Python 等），宽屏显示，是学习复古游戏编程的绝佳平台。",
+            "id": 222
+        },
+        "easyrpg": {
+            "fullname": "EasyRPG",
+            "abbr": "RPG",
+            "maker": "EasyRPG Team",
+            "release_year": "2010",
+            "desc": "RPG Maker 2000/2003 的开源引擎。",
+            "history": "【RPG 制作大师的播放器】一个开源项目，旨在运行由 RPG Maker 2000 和 2003 制作的游戏。这让诸如《梦日记》、《Ib》等经典独立 RPG 能够在各种现代设备上完美运行。",
+            "id": 231
+        },
+        "openbor": {
+            "fullname": "OpenBOR",
+            "abbr": "OBOR",
+            "maker": "Senile Team",
+            "release_year": "2004",
+            "desc": "开源的横版过关游戏引擎。",
+            "history": "【同人动作引擎】源自《Beats of Rage》的开源引擎，专门用于制作 2D 横版清版动作游戏。社区用它制作了大量高质量的同人作品，如《时空双龙》、《怒之铁拳》的改版等。",
+            "id": 214
+        },
+        "mugen": {
+            "fullname": "M.U.G.E.N",
+            "abbr": "MUGEN",
+            "maker": "Elecbyte",
+            "release_year": "1999",
+            "desc": "著名的 2D 格斗游戏引擎。",
+            "history": "【梦幻对决】只要你敢想，就能实现的格斗引擎。在这里，你可以看到马力欧大战索尼克，或者拳皇角色对战街霸角色。由于其极高的可定制性，诞生了无数魔改版本和极其夸张的角色（如“凶”级角色）。"
+        },
+        "solarus": {
+            "fullname": "Solarus",
+            "abbr": "SOL",
+            "maker": "Solarus Team",
+            "release_year": "2011",
+            "desc": "专门制作 2D 动作 RPG（如塞尔达）的引擎。",
+            "history": "【致敬塞尔达】Solarus 是一个开源的 ARPG 引擎，专门用于制作类似《塞尔达传说：众神的三角力量》风格的游戏。社区制作了许多高质量的同人塞尔达游戏。",
+            "id": 223
+        },
+        "uzebox": {
+            "fullname": "Uzebox",
+            "abbr": "UZE",
+            "maker": "Belogic",
+            "release_year": "2008",
+            "desc": "基于 AVR 单片机的极简开源主机。",
+            "history": "【单片机的奇迹】仅仅使用一颗普通的 ATMega644 单片机和极少的外部元件，就能生成视频信号和音频。它是一个极好的电子制作和编程学习项目。",
+            "id": 216
+        },
+        "supracan": {
+            "fullname": "Super A'Can",
+            "abbr": "ACan",
+            "maker": "Funtech",
+            "release_year": "1995",
+            "desc": "来自中国台湾的 16 位游戏机。",
+            "history": "【华人的尝试】由敦煌科技推出的 16 位主机，虽然机能不输 SNES，但由于缺乏第三方支持和高昂的成本，这台主机如流星般消失，现已成为极罕见的收藏品。",
+            "id": 100
+        },
+        "cdimono1": {
+            "fullname": "Philips CD-i",
+            "abbr": "CD-i",
+            "maker": "Philips",
+            "release_year": "1991",
+            "desc": "多媒体播放器，因拥有糟糕的塞尔达游戏而闻名。",
+            "history": "【塞尔达的黑历史】飞利浦 CD-i 本意是一台家庭多媒体设备而非纯游戏机。但由于索尼-任天堂合作破裂的复杂原因，飞利浦获得了任天堂 IP 的授权，制作了《塞尔达：加梅隆之杖》等三款被公认为“史上最烂”的游戏。",
+            "id": 133
+        },
+        "channelf": {
+            "fullname": "Fairchild Channel F",
+            "abbr": "CH-F",
+            "maker": "Fairchild",
+            "release_year": "1976",
+            "desc": "世界上第一台使用可更换 ROM 卡带的游戏主机。",
+            "history": "【历史的开创者】虽然不知名，但它在历史上极其重要——它是世界上第一台使用“可更换 ROM 卡带”的游戏机。在这个设计之前，游戏机通常只内置几款游戏。它由杰里·劳森（Jerry Lawson）设计，他是电子游戏行业的非裔先驱。",
+            "id": 80
+        },
+        "odyssey2": {
+            "fullname": "Magnavox Odyssey 2",
+            "abbr": "Ody2",
+            "maker": "Magnavox",
+            "release_year": "1978",
+            "desc": "配有薄膜键盘的早期主机，曾是雅达利 2600 的竞争对手。",
+            "history": "【带键盘的主机】世界上第一台游戏机 Odyssey 的继任者。最显眼的特征是内置了一个薄膜键盘，试图模糊游戏机与电脑的界限。虽然画面不如雅达利，但其著名的《K.C. Munchkin!》曾引发了著名的版权官司。",
+            "id": 104
+        },
+        "videopac": {
+            "fullname": "Philips Videopac G7000",
+            "abbr": "VPac",
+            "maker": "Philips",
+            "release_year": "1978",
+            "desc": "Odyssey 2 在欧洲的版本。",
+            "history": "【欧洲的奥德赛】Odyssey 2 在欧洲的名称。由于飞利浦在欧洲的强大影响力，它在欧洲市场表现不俗，拥有许多独特的独占游戏。",
+            "id": 104
+        },
+        "vectrex": {
+            "fullname": "GCE Vectrex",
+            "abbr": "VEC",
+            "maker": "GCE",
+            "release_year": "1982",
+            "desc": "自带矢量显示器的独特游戏机。",
+            "history": "【矢量图的魅力】史上最独特的游戏机之一。它自带一个竖置的矢量显示器（类似于示波器），只能显示线条，但清晰度极高且无像素感。为了显示色彩，玩家需要在屏幕前贴上彩色的塑料覆盖膜。这是一台真正的极客机器。",
+            "id": 102
+        },
+        "supervision": {
+            "fullname": "Watara Supervision",
+            "abbr": "SVis",
+            "maker": "Watara",
+            "release_year": "1992",
+            "desc": "廉价版的 Game Boy 竞争对手，屏幕较大但模糊。",
+            "history": "【廉价的挑战者】众多试图挑战 Game Boy 的主机之一。它的卖点是更大的屏幕和可折叠机身，价格也更便宜。但由于屏幕残影严重（甚至比 GB 还差）且缺乏大作支持，最终沦为了超市货架上的廉价玩具。",
+            "id": 207
+        },
+        "intellivision": {
+            "fullname": "Intellivision",
+            "abbr": "INTV",
+            "maker": "Mattel",
+            "release_year": "1979",
+            "desc": "雅达利 2600 的主要竞争对手。",
+            "history": "【智能电视】玩具巨头美泰推出的主机，是雅达利 2600 的主要竞争对手。它的手柄非常奇特，带有一个数字键盘和圆盘方向键。它是世界上第一台16位游戏机（虽然 CPU 很慢），并首次引入了语音合成模块。",
+            "id": 115
+        },
+        "colecovision": {
+            "fullname": "ColecoVision",
+            "abbr": "CV",
+            "maker": "Coleco",
+            "release_year": "1982",
+            "desc": "能提供接近街机画面的早期主机。",
+            "history": "【街机体验带回家】在 1982 年，它的画面震惊了世界，几乎完美移植了当时的街机大作《大金刚》。如果你想体验 80 年代初最好的家用画面，这就是首选。可惜它不幸遇上了 1983 年的游戏业大崩溃，如流星般划过。",
+            "id": 48
+        },
+        "chailove": {
+            "fullname": "ChaiLove",
+            "abbr": "Chai",
+            "maker": "Rob Loach",
+            "release_year": "2018",
+            "desc": "基于 ChaiScript 的 2D 游戏框架。",
+            "history": "【爱与脚本】ChaiLove 是一个允许开发者使用 ChaiScript 语言编写游戏的框架。它旨在提供简单、跨平台的 2D 游戏开发体验，通常用于复古游戏 jam 或作为 RetroArch 的一个核心存在。"
+        },
+        "lutro": {
+            "fullname": "Lutro",
+            "abbr": "Lutro",
+            "maker": "Libretro",
+            "release_year": "2013",
+            "desc": "基于 Lua 的 2D 游戏引擎，兼容 Love2D API。",
+            "history": "【Lua 的力量】Lutro 试图在 Libretro 生态系统中实现 Love2D 游戏引擎的一个子集。这意味着许多用 Lua 编写的简单 2D 游戏可以直接在支持 RetroArch 的任何设备上运行，无需修改代码。",
+            "id": 206
+        },
+        "ports": {
+            "fullname": "Ports",
+            "abbr": "Ports",
+            "maker": "Community",
+            "release_year": "-",
+            "desc": "各种经典游戏的移植版本。",
+            "history": "【源代码移植】通过逆向工程或源代码公开，将经典的 PC 或主机游戏原生移植到新平台上。这不同于模拟，原生运行意味着更好的性能和更高的分辨率。包括《毁灭战士》、《雷神之锤》、《洞窟物语》等。"
+        }
+    }
+}

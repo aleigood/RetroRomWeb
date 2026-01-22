@@ -15,7 +15,7 @@ module.exports = {
     romsDir: path.join(__dirname, 'roms'),
 
     // 图片/资源存放目录
-    imagesDir: path.join(__dirname, 'public', 'images'),
+    mediaDir: path.join(__dirname, 'public', 'images'),
 
     // ScreenScraper API 配置
     // 如果没有账号，可以使用通用的匿名配置，但配额很少。

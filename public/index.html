@@ -590,10 +590,47 @@
                 background: #121212 !important;
                 display: block;
             }
-            .detail-scroll-container {
+
+            .detail-flex-wrapper {
                 height: 100%;
-                overflow-y: auto;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
             }
+
+            .detail-top-bar {
+                flex-shrink: 0;
+                height: 48px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #121212;
+                z-index: 10;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            }
+
+            .detail-close-btn {
+                width: 30px;
+                height: 30px;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+            }
+            .detail-close-btn:active {
+                background: rgba(255, 255, 255, 0.2);
+            }
+
+            .detail-scroll-container {
+                flex: 1;
+                overflow-y: auto;
+                height: auto;
+                position: relative;
+            }
+
             .swipe-area {
                 height: 380px;
                 background: #000;
@@ -665,6 +702,48 @@
             }
             .d-body {
                 padding: 24px;
+            }
+
+            /* 【修改】Logo 区域：无卡片样式，使用光晕铺满 */
+            .d-marquee-box {
+                position: relative;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                /* 【修改】上下间距调整为 80px */
+                margin-top: 80px;
+                margin-bottom: 80px;
+                border: none;
+                background: none;
+                box-shadow: none;
+                min-height: 20px; /* 防止无图时完全塌陷 */
+            }
+
+            /* 背景光晕：放大并虚化 */
+            .d-marquee-bg {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 120vw; /* 宽度远超容器，铺满左右 */
+                height: 120vw; /* 高度足够大，铺满上下 */
+                transform: translate(-50%, -50%);
+                object-fit: cover;
+                /* 强力模糊 */
+                filter: blur(40px) opacity(0.6);
+                z-index: -1;
+                /* 径向渐变遮罩：中心不透明，边缘透明，形成柔和光晕 */
+                mask-image: radial-gradient(circle, black 20%, transparent 70%);
+                -webkit-mask-image: radial-gradient(circle, black 20%, transparent 70%);
+                pointer-events: none;
+            }
+
+            .d-marquee-img {
+                position: relative;
+                max-width: 80%;
+                max-height: 80px;
+                object-fit: contain;
+                z-index: 1;
+                filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
             }
             .d-title {
                 font-size: 26px;
@@ -933,7 +1012,7 @@
                                                     allow-half
                                                     size="10px"
                                                     gutter="2px"
-                                                    color="#ffd21e"
+                                                    color="#705df2"
                                                     void-icon="star"
                                                     void-color="#555"
                                                 />
@@ -954,6 +1033,7 @@
 
             <div
                 class="index-hint"
+                v-show="!showDetail"
                 :class="{ 'active-scroll': isScrollingPage }"
                 :style="{ top: indicatorTop + 'px', transform: 'none' }"
             ></div>
@@ -966,128 +1046,138 @@
                 @update:show="handlePopupClose"
                 position="bottom"
                 round
-                closeable
                 class="detail-popup"
-                :style="{ height: '95%' }"
+                :style="{ height: '100%' }"
             >
-                <div v-if="selectedGame" class="detail-scroll-container">
-                    <div class="swipe-area">
-                        <van-swipe
-                            ref="imgSwipe"
-                            :autoplay="0"
-                            indicator-color="white"
-                            style="height: 100%"
-                            @change="onSwipeChange"
-                        >
-                            <template v-if="displayMedia.length > 0">
-                                <van-swipe-item v-for="(media, idx) in displayMedia" :key="idx">
-                                    <div class="swipe-inner">
-                                        <div
-                                            v-if="media.type === 'video'"
-                                            style="
-                                                width: 100%;
-                                                height: 100%;
-                                                background: #000;
-                                                display: flex;
-                                                align-items: center;
-                                                justify-content: center;
-                                            "
-                                        >
-                                            <video
-                                                ref="swipeVideoRef"
-                                                :src="getImgUrl(media.url)"
-                                                controls
-                                                playsinline
-                                                loop
-                                                style="max-width: 100%; max-height: 100%"
-                                                @click.stop
-                                            ></video>
-                                        </div>
-                                        <template v-else>
-                                            <img
-                                                class="swipe-bg fade-img"
-                                                :src="getImgUrl(media.url)"
-                                                @load="onImgLoad"
-                                            />
-                                            <img
-                                                class="swipe-img fade-img"
-                                                :src="getImgUrl(media.url)"
-                                                @load="onImgLoad"
-                                                @click="previewBig(idx)"
-                                            />
-                                        </template>
-                                    </div>
-                                </van-swipe-item>
-                            </template>
-                            <van-swipe-item v-else
-                                ><div class="swipe-inner" style="background: #111; color: #555; flex-direction: column">
-                                    <i class="ri-image-line" style="font-size: 50px"></i><span>No Preview</span>
-                                </div></van-swipe-item
-                            >
-                        </van-swipe>
-                    </div>
-                    <div class="thumb-strip" v-if="displayMedia.length > 1">
-                        <div
-                            v-for="(media, idx) in displayMedia"
-                            :key="idx"
-                            class="ts-item"
-                            :class="{ active: currentSwipeIndex === idx }"
-                            @click="swipeTo(idx)"
-                        >
-                            <template v-if="media.type === 'video'">
-                                <img
-                                    class="ts-img"
-                                    :src="getImgUrl(selectedGame.image_path) || ''"
-                                    style="opacity: 0.5"
-                                />
-                                <i class="ri-play-circle-line ts-video-icon"></i>
-                            </template>
-                            <img v-else class="ts-img fade-img" :src="getImgUrl(media.url)" @load="onImgLoad" />
+                <div v-if="selectedGame" class="detail-flex-wrapper">
+                    <div class="detail-top-bar">
+                        <div class="detail-close-btn" @click="closeDetail">
+                            <i class="ri-close-fill" style="font-size: 18px; color: rgba(255, 255, 255, 0.3)"></i>
                         </div>
                     </div>
-                    <div class="d-body">
-                        <div class="d-title">{{ selectedGame.name }}</div>
-                        <div class="d-tags">
-                            <span class="tag" v-if="selectedGame.releasedate"
-                                >{{ selectedGame.releasedate.substring(0,4) }}</span
-                            >
-                            <span class="tag" v-if="selectedGame.genre">{{ selectedGame.genre }}</span>
-                            <span class="tag" v-if="selectedGame.players"
-                                ><i class="ri-user-3-fill"></i> {{ selectedGame.players }}</span
-                            >
-                            <span class="tag" v-if="selectedGame.publisher">{{ selectedGame.publisher }}</span>
-                            <span class="tag" v-if="selectedGame.developer">{{ selectedGame.developer }}</span>
-                        </div>
-                        <div style="margin-bottom: 16px" v-if="selectedGame.rating > 0">
-                            <van-rate
-                                :model-value="Number(selectedGame.rating) * 5"
-                                readonly
-                                allow-half
-                                color="#ffd21e"
-                                void-icon="star"
-                                void-color="#333"
-                            />
-                        </div>
 
-                        <div class="d-desc">{{ selectedGame.desc || '暂无描述信息。' }}</div>
-                        <van-divider content-position="left" style="border-color: rgba(255, 255, 255, 0.1)"
-                            >Available Files ({{ versions.length }})</van-divider
-                        >
-                        <div
-                            class="ver-item"
-                            v-for="ver in versions"
-                            :key="ver.id"
-                            :class="{ selected: currentVersionId === ver.id }"
-                            @click="switchVersion(ver)"
-                        >
-                            <div style="flex: 1; min-width: 0; padding-right: 10px">
-                                <div class="v-file">{{ ver.filename }}</div>
-                            </div>
-                            <button class="dl-btn" @click.stop="download(ver.id)">
-                                <i class="ri-download-cloud-2-line"></i> GET
-                            </button>
+                    <div class="detail-scroll-container">
+                        <div class="swipe-area">
+                            <van-swipe
+                                ref="imgSwipe"
+                                :autoplay="0"
+                                indicator-color="white"
+                                style="height: 100%"
+                                @change="onSwipeChange"
+                            >
+                                <template v-if="displayMedia.length > 0">
+                                    <van-swipe-item v-for="(media, idx) in displayMedia" :key="idx">
+                                        <div class="swipe-inner">
+                                            <div
+                                                v-if="media.type === 'video'"
+                                                style="
+                                                    width: 100%;
+                                                    height: 100%;
+                                                    background: #000;
+                                                    display: flex;
+                                                    align-items: center;
+                                                    justify-content: center;
+                                                "
+                                            >
+                                                <video
+                                                    ref="swipeVideoRef"
+                                                    :src="getImgUrl(media.url)"
+                                                    controls
+                                                    playsinline
+                                                    loop
+                                                    style="max-width: 100%; max-height: 100%"
+                                                    @click.stop
+                                                ></video>
+                                            </div>
+                                            <template v-else>
+                                                <img
+                                                    class="swipe-bg fade-img"
+                                                    :src="getImgUrl(media.url)"
+                                                    @load="onImgLoad"
+                                                />
+                                                <img
+                                                    class="swipe-img fade-img"
+                                                    :src="getImgUrl(media.url)"
+                                                    @load="onImgLoad"
+                                                    @click="previewBig(idx)"
+                                                />
+                                            </template>
+                                        </div>
+                                    </van-swipe-item>
+                                </template>
+                                <van-swipe-item v-else
+                                    ><div
+                                        class="swipe-inner"
+                                        style="background: #111; color: #555; flex-direction: column"
+                                    >
+                                        <i class="ri-image-line" style="font-size: 50px"></i><span>No Preview</span>
+                                    </div></van-swipe-item
+                                >
+                            </van-swipe>
                         </div>
-                        <div style="height: 40px"></div>
+                        <div class="thumb-strip" v-if="displayMedia.length > 1">
+                            <div
+                                v-for="(media, idx) in displayMedia"
+                                :key="idx"
+                                class="ts-item"
+                                :class="{ active: currentSwipeIndex === idx }"
+                                @click="swipeTo(idx)"
+                            >
+                                <template v-if="media.type === 'video'">
+                                    <img
+                                        class="ts-img"
+                                        :src="getImgUrl(selectedGame.image_path) || ''"
+                                        style="opacity: 0.5"
+                                    />
+                                    <i class="ri-play-circle-line ts-video-icon"></i>
+                                </template>
+                                <img v-else class="ts-img fade-img" :src="getImgUrl(media.url)" @load="onImgLoad" />
+                            </div>
+                        </div>
+                        <div class="d-body">
+                            <div v-if="marqueeUrl" class="d-marquee-box">
+                                <img :src="getImgUrl(marqueeUrl)" class="d-marquee-bg" />
+                                <img :src="getImgUrl(marqueeUrl)" class="d-marquee-img" />
+                            </div>
+
+                            <div class="d-title">{{ selectedGame.name }}</div>
+
+                            <div class="d-tags">
+                                <span class="tag" v-if="selectedGame.rating > 0" style="color: #ffd21e">
+                                    <i class="ri-star-fill"></i> {{ (Number(selectedGame.rating) * 5).toFixed(1) }}
+                                </span>
+
+                                <span class="tag" v-if="selectedGame.releasedate"
+                                    >{{ selectedGame.releasedate.substring(0,4) }}</span
+                                >
+                                <span class="tag" v-if="selectedGame.genre">{{ selectedGame.genre }}</span>
+                                <span class="tag" v-if="selectedGame.players"
+                                    ><i class="ri-user-3-fill"></i> {{ selectedGame.players }}</span
+                                >
+                                <span class="tag" v-if="selectedGame.publisher">{{ selectedGame.publisher }}</span>
+                                <span class="tag" v-if="selectedGame.developer">{{ selectedGame.developer }}</span>
+                            </div>
+
+                            <div class="d-desc">{{ selectedGame.desc || '暂无描述信息。' }}</div>
+                            <van-divider content-position="left" style="border-color: rgba(255, 255, 255, 0.1)"
+                                >Available Files ({{ versions.length }})</van-divider
+                            >
+                            <div
+                                class="ver-item"
+                                v-for="ver in versions"
+                                :key="ver.id"
+                                :class="{ selected: currentVersionId === ver.id }"
+                                @click="switchVersion(ver)"
+                            >
+                                <div style="flex: 1; min-width: 0; padding-right: 10px">
+                                    <div class="v-file">{{ ver.filename }}</div>
+                                </div>
+                                <button class="dl-btn" @click.stop="download(ver.id)">
+                                    <i class="ri-download-cloud-2-line"></i> GET
+                                </button>
+                            </div>
+                            <div style="height: 40px"></div>
+                        </div>
                     </div>
                 </div>
             </van-popup>
@@ -1177,7 +1267,6 @@
                     const logs = ref([]);
                     const progress = ref({ current: 0, total: 0 });
 
-                    // 【新增】同步相关状态
                     const showSyncDialog = ref(false);
                     const syncOps = ref({
                         syncInfo: true,
@@ -1196,11 +1285,10 @@
                     /* 索引栏引用 */
                     const systemIndexBarRef = ref(null);
                     const gameIndexBarRef = ref(null);
-                    // 【修改】视频引用改为数组 (因为 v-for)
                     const swipeVideoRef = ref(null);
 
                     /* 【JS控制】指示器动态位置，初始位置放在安全的顶部 */
-                    const indicatorTop = ref(70); // 70px
+                    const indicatorTop = ref(70);
 
                     // 缓存 sidebar 几何信息，避免重复计算
                     let sidebarRectCache = null;
@@ -1275,7 +1363,6 @@
                         window.history.back();
                     };
 
-                    /* ...省略部分未修改的滚动逻辑代码... */
                     const updateLayoutFromScroll = () => {
                         const container = document.querySelector('.page-container');
                         if (!container) return;
@@ -1424,7 +1511,6 @@
                         setTimeout(() => updateLayoutFromScroll(), 500);
                     });
 
-                    // 【新增】暂停所有详情视频的辅助函数
                     const pauseAllVideos = () => {
                         if (swipeVideoRef.value) {
                             const videos = Array.isArray(swipeVideoRef.value)
@@ -1451,11 +1537,15 @@
                         versions.value = await res.json();
                         if (versions.value.length > 0) currentVersionId.value = versions.value[0].id;
 
-                        // 打开详情后，如果是视频页，尝试自动播放
                         nextTick(() => {
                             if (imgSwipe.value) imgSwipe.value.swipeTo(0, { immediate: true });
                             checkAutoPlay(0);
                         });
+                    };
+
+                    /* 【修改】closeDetail 方法 */
+                    const closeDetail = () => {
+                        window.history.back();
                     };
 
                     const viewLogs = () => {
@@ -1464,7 +1554,6 @@
                         pollStatus();
                     };
 
-                    // 【修改】触发同步现在只打开对话框
                     const triggerSync = async () => {
                         if (isSyncing.value) {
                             viewLogs();
@@ -1473,22 +1562,19 @@
                         showSyncDialog.value = true;
                     };
 
-                    // 【新增】开始同步
                     const startSync = async () => {
                         isSyncing.value = true;
                         logs.value = [];
                         progress.value = { current: 0, total: 0 };
-                        // 发送选项
                         await fetch(`/api/scan/${currentSystemObj.value.name}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(syncOps.value)
                         });
                         vant.showToast({ message: '后台扫描已启动', icon: 'success' });
-                        viewLogs(); // 启动后直接看日志
+                        viewLogs();
                     };
 
-                    // 【新增】中止同步
                     const stopSync = async () => {
                         try {
                             await fetch(`/api/stop-scan/${currentSystemObj.value.name}`, { method: 'POST' });
@@ -1510,7 +1596,6 @@
                         if (imgSwipe.value) imgSwipe.value.swipeTo(idx);
                     };
 
-                    // 【修改】滑动切换逻辑
                     const onSwipeChange = (idx) => {
                         currentSwipeIndex.value = idx;
                         checkAutoPlay(idx);
@@ -1518,17 +1603,13 @@
 
                     const checkAutoPlay = (idx) => {
                         const media = displayMedia.value[idx];
-                        pauseAllVideos(); // 先全暂停
+                        pauseAllVideos();
                         if (media && media.type === 'video') {
-                            // 找到对应索引的视频元素播放？
-                            // 实际上因为 v-for v-if，只有当前是视频时才会有 video 元素渲染。
-                            // 但 Vue ref 数组可能会包含 null 或旧引用，最好遍历检查。
                             nextTick(() => {
                                 if (swipeVideoRef.value) {
                                     const videos = Array.isArray(swipeVideoRef.value)
                                         ? swipeVideoRef.value
                                         : [swipeVideoRef.value];
-                                    // 这里简单处理：只要是可见的视频就播放
                                     videos.forEach((v) => {
                                         if (v && v.play) v.play().catch((e) => {});
                                     });
@@ -1538,20 +1619,18 @@
                     };
 
                     const previewBig = (idx) => {
-                        // 过滤出所有纯图片用于预览
                         const imagesOnly = displayMedia.value.filter((m) => m.type !== 'video');
                         if (imagesOnly.length === 0) return;
 
-                        // 计算在纯图片数组中的起始索引
                         const currentMedia = displayMedia.value[idx];
-                        if (currentMedia.type === 'video') return; // 点击视频不放大，或者你可以做其他处理
+                        if (currentMedia.type === 'video') return;
 
                         const imgIndex = imagesOnly.indexOf(currentMedia);
                         if (imgIndex === -1) return;
 
                         window.history.pushState({ page: 'preview' }, '');
                         isPreviewOpen.value = true;
-                        pauseAllVideos(); // 预览大图时暂停视频
+                        pauseAllVideos();
 
                         vant.showImagePreview({
                             images: imagesOnly.map((i) => getImgUrl(i.url)),
@@ -1623,19 +1702,27 @@
                     });
                     const systemIndexList = computed(() => Object.keys(groupedSystems.value));
 
-                    // 【修改】构建混合媒体列表
+                    const marqueeUrl = computed(() => {
+                        if (!currentVersionId.value) return '';
+                        const ver = versions.value.find((v) => v.id === currentVersionId.value);
+                        if (ver && ver.gallery) {
+                            const m = ver.gallery.find((img) => img.type === 'marquees');
+                            return m ? m.url : '';
+                        }
+                        return '';
+                    });
+
                     const displayMedia = computed(() => {
                         const list = [];
-                        // 1. 如果有视频，放在第一个
                         if (selectedGame.value && selectedGame.value.video_path) {
                             list.push({ type: 'video', url: selectedGame.value.video_path });
                         }
 
-                        // 2. 图片画廊
                         if (currentVersionId.value) {
                             const ver = versions.value.find((v) => v.id === currentVersionId.value);
                             if (ver && ver.gallery && ver.gallery.length > 0) {
-                                list.push(...ver.gallery); // gallery items 应该已有 type 属性 (Covers/Screenshots)
+                                const images = ver.gallery.filter((g) => g.type !== 'marquees');
+                                list.push(...images);
                             } else if (selectedGame.value.image_path) {
                                 list.push({ type: 'Cover', url: selectedGame.value.image_path });
                             }
@@ -1655,13 +1742,15 @@
                         selectedGame,
                         versions,
                         currentVersionId,
-                        displayMedia, // Export new computed
+                        displayMedia,
+                        marqueeUrl,
                         currentSwipeIndex,
                         imgSwipe,
-                        swipeVideoRef, // Export new ref
+                        swipeVideoRef,
                         enterSystem,
                         handleUiBack,
                         openDetail,
+                        closeDetail,
                         switchVersion,
                         swipeTo,
                         onSwipeChange,

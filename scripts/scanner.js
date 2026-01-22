@@ -55,6 +55,8 @@ const IGNORE_DIRS = [
 const dirCache = {};
 const systemStates = {};
 
+let systemsConfig = null;
+
 function getSystemStatus (system) {
     if (!systemStates[system]) {
         systemStates[system] = {
@@ -132,39 +134,20 @@ function deleteLocalImages (system, romBasename) {
     });
 }
 
-function loadSystemMetadata () {
-    return new Promise((resolve) => {
-        const xmlPath = path.join(__dirname, '../systems.xml');
-        const metadata = {};
-        if (!fs.existsSync(xmlPath)) return resolve(metadata);
-
-        const parser = sax.createStream(false, { trim: true, lowercase: true });
-        let currentSystem = null;
-        let currentTag = null;
-
-        parser.on('opentag', (node) => {
-            currentTag = node.name;
-            if (node.name === 'system') currentSystem = {};
-        });
-        parser.on('text', (text) => {
-            if (currentSystem && currentTag) currentSystem[currentTag] = text;
-        });
-        parser.on('closetag', (tagName) => {
-            if (tagName === 'system' && currentSystem && currentSystem.name) {
-                metadata[currentSystem.name.toLowerCase()] = currentSystem;
-                currentSystem = null;
-            }
-        });
-        parser.on('end', () => resolve(metadata));
-
-        parser.write('<root>');
-        const fileStream = fs.createReadStream(xmlPath);
-        fileStream.on('data', (c) => parser.write(c));
-        fileStream.on('end', () => {
-            parser.write('</root>');
-            parser.end();
-        });
-    });
+function loadSystemConfig () {
+    if (systemsConfig) return systemsConfig;
+    const jsonPath = path.join(__dirname, '../systems.json');
+    try {
+        if (fs.existsSync(jsonPath)) {
+            systemsConfig = fs.readJsonSync(jsonPath);
+        } else {
+            systemsConfig = {};
+        }
+    } catch (e) {
+        console.error('加载 systems.json 失败:', e.message);
+        systemsConfig = {};
+    }
+    return systemsConfig;
 }
 
 async function syncHostList () {
@@ -184,7 +167,7 @@ async function syncHostList () {
         return;
     }
 
-    const metadata = await loadSystemMetadata();
+    const metadata = loadSystemConfig();
 
     return new Promise((resolve) => {
         db.serialize(() => {
@@ -200,7 +183,8 @@ async function syncHostList () {
                 'INSERT OR REPLACE INTO systems (name, fullname, abbr, maker, release_year, desc, history) VALUES (?, ?, ?, ?, ?, ?, ?)'
             );
             diskDirs.forEach((dir) => {
-                const info = metadata[dir.toLowerCase()] || {};
+                const key = dir.toLowerCase();
+                const info = metadata[key] || {};
                 stmt.run(
                     dir,
                     info.fullname || dir.toUpperCase(),
@@ -339,10 +323,20 @@ async function syncSystem (system, options = {}) {
     state.logs = [];
     state.progress = { current: 0, total: 0 };
 
+    const sysConfig = loadSystemConfig();
+    const sysInfo = sysConfig[system.toLowerCase()] || {};
+    const scraperId = sysInfo.id;
+
     const hasOptions = Object.keys(options).length > 0;
     const syncOps = hasOptions ? options : { syncInfo: true, syncImages: true, syncVideo: true, syncMarquees: true };
 
     addLog(system, '开始扫描文件系统...');
+    if (scraperId) {
+        addLog(system, `Scraper ID: ${scraperId}`);
+    } else {
+        addLog(system, '警告: 未配置 Scraper ID，将尝试自动匹配。');
+    }
+
     addLog(
         system,
         `同步选项: Info=${syncOps.syncInfo}, Img=${syncOps.syncImages}, Vid=${syncOps.syncVideo}, Marquee=${syncOps.syncMarquees}`
@@ -384,7 +378,17 @@ async function syncSystem (system, options = {}) {
             const missingImg = syncOps.syncImages && !g.image_path;
             const missingVid = syncOps.syncVideo && !g.video_path;
 
-            return missingInfo || missingImg || missingVid || syncOps.syncMarquees;
+            // 【修改】专门针对 Marquee 的物理文件检查
+            let missingMarquee = false;
+            if (syncOps.syncMarquees) {
+                const basename = path.basename(g.filename, path.extname(g.filename));
+                const targetPath = path.join(config.mediaDir, system, 'marquees', basename + '.png');
+                if (!fs.existsSync(targetPath)) {
+                    missingMarquee = true;
+                }
+            }
+
+            return missingInfo || missingImg || missingVid || missingMarquee;
         })
         .map((g) => g.filename);
 
@@ -437,7 +441,7 @@ async function syncSystem (system, options = {}) {
                     });
                 }
 
-                await processNewGame(system, filename, oldData, syncOps);
+                await processNewGame(system, filename, oldData, syncOps, scraperId);
 
                 completedCount++;
                 state.progress.current = completedCount;
@@ -460,7 +464,7 @@ async function syncSystem (system, options = {}) {
     addLog(system, `已将 ${taskList.length} 个任务加入队列...`);
 }
 
-async function processNewGame (system, filename, oldData = null, options = {}) {
+async function processNewGame (system, filename, oldData = null, options = {}, scraperId = null) {
     const romPath = path.join(system, filename).replace(/\\/g, '/');
     const fullPath = path.join(config.romsDir, system, filename);
     const basename = path.basename(filename, path.extname(filename));
@@ -495,7 +499,7 @@ async function processNewGame (system, filename, oldData = null, options = {}) {
     if (shouldScrape) {
         addLog(system, `[处理中] ${filename} ...`);
         try {
-            const scraperData = await scraper.fetchGameInfo(system, filename, fullPath);
+            const scraperData = await scraper.fetchGameInfo(system, filename, fullPath, scraperId);
 
             if (scraperData) {
                 addLog(system, `[抓取成功] 匹配: ${scraperData.name}`);

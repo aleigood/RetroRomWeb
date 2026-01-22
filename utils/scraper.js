@@ -1,66 +1,11 @@
+/* eslint-disable n/no-callback-literal */
 const fs = require('fs-extra');
 const path = require('path');
 const axios = require('axios');
 const crypto = require('crypto');
 const config = require('../config');
 
-const SYSTEM_MAP = {
-    // === Nintendo ===
-    nes: 3,
-    famicom: 3,
-    snes: 4,
-    sfc: 4,
-    gb: 9,
-    gbc: 10, // 建议补充: Game Boy Color
-    gba: 12,
-    n64: 14,
-    gc: 13,
-    ngc: 13,
-    wii: 16,
-    wiiu: 18, // 建议补充: Wii U
-    switch: 225, // 【修复】Switch ID 修正
-    nx: 225,
-    nsw: 225,
-    nds: 15,
-    '3ds': 17, // 建议补充: 3DS
-
-    // === Sega ===
-    sms: 2, // 建议补充: Master System
-    md: 1,
-    megadrive: 1,
-    genesis: 1,
-    saturn: 22,
-    dc: 23,
-    dreamcast: 23,
-    gg: 21, // 建议补充: Game Gear
-
-    // === Sony ===
-    psx: 57,
-    ps1: 57,
-    ps2: 58, // 【新增】XML中存在: PS2
-    ps3: 59, // 【新增】XML中存在: PS3
-    psp: 61, // 【修复】PSP ID 修正 (原150错误)
-    psv: 62, // 【修复】PSV ID 修正 (原59是PS3)
-    psvita: 62,
-
-    // === Arcade / Other ===
-    mame: 75,
-    fba: 75,
-    fbneo: 75,
-    cps1: 75,
-    cps2: 75,
-    cps3: 75,
-    neogeo: 142,
-    pce: 31,
-    pcengine: 31,
-    x68000: 79,
-
-    // === Vintage / Rare ===
-    colecovision: 48, // 【新增】XML中存在: ColecoVision
-    wonderswan: 45,
-    wsc: 46,
-    neogeocd: 70
-};
+// 【修改】移除硬编码的 SYSTEM_MAP，现在由配置文件控制
 
 const MD5_THRESHOLD = 256 * 1024 * 1024;
 
@@ -84,8 +29,6 @@ function cleanRomName (filename) {
     name = name.replace(/\s+/g, ' ').trim();
     return name;
 }
-
-// 【修改】删除了 logDebugUrl 函数以修复 ESLint 错误
 
 async function downloadFile (url, savePath) {
     if (!url) return;
@@ -111,14 +54,18 @@ async function downloadFile (url, savePath) {
     }
 }
 
-async function fetchGameInfo (system, filename, fullPath) {
+// 【修改】新增 explicitSystemId 参数
+async function fetchGameInfo (system, filename, fullPath, explicitSystemId = null) {
     const ssConfig = config.screenScraper;
     if (!ssConfig || !ssConfig.devId || !ssConfig.devPassword) return null;
 
-    const systemId = SYSTEM_MAP[system.toLowerCase()];
+    // 优先使用传入的 ID，如果没有，则无法精确抓取
+    const systemId = explicitSystemId;
+
     if (!systemId) {
-        console.log(`[Scraper] 未知系统: ${system}, 无法获取 ID`);
-        return null;
+        console.log(`[Scraper] 目录 ${system} 未配置 Scraper ID，跳过精准匹配，仅尝试全局搜索...`);
+        // 如果没有 ID，直接去全局搜索，不计算 MD5 了，因为 MD5 接口通常需要 ID
+        return await searchWithFallback(null, filename, ssConfig);
     }
 
     let romSize = 0;
@@ -133,7 +80,7 @@ async function fetchGameInfo (system, filename, fullPath) {
         return await searchWithFallback(systemId, filename, ssConfig);
     }
 
-    console.log('[Scraper] 文件较小，计算 MD5 进行精准匹配...');
+    console.log(`[Scraper] SystemID: ${systemId}, 计算 MD5 进行精准匹配...`);
     try {
         const romMD5 = await calculateMD5(fullPath);
         const result = await tryJeuInfos(systemId, filename, romSize, romMD5, ssConfig);
@@ -175,8 +122,13 @@ async function tryJeuInfos (systemId, filename, romSize, romMD5, ssConfig) {
 }
 
 async function searchWithFallback (systemId, filename, ssConfig) {
-    let result = await searchByText(systemId, filename, ssConfig);
-    if (result) return result;
+    let result = null;
+
+    // 如果有 ID，先在系统内搜索
+    if (systemId) {
+        result = await searchByText(systemId, filename, ssConfig);
+        if (result) return result;
+    }
 
     console.log('[Scraper] 指定系统未找到，尝试全局搜索...');
     result = await searchByText(null, filename, ssConfig);
@@ -267,7 +219,6 @@ function parseGameData (gameData, originalFilename) {
         const video = gameData.medias.find((m) => m.type === 'video' || m.type === 'video-normalized');
         if (video) videoUrl = video.url;
 
-        // 【新增】解析 Marquee/Wheel
         const wheel = gameData.medias.find((m) => m.type === 'wheel' || m.type === 'marquee');
         if (wheel) marqueeUrl = wheel.url;
     }
@@ -284,7 +235,7 @@ function parseGameData (gameData, originalFilename) {
         boxArtUrl,
         screenUrl,
         videoUrl,
-        marqueeUrl // 【新增】返回 Marquee URL
+        marqueeUrl
     };
 }
 
