@@ -54,6 +54,9 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 margin: 0;
                 -webkit-tap-highlight-color: transparent;
+
+                /* 【修改】默认值改为 70px (顶部)，防止首次加载出现在中间 */
+                --sidebar-top: 70px;
             }
 
             #app {
@@ -170,17 +173,13 @@
             .index-hint {
                 position: fixed;
                 right: 4px;
-                top: 50svh;
-                transform: translateY(-50%);
                 width: 4px;
                 height: 40px;
                 background: rgba(255, 255, 255, 0.6);
                 border-radius: 4px;
                 z-index: 2500;
                 pointer-events: auto;
-                transition:
-                    opacity 0.3s,
-                    transform 0.2s;
+                transition: opacity 0.3s;
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
                 opacity: 0.1;
                 touch-action: none;
@@ -214,6 +213,7 @@
                 opacity: 0;
             }
 
+            /* 动态跟随位置的索引栏 */
             .van-index-bar__sidebar {
                 position: fixed !important;
                 right: 0 !important;
@@ -222,21 +222,32 @@
                 background: transparent !important;
                 box-shadow: none !important;
                 opacity: 0;
-                top: 50svh !important;
-                transform: translateY(-50%) !important;
+
+                top: var(--sidebar-top) !important;
+                bottom: auto !important;
+                height: auto !important;
+                transform: translateY(0) !important;
+
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+
                 touch-action: none;
                 user-select: none;
                 -webkit-user-select: none;
-                transition: opacity 0.2s;
+                transition:
+                    opacity 0.2s,
+                    top 0.1s linear;
                 pointer-events: none !important;
             }
+
             .van-index-bar__index {
-                padding: 0 !important;
+                padding: 2px 0 !important;
                 text-align: center;
                 color: rgba(255, 255, 255, 0.6) !important;
                 font-size: 10px;
-                line-height: 1.6;
                 font-weight: 700 !important;
+                line-height: 1.4;
             }
 
             body.touching-sidebar .van-index-bar__sidebar {
@@ -250,7 +261,7 @@
             }
             body.touching-sidebar .van-index-bar__index--active {
                 color: #fff !important;
-                transform: scale(1.3);
+                transform: scale(1.5);
             }
 
             .side-bubble {
@@ -533,7 +544,6 @@
                 font-weight: bold;
             }
 
-            /* 【核心修改1】调整遮罩层和内部元素的 CSS 顺序 */
             .game-info-overlay {
                 position: absolute;
                 bottom: 0;
@@ -555,13 +565,13 @@
                 text-overflow: ellipsis;
                 font-weight: 700;
                 width: 100%;
-                margin-top: 0; /* 游戏名在底部，无需上边距 */
+                margin-top: 0;
             }
             .g-year {
                 font-size: 10px;
                 color: #bbb;
                 text-align: center;
-                margin-bottom: 2px; /* 给下方的游戏名留出空隙 */
+                margin-bottom: 2px;
             }
             .g-rating {
                 height: 12px;
@@ -569,7 +579,7 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                margin-bottom: 2px; /* 给下方的年份留出空隙 */
+                margin-bottom: 2px;
             }
 
             .detail-popup {
@@ -923,7 +933,11 @@
                 </div>
             </transition>
 
-            <div class="index-hint" :class="{ 'active-scroll': isScrollingPage }"></div>
+            <div
+                class="index-hint"
+                :class="{ 'active-scroll': isScrollingPage }"
+                :style="{ top: indicatorTop + 'px', transform: 'none' }"
+            ></div>
             <div class="side-bubble" :class="{ visible: showLetterToast }" :style="{ top: bubbleY + 'px' }">
                 <span>{{ currentLetter }}</span>
             </div>
@@ -1064,6 +1078,13 @@
                     const systemIndexBarRef = ref(null);
                     const gameIndexBarRef = ref(null);
 
+                    /* 【JS控制】指示器动态位置，初始位置放在安全的顶部 */
+                    const indicatorTop = ref(66); // 56px navbar + 10px padding
+
+                    // 缓存 sidebar 几何信息，避免重复计算
+                    let sidebarRectCache = null;
+                    let animationFrameId = null;
+
                     let statusPollTimer = null;
                     const transitionName = ref('slide-left');
 
@@ -1071,6 +1092,8 @@
                         try {
                             const res = await fetch('/api/systems');
                             systems.value = await res.json();
+                            // 【新增】数据加载完成后，立即触发一次布局计算，防止索引位置错乱
+                            nextTick(() => updateLayoutFromScroll());
                         } catch (e) {
                             console.error(e);
                         }
@@ -1099,6 +1122,8 @@
                             const res = await fetch(`/api/games?system=${sysObj.name}&all=1`);
                             const data = await res.json();
                             allGames.value = data.data;
+                            // 【新增】数据加载完成后，立即触发一次布局计算
+                            nextTick(() => updateLayoutFromScroll());
                         } finally {
                             loading.value = false;
                         }
@@ -1108,6 +1133,8 @@
                         transitionName.value = 'slide-left';
                         window.history.pushState({ page: 'gamelist', systemName: sysObj.name }, '');
                         currentSystemObj.value = sysObj;
+                        // 切换页面时，滚动条位置会归零，强制重置指示器位置
+                        indicatorTop.value = 66;
                         pollStatus();
                         loadGames(sysObj);
                     };
@@ -1119,6 +1146,7 @@
                                     transitionName.value = 'slide-right';
                                     currentSystemObj.value = null;
                                     window.history.replaceState({ page: 'home' }, '');
+                                    indicatorTop.value = 66; // 重置
                                     return;
                                 }
                             }
@@ -1126,23 +1154,73 @@
                         window.history.back();
                     };
 
-                    const handleScroll = () => {
+                    /* 【JS控制】独立出的位置计算逻辑 */
+                    const updateLayoutFromScroll = () => {
+                        const container = document.querySelector('.page-container');
+                        if (!container) return;
+
+                        const scrollTop = container.scrollTop;
+                        const scrollHeight = container.scrollHeight;
+                        const clientHeight = container.clientHeight;
+
+                        const scrollRange = scrollHeight - clientHeight;
+                        const ratio = scrollRange > 0 ? scrollTop / scrollRange : 0;
+
+                        const safeTop = 66;
+                        const safeBottomPadding = 20;
+                        const indicatorHeight = 40;
+                        const viewHeight = window.innerHeight;
+                        const trackLength = viewHeight - safeTop - safeBottomPadding - indicatorHeight;
+                        const currentIndTop = safeTop + ratio * trackLength;
+
+                        indicatorTop.value = currentIndTop;
+
+                        const sidebar = document.querySelector('.van-index-bar__sidebar');
+                        if (sidebar) {
+                            const sbHeight = sidebar.offsetHeight;
+                            let targetSidebarTop = currentIndTop + indicatorHeight / 2 - sbHeight / 2;
+                            const minSidebarTop = 70;
+                            const maxSidebarTop = viewHeight - sbHeight - 10;
+                            targetSidebarTop = Math.max(minSidebarTop, Math.min(targetSidebarTop, maxSidebarTop));
+                            document.body.style.setProperty('--sidebar-top', `${targetSidebarTop}px`);
+                        }
+                    };
+
+                    /* 【JS控制】核心滚动监听 */
+                    const handleScroll = (e) => {
                         isScrollingPage.value = true;
                         if (scrollTimeout) clearTimeout(scrollTimeout);
                         scrollTimeout = setTimeout(() => {
                             isScrollingPage.value = false;
                         }, 1000);
+
+                        if (!isTouchingIndex.value) {
+                            updateLayoutFromScroll();
+                        }
                     };
 
                     const handleIndexTouch = (e) => {
                         if (e.type === 'touchstart') {
                             const isHint = e.target.classList.contains('index-hint');
-                            if (!isHint) {
-                                return;
-                            }
+                            if (!isHint) return;
+
                             isTouchingIndex.value = true;
                             document.body.classList.add('touching-sidebar');
                             e.preventDefault();
+
+                            // 缓存 sidebar 信息
+                            const sidebar = document.querySelector('.van-index-bar__sidebar');
+                            if (sidebar) {
+                                const rect = sidebar.getBoundingClientRect();
+                                const indexCount = (currentSystemObj.value ? indexList.value : systemIndexList.value)
+                                    .length;
+                                sidebarRectCache = {
+                                    top: rect.top,
+                                    height: rect.height,
+                                    itemHeight: rect.height / indexCount,
+                                    list: currentSystemObj.value ? indexList.value : systemIndexList.value
+                                };
+                            }
                         }
 
                         if (isTouchingIndex.value) {
@@ -1152,17 +1230,26 @@
                                 isTouchingIndex.value = false;
                                 document.body.classList.remove('touching-sidebar');
                                 setTimeout(() => (showLetterToast.value = false), 300);
+                                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                                updateLayoutFromScroll(); // 强制归位
                                 return;
                             }
 
-                            const touch = e.touches[0];
-                            bubbleY.value = touch.clientY;
+                            // 使用 requestAnimationFrame 节流
+                            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                            animationFrameId = requestAnimationFrame(() => {
+                                const touch = e.touches[0];
+                                bubbleY.value = touch.clientY;
 
-                            const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                            if (target) {
-                                const indexItem = target.closest('.van-index-bar__index');
-                                if (indexItem) {
-                                    const char = indexItem.innerText;
+                                if (sidebarRectCache && sidebarRectCache.list.length > 0) {
+                                    // 纯数学计算：(触摸点Y - 侧边栏顶部Y) / 单个字母高度
+                                    const relativeY = touch.clientY - sidebarRectCache.top;
+                                    let index = Math.floor(relativeY / sidebarRectCache.itemHeight);
+
+                                    // 边界检查
+                                    index = Math.max(0, Math.min(index, sidebarRectCache.list.length - 1));
+
+                                    const char = sidebarRectCache.list[index];
                                     if (char && char !== currentLetter.value) {
                                         currentLetter.value = char;
                                         showLetterToast.value = true;
@@ -1174,7 +1261,7 @@
                                         }
                                     }
                                 }
-                            }
+                            });
                         }
                     };
 
@@ -1213,6 +1300,7 @@
                             currentSystemObj.value = null;
                             showSearch.value = false;
                             allGames.value = [];
+                            indicatorTop.value = 66; // 重置
                         } else if (targetPage === 'detail') {
                             showDetail.value = true;
                             showLogPopup.value = false;
@@ -1228,6 +1316,9 @@
                         window.addEventListener('touchstart', handleIndexTouch, { passive: false });
                         window.addEventListener('touchmove', handleIndexTouch, { passive: false });
                         window.addEventListener('touchend', handleIndexTouch);
+
+                        // 【新增】首次加载后的兜底计算
+                        setTimeout(() => updateLayoutFromScroll(), 500);
                     });
 
                     const openDetail = async (game) => {
@@ -1416,7 +1507,8 @@
                         handleScroll,
                         isScrollingPage,
                         systemIndexBarRef,
-                        gameIndexBarRef
+                        gameIndexBarRef,
+                        indicatorTop // 导出供模板使用
                     };
                 }
             });
