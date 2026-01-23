@@ -113,6 +113,10 @@
                 padding-left: 16px;
                 padding-right: 16px;
                 background: var(--bg-body);
+                /* 强制禁止横向滚动 */
+                overflow-x: hidden;
+                /* 禁止橡皮筋回弹 */
+                overscroll-behavior: none;
             }
 
             /* === 弹窗样式修正 === */
@@ -643,6 +647,8 @@
                 overflow-y: auto;
                 height: auto;
                 position: relative;
+                /* 强制截断 120vw 的背景图 */
+                overflow-x: hidden;
             }
 
             .swipe-area {
@@ -726,9 +732,10 @@
                 margin-top: 80px;
                 margin-bottom: 80px;
                 border: none;
-                background: none;
                 box-shadow: none;
-                min-height: 20px;
+                min-height: 100px;
+                /* 【修改】移除所有背景处理 */
+                background: transparent;
             }
 
             .d-marquee-bg {
@@ -748,10 +755,12 @@
 
             .d-marquee-img {
                 position: relative;
-                max-width: 80%;
-                max-height: 80px;
+                max-width: 85%;
+                max-height: 120px; /* 【修改】保留尺寸优化 */
+                width: auto; /* 【修改】保留尺寸优化 */
                 object-fit: contain;
                 z-index: 1;
+                /* 【修改】移除光效滤镜，恢复原图显示（仅保留基础阴影） */
                 filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
             }
             .d-title {
@@ -1202,11 +1211,11 @@
                     <van-checkbox v-model="syncOps.syncImages" shape="square" checked-color="#705df2"
                         >游戏图片 (封面/截图)</van-checkbox
                     >
-                    <van-checkbox v-model="syncOps.syncVideo" shape="square" checked-color="#705df2"
-                        >游戏视频 (Video)</van-checkbox
-                    >
                     <van-checkbox v-model="syncOps.syncMarquees" shape="square" checked-color="#705df2"
                         >Marquees (Logo)</van-checkbox
+                    >
+                    <van-checkbox v-model="syncOps.syncVideo" shape="square" checked-color="#705df2"
+                        >游戏视频 (Video)</van-checkbox
                     >
                 </div>
             </van-dialog>
@@ -1266,7 +1275,7 @@
                                 const state = elementStateMap.get(el);
 
                                 if (entry.isIntersecting) {
-                                    // 【修改】300ms 防抖，确保滚动停止才加载
+                                    // 300ms 防抖，确保滚动停止才加载
                                     if (!state.loaded && !state.timer) {
                                         state.timer = setTimeout(() => {
                                             loadImage(el, state.src);
@@ -1398,7 +1407,7 @@
                         }
                     };
 
-                    // 【修复】移除开头的条件判断，确保刷新页面后能立即获取状态
+                    // 移除开头的条件判断，确保刷新页面后能立即获取状态
                     const pollStatus = async () => {
                         try {
                             const res = await fetch('/api/status/global');

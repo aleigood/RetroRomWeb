@@ -156,14 +156,33 @@ async function processSystemSync (system, options) {
 
     const toAdd = diskFiles.filter((f) => !dbFilenameMap[f]);
     const toDelete = dbGames.filter((g) => !diskFiles.includes(g.filename));
+
+    // 【修改】优化更新检测逻辑，增加对物理文件是否存在的检查
     const toUpdate = dbGames
         .filter((g) => {
             if (!diskFiles.includes(g.filename)) return false;
             if (globalStatus.isStopping) return false;
 
             const missingInfo = syncOps.syncInfo && (!g.desc || g.desc === '暂无简介');
-            const missingImg = syncOps.syncImages && !g.image_path;
-            const missingVid = syncOps.syncVideo && !g.video_path;
+
+            // 检查封面：如果DB没有路径，或者DB有路径但文件不存在，都算缺失
+            let missingImg = syncOps.syncImages && !g.image_path;
+            if (!missingImg && syncOps.syncImages && g.image_path) {
+                const fullPath = path.join(config.mediaDir, g.image_path);
+                if (!fs.existsSync(fullPath) || fs.statSync(fullPath).size === 0) {
+                    missingImg = true;
+                }
+            }
+
+            // 检查视频：如果DB没有路径，或者DB有路径但文件不存在，都算缺失
+            let missingVid = syncOps.syncVideo && !g.video_path;
+            if (!missingVid && syncOps.syncVideo && g.video_path) {
+                const fullPath = path.join(config.mediaDir, g.video_path);
+                if (!fs.existsSync(fullPath) || fs.statSync(fullPath).size === 0) {
+                    missingVid = true;
+                }
+            }
+
             let missingMarquee = false;
             if (syncOps.syncMarquees) {
                 const basename = path.basename(g.filename, path.extname(g.filename));
@@ -214,6 +233,11 @@ async function processSystemSync (system, options) {
 
             try {
                 const oldData = dbFilenameMap[filename] || null;
+                // 如果是更新操作，且旧数据存在，我们在 processNewGame 里会处理
+                // 这里不需要删除旧数据，因为 processNewGame 会执行 INSERT，
+                // 我们应该在这里做区分，或者让 processNewGame 支持 UPDATE。
+                // 但目前的逻辑是先 DELETE 再 INSERT，为了保持兼容性，我们维持原状：
+                // 如果是 toUpdate 列表里的，先删掉旧记录，再重新插入。
                 if (oldData) {
                     await new Promise((resolve) =>
                         db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], resolve)
