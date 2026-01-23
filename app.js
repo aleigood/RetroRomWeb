@@ -114,6 +114,7 @@ router.post('/api/stop-scan', async (ctx) => {
 
 router.get('/api/systems', async (ctx) => {
     return new Promise((resolve) => {
+        // 【修改】调整排序逻辑：优先按厂商(maker)排序，同厂商按年份(year)排序
         const sql = `
             SELECT 
                 s.name,
@@ -127,7 +128,7 @@ router.get('/api/systems', async (ctx) => {
             FROM systems s
             LEFT JOIN games g ON s.name = g.system
             GROUP BY s.name 
-            ORDER BY s.name COLLATE NOCASE ASC
+            ORDER BY s.maker COLLATE NOCASE ASC, s.release_year ASC
         `;
 
         db.all(sql, (err, rows) => {

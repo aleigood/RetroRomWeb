@@ -1921,15 +1921,21 @@
                     });
                     const indexList = computed(() => Object.keys(groupedGames.value));
 
+                    // 【关键修改】修改为按厂商(maker)分组
                     const groupedSystems = computed(() => {
                         if (!systems.value.length) return {};
                         const groups = {};
                         systems.value.forEach((sys) => {
-                            let letter = (sys.fullname || sys.name || '#')[0].toUpperCase();
+                            // 获取 Maker 的首字母 (例如 "N" for Nintendo, "S" for Sega)
+                            const makerName = sys.maker || 'Unknown';
+                            let letter = makerName[0].toUpperCase();
+
                             if (!/[A-Z]/.test(letter)) letter = '#';
                             if (!groups[letter]) groups[letter] = [];
                             groups[letter].push(sys);
                         });
+
+                        // 对 key 进行排序
                         return Object.keys(groups)
                             .sort()
                             .reduce((obj, key) => {
