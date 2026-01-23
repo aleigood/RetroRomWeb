@@ -30,10 +30,10 @@
                 --van-search-input-height: 36px !important;
                 --van-field-input-text-color: #fff !important;
 
-                /* 【修改】空状态样式优化 */
-                --van-empty-description-color: #666 !important; /* 稍微调亮文字颜色 */
+                /* 空状态样式优化 */
+                --van-empty-description-color: #666 !important;
                 --van-empty-description-padding: 0 !important;
-                --van-empty-image-size: auto !important; /* 允许自定义图标大小 */
+                --van-empty-image-size: auto !important;
             }
 
             * {
@@ -179,11 +179,11 @@
                 color: rgba(255, 255, 255, 0.5) !important;
             }
 
-            /* 【新增】自定义空状态图片容器，防止默认高度导致布局松散 */
+            /* 自定义空状态图片容器 */
             .van-empty__image {
                 width: auto !important;
                 height: auto !important;
-                margin-bottom: 16px !important; /* 调整图标与文字的间距 */
+                margin-bottom: 16px !important;
             }
 
             /* === 索引栏 & 标记 === */
@@ -702,8 +702,9 @@
                 z-index: 1;
             }
             .swipe-img {
-                max-width: 100%;
-                max-height: 100%;
+                /* 【修改】强制占满容器，实现小图放大 */
+                width: 100%;
+                height: 100%;
                 /* 添加 position: relative 激活 z-index，防止被 absolute 的背景遮挡 */
                 position: relative;
                 z-index: 2;
@@ -1878,7 +1879,23 @@
                                   .map((p) => encodeURIComponent(p))
                                   .join('/')
                             : '';
-                    const onImgLoad = (e) => e.target.classList.add('loaded');
+
+                    /* 【修复】恢复 onImgLoad 完整逻辑，确保 CRT 效果和加载状态正常工作 */
+                    const onImgLoad = (e, media) => {
+                        e.target.classList.add('loaded');
+
+                        // 1. 同步加载状态给 Vue，防止渲染时 class 丢失
+                        loadedFlags.value[media.url] = true;
+
+                        // 2. 检测是否为低分辨率（高度 < 720px）
+                        // 且排除封面（Cover/covers）和标题（titles）
+                        const isCover = media.type === 'covers' || media.type === 'Cover' || media.type === 'titles';
+
+                        if (!isCover && e.target.naturalHeight && e.target.naturalHeight < 720) {
+                            lowResFlags.value[media.url] = true;
+                        }
+                    };
+
                     const download = (id) => (window.location.href = `/api/download/${id}`);
 
                     const getGamePoster = (game) => {
@@ -2008,7 +2025,7 @@
                         progress,
                         getGamePoster,
                         globalStatus,
-                        // 务必确保下面这两个变量都在 return 里！
+                        // 【修复】确保将这两个状态变量导出给模板，否则 CRT 效果无法生效
                         lowResFlags,
                         loadedFlags
                     };
