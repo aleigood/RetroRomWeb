@@ -8,6 +8,7 @@
         />
         <meta name="theme-color" content="#101014" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="icon" href="data:," />
 
         <title>RetroRom Hub</title>
         <link rel="stylesheet" href="https://fastly.jsdelivr.net/npm/vant@4/lib/index.css" />
@@ -28,6 +29,11 @@
                 --van-text-color: #fff !important;
                 --van-search-input-height: 36px !important;
                 --van-field-input-text-color: #fff !important;
+
+                /* 【修改】空状态样式优化 */
+                --van-empty-description-color: #666 !important; /* 稍微调亮文字颜色 */
+                --van-empty-description-padding: 0 !important;
+                --van-empty-image-size: auto !important; /* 允许自定义图标大小 */
             }
 
             * {
@@ -171,6 +177,13 @@
             }
             .van-search__field .van-field__left-icon {
                 color: rgba(255, 255, 255, 0.5) !important;
+            }
+
+            /* 【新增】自定义空状态图片容器，防止默认高度导致布局松散 */
+            .van-empty__image {
+                width: auto !important;
+                height: auto !important;
+                margin-bottom: 16px !important; /* 调整图标与文字的间距 */
             }
 
             /* === 索引栏 & 标记 === */
@@ -616,30 +629,38 @@
                 overflow: hidden;
             }
 
+            /* 顶部栏改为绝对定位，透明背景，允许点击穿透 */
             .detail-top-bar {
-                flex-shrink: 0;
-                height: 48px;
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 60px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                background: #121212;
-                z-index: 10;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+                background: transparent; /* 透明背景，显示下方图片光晕 */
+                z-index: 20;
+                border-bottom: none;
+                pointer-events: none; /* 让点击穿透，不阻挡下方操作 */
             }
 
             .detail-close-btn {
-                width: 30px;
-                height: 30px;
-                background: rgba(255, 255, 255, 0.1);
+                width: 32px;
+                height: 32px;
+                background: rgba(0, 0, 0, 0.4);
+                backdrop-filter: blur(10px);
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 cursor: pointer;
-                border: 1px solid rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                pointer-events: auto; /* 按钮本身必须可点击 */
+                transition: background 0.2s;
             }
             .detail-close-btn:active {
-                background: rgba(255, 255, 255, 0.2);
+                background: rgba(255, 255, 255, 0.3);
             }
 
             .detail-scroll-container {
@@ -651,8 +672,9 @@
                 overflow-x: hidden;
             }
 
+            /* 轮播区域高度设置为视口高度的 55% */
             .swipe-area {
-                height: 380px;
+                height: 55vh;
                 background: #000;
                 position: relative;
                 flex-shrink: 0;
@@ -665,11 +687,16 @@
                 justify-content: center;
                 position: relative;
                 overflow: hidden;
+                padding-top: 60px; /* 让出顶部 60px 空间 */
+                box-sizing: border-box; /* 确保 padding 包含在尺寸计算内 */
             }
             .swipe-bg {
                 position: absolute;
                 width: 100%;
                 height: 100%;
+                top: 0;
+                left: 0;
+                transform: scale(1.2);
                 object-fit: cover;
                 filter: blur(40px) brightness(0.3);
                 z-index: 1;
@@ -677,9 +704,32 @@
             .swipe-img {
                 max-width: 100%;
                 max-height: 100%;
+                /* 添加 position: relative 激活 z-index，防止被 absolute 的背景遮挡 */
+                position: relative;
                 z-index: 2;
                 object-fit: contain;
             }
+
+            /* 像素化显示样式 */
+            .pixelated {
+                image-rendering: pixelated; /* Chrome/Android */
+                image-rendering: crisp-edges; /* Firefox */
+            }
+
+            /* CRT 扫描线蒙版 */
+            .crt-lines {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+                background-size: 100% 3px;
+                z-index: 5;
+                pointer-events: none;
+                opacity: 0.6;
+            }
+
             .thumb-strip {
                 display: flex;
                 gap: 12px;
@@ -734,7 +784,6 @@
                 border: none;
                 box-shadow: none;
                 min-height: 100px;
-                /* 【修改】移除所有背景处理 */
                 background: transparent;
             }
 
@@ -756,11 +805,10 @@
             .d-marquee-img {
                 position: relative;
                 max-width: 85%;
-                max-height: 120px; /* 【修改】保留尺寸优化 */
-                width: auto; /* 【修改】保留尺寸优化 */
+                max-height: 120px;
+                width: auto;
                 object-fit: contain;
                 z-index: 1;
-                /* 【修改】移除光效滤镜，恢复原图显示（仅保留基础阴影） */
                 filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
             }
             .d-title {
@@ -996,6 +1044,12 @@
                         >Loading Index...</van-loading
                     >
 
+                    <van-empty v-if="!loading && indexList.length === 0" description="暂无数据">
+                        <template #image>
+                            <i class="ri-gamepad-line" style="font-size: 90px; color: rgba(255, 255, 255, 0.15)"></i>
+                        </template>
+                    </van-empty>
+
                     <van-index-bar
                         v-else
                         :index-list="indexList"
@@ -1110,9 +1164,17 @@
                                             </div>
                                             <template v-else>
                                                 <img class="swipe-bg lazy-img" v-lazy="getImgUrl(media.url)" />
+
+                                                <div class="crt-lines" v-if="lowResFlags[media.url]"></div>
+
                                                 <img
                                                     class="swipe-img lazy-img"
+                                                    :class="{ 
+                                                        pixelated: lowResFlags[media.url], 
+                                                        loaded: loadedFlags[media.url] 
+                                                    }"
                                                     v-lazy="getImgUrl(media.url)"
+                                                    @load="onImgLoad($event, media)"
                                                     @click="previewBig(idx)"
                                                 />
                                             </template>
@@ -1255,7 +1317,7 @@
             </van-popup>
         </div>
 
-        <script src="https://fastly.jsdelivr.net/npm/vue@3"></script>
+        <script src="https://fastly.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
         <script src="https://fastly.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
 
         <script>
@@ -1356,6 +1418,9 @@
                     const imgSwipe = ref(null);
                     const isPreviewOpen = ref(false);
 
+                    // 新增变量保存图片预览实例，解决关闭报错问题
+                    let imagePreviewInstance = null;
+
                     const globalStatus = ref({
                         runningSystem: null,
                         pendingQueue: [],
@@ -1397,6 +1462,11 @@
                     let statusPollTimer = null;
                     const transitionName = ref('slide-left');
 
+                    /* 记录低分辨率图片状态 */
+                    const lowResFlags = ref({});
+                    /* 记录图片加载完成状态，防止 Vue 渲染丢失 class */
+                    const loadedFlags = ref({});
+
                     const fetchSystems = async () => {
                         try {
                             const res = await fetch('/api/systems');
@@ -1435,9 +1505,14 @@
                             const res = await fetch(`/api/games?system=${sysObj.name}&all=1`);
                             const data = await res.json();
                             allGames.value = data.data;
-                            nextTick(() => updateLayoutFromScroll());
                         } finally {
                             loading.value = false;
+                            // 等待 loading 状态消失，列表 DOM 渲染完成后，强制重置滚动位置
+                            nextTick(() => {
+                                const container = document.querySelector('.page-container');
+                                if (container) container.scrollTop = 0;
+                                updateLayoutFromScroll();
+                            });
                         }
                     };
 
@@ -1575,7 +1650,12 @@
                         const state = event.state;
                         if (isPreviewOpen.value) {
                             isPreviewOpen.value = false;
-                            vant.closeImagePreview();
+
+                            // 使用保存的实例来关闭预览，修复 "vant.closeImagePreview is not a function" 错误
+                            if (imagePreviewInstance) {
+                                imagePreviewInstance.close();
+                                imagePreviewInstance = null;
+                            }
                             return;
                         }
                         const targetPage = state && state.page ? state.page : 'home';
@@ -1640,6 +1720,12 @@
                         selectedGame.value = game;
                         currentSwipeIndex.value = 0;
                         showDetail.value = true;
+
+                        // 强制重置详情页滚动位置
+                        nextTick(() => {
+                            const detailContainer = document.querySelector('.detail-scroll-container');
+                            if (detailContainer) detailContainer.scrollTop = 0;
+                        });
 
                         versions.value = [];
                         currentVersionId.value = null;
@@ -1759,12 +1845,14 @@
                         isPreviewOpen.value = true;
                         pauseAllVideos();
 
-                        vant.showImagePreview({
+                        // 保存实例以便稍后关闭
+                        imagePreviewInstance = vant.showImagePreview({
                             images: imagesOnly.map((i) => getImgUrl(i.url)),
                             startPosition: imgIndex,
                             closeable: true,
                             onClose: () => {
                                 if (isPreviewOpen.value) window.history.back();
+                                imagePreviewInstance = null; // 清空引用
                             }
                         });
                     };
@@ -1919,7 +2007,10 @@
                         indicatorTop,
                         progress,
                         getGamePoster,
-                        globalStatus
+                        globalStatus,
+                        // 务必确保下面这两个变量都在 return 里！
+                        lowResFlags,
+                        loadedFlags
                     };
                 }
             });
