@@ -77,12 +77,10 @@ const getImageCollection = (system, romFilename) => {
 
 // ================= API =================
 
-// 【新增】获取全局同步状态 (包含队列信息、当前运行任务、全局日志)
 router.get('/api/status/global', async (ctx) => {
     const status = scanner.getGlobalStatus();
     ctx.body = {
         runningSystem: status.runningSystem,
-        // 只返回等待队列的主机名列表给前端显示
         pendingQueue: status.pendingQueue.map((t) => t.system),
         logs: status.logs,
         progress: status.progress,
@@ -90,63 +88,74 @@ router.get('/api/status/global', async (ctx) => {
     };
 });
 
-// 【修改】请求扫描（加入队列）
 router.post('/api/scan/:system', async (ctx) => {
     const system = ctx.params.system;
     const options = ctx.request.body || {};
-
-    // 调用队列方法
     const result = await scanner.addToSyncQueue(system, options);
 
     if (!result.success) {
-        // 如果重复点击或正在运行，返回 info，前端可以忽略
         ctx.body = { status: 'ignored', message: result.message };
     } else {
         ctx.body = { status: 'queued', message: 'Request accepted' };
     }
 });
 
-// 【修改】全局停止扫描（清空队列）
 router.post('/api/stop-scan', async (ctx) => {
     scanner.stopSync();
     ctx.body = { status: 'stopped', message: 'Stopping all tasks...' };
 });
 
+// 【核心修改】删除SQL查询 systems 表，改为“库存(DB) + 知识(JSON) = 最终列表”
 router.get('/api/systems', async (ctx) => {
     return new Promise((resolve) => {
-        // 【修改】调整排序逻辑：优先按厂商(maker)排序，同厂商按年份(year)排序
-        const sql = `
-            SELECT 
-                s.name,
-                s.fullname,
-                s.abbr, 
-                s.maker,
-                s.release_year as year,
-                s.desc,
-                s.history,
-                COUNT(g.id) as count
-            FROM systems s
-            LEFT JOIN games g ON s.name = g.system
-            GROUP BY s.name 
-            ORDER BY s.maker COLLATE NOCASE ASC, s.release_year ASC
-        `;
+        // 1. 从 JSON 文件加载静态元数据
+        let metadata = {};
+        try {
+            metadata = fs.readJsonSync(path.join(__dirname, 'systems.json'));
+        } catch (e) {
+            console.error('Failed to load systems.json:', e);
+        }
+
+        // 2. 从数据库只查库存数量 (group by system)
+        const sql = 'SELECT system, COUNT(*) as count FROM games GROUP BY system';
 
         db.all(sql, (err, rows) => {
             if (err) {
                 ctx.status = 500;
                 ctx.body = { error: err.message };
             } else {
-                const result = rows.map((r) => ({
-                    name: r.name,
-                    count: r.count,
-                    fullname: r.fullname || r.name.toUpperCase(),
-                    abbr: r.abbr || r.name.substring(0, 4).toUpperCase(),
-                    maker: r.maker || 'Local',
-                    year: r.year || '',
-                    desc: r.desc || 'Detected local directory.',
-                    history: r.history || r.desc || 'No details available.'
-                }));
-                ctx.body = result;
+                // 3. 内存合并数据
+                const systems = rows.map((row) => {
+                    // 统一转小写匹配 key
+                    const key = (row.system || '').toLowerCase();
+                    const info = metadata[key] || {};
+
+                    return {
+                        name: row.system, // 文件夹名/数据库标识
+                        count: row.count,
+                        // 优先用 JSON 配置，没有则回退到文件夹名
+                        fullname: info.fullname || row.system.toUpperCase(),
+                        abbr: info.abbr || row.system.substring(0, 4).toUpperCase(),
+                        maker: info.maker || 'Unknown',
+                        year: info.release_year || '0000', // 给个默认值方便排序
+                        desc: info.desc || 'Detected local directory.',
+                        history: info.history || info.desc || 'No details available.'
+                    };
+                });
+
+                // 4. 内存排序：先按 Maker (A-Z)，再按 Year (Old-New)
+                systems.sort((a, b) => {
+                    // 厂商首字母排序 (Case-insensitive)
+                    const makerCompare = a.maker.localeCompare(b.maker, undefined, { sensitivity: 'base' });
+                    if (makerCompare !== 0) return makerCompare;
+
+                    // 同厂商，按年份排序 (数字升序)
+                    const yearA = parseInt(a.year) || 9999;
+                    const yearB = parseInt(b.year) || 9999;
+                    return yearA - yearB;
+                });
+
+                ctx.body = systems;
             }
             resolve();
         });

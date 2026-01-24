@@ -10,20 +10,7 @@ fs.ensureDirSync(path.dirname(dbPath));
 const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {
-    // 主机表
-    db.run(`CREATE TABLE IF NOT EXISTS systems (
-        name TEXT PRIMARY KEY,
-        fullname TEXT,
-        abbr TEXT,
-        maker TEXT,
-        release_year TEXT,
-        desc TEXT,
-        history TEXT,
-        count INTEGER DEFAULT 0
-    )`);
-
-    // 游戏表 - 【修改】增加了 video_path 字段
-    // 注意：原来的 image_path 就是用来存封面的
+    // 游戏表
     db.run(`CREATE TABLE IF NOT EXISTS games (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         path TEXT UNIQUE,

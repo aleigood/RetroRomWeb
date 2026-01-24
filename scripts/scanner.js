@@ -1,15 +1,15 @@
 const fs = require('fs-extra');
 const path = require('path');
-const sax = require('sax'); // 【恢复】恢复 sax 引用，用于解析 xml
+// 【清理】不再需要 xml 解析库
+// const sax = require('sax');
 const config = require('../config');
 const db = require('../db/database');
 const scraper = require('../utils/scraper');
-const fileQueue = require('../utils/queue'); // 引用文件级任务队列
+const fileQueue = require('../utils/queue');
 
 const IMG_EXTS = ['.png', '.jpg', '.jpeg', '.gif'];
 const VIDEO_EXTS = ['.mp4', '.webm', '.mkv', '.avi'];
 
-// 【合并】包含原有的所有格式以及新增的格式
 const ROM_EXTS = [
     '.zip',
     '.7z',
@@ -63,7 +63,7 @@ const IGNORE_DIRS = [
 // 缓存目录结构，减少IO
 const dirCache = {};
 
-// === 全局同步状态管理 (新特性) ===
+// === 全局同步状态管理 ===
 const globalStatus = {
     runningSystem: null,
     pendingQueue: [],
@@ -88,7 +88,6 @@ function addLog (message, systemPrefix = null) {
 
 // === 核心：添加任务到队列 (API入口) ===
 async function addToSyncQueue (system, options = {}) {
-    // 防重复检查
     if (globalStatus.runningSystem === system) {
         return { success: false, message: '该主机正在同步中' };
     }
@@ -97,7 +96,6 @@ async function addToSyncQueue (system, options = {}) {
         return { success: false, message: '该主机已在等待队列中' };
     }
 
-    // 加入队列逻辑
     if (!globalStatus.runningSystem) {
         addLog('立即启动同步任务', system);
         processSystemSync(system, options).catch((err) => {
@@ -118,7 +116,6 @@ async function processSystemSync (system, options) {
     globalStatus.isStopping = false;
     globalStatus.progress = { current: 0, total: 0 };
 
-    // 每次开始新任务时，清空之前的目录缓存
     for (const key in dirCache) delete dirCache[key];
 
     addLog('准备开始同步...', system);
@@ -157,7 +154,6 @@ async function processSystemSync (system, options) {
     const toAdd = diskFiles.filter((f) => !dbFilenameMap[f]);
     const toDelete = dbGames.filter((g) => !diskFiles.includes(g.filename));
 
-    // 【修改】优化更新检测逻辑，增加对物理文件是否存在的检查
     const toUpdate = dbGames
         .filter((g) => {
             if (!diskFiles.includes(g.filename)) return false;
@@ -165,7 +161,6 @@ async function processSystemSync (system, options) {
 
             const missingInfo = syncOps.syncInfo && (!g.desc || g.desc === '暂无简介');
 
-            // 检查封面：如果DB没有路径，或者DB有路径但文件不存在，都算缺失
             let missingImg = syncOps.syncImages && !g.image_path;
             if (!missingImg && syncOps.syncImages && g.image_path) {
                 const fullPath = path.join(config.mediaDir, g.image_path);
@@ -174,7 +169,6 @@ async function processSystemSync (system, options) {
                 }
             }
 
-            // 检查视频：如果DB没有路径，或者DB有路径但文件不存在，都算缺失
             let missingVid = syncOps.syncVideo && !g.video_path;
             if (!missingVid && syncOps.syncVideo && g.video_path) {
                 const fullPath = path.join(config.mediaDir, g.video_path);
@@ -187,7 +181,6 @@ async function processSystemSync (system, options) {
             if (syncOps.syncMarquees) {
                 const basename = path.basename(g.filename, path.extname(g.filename));
                 const targetPath = path.join(config.mediaDir, system, 'marquees', basename + '.png');
-                // 检查文件大小，避免空文件误判
                 if (!fs.existsSync(targetPath) || fs.statSync(targetPath).size === 0) {
                     missingMarquee = true;
                 }
@@ -233,11 +226,6 @@ async function processSystemSync (system, options) {
 
             try {
                 const oldData = dbFilenameMap[filename] || null;
-                // 如果是更新操作，且旧数据存在，我们在 processNewGame 里会处理
-                // 这里不需要删除旧数据，因为 processNewGame 会执行 INSERT，
-                // 我们应该在这里做区分，或者让 processNewGame 支持 UPDATE。
-                // 但目前的逻辑是先 DELETE 再 INSERT，为了保持兼容性，我们维持原状：
-                // 如果是 toUpdate 列表里的，先删掉旧记录，再重新插入。
                 if (oldData) {
                     await new Promise((resolve) =>
                         db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], resolve)
@@ -292,7 +280,7 @@ function stopSync () {
         globalStatus.isStopping = true;
         const pendingCount = globalStatus.pendingQueue.length;
         globalStatus.pendingQueue = [];
-        fileQueue.clear(); // 清空文件级队列
+        fileQueue.clear();
         addLog(`中止指令生效。丢弃等待队列(${pendingCount})，正在停止当前任务...`, 'Global');
         setTimeout(() => {
             globalStatus.runningSystem = null;
@@ -301,8 +289,6 @@ function stopSync () {
         }, 500);
     }
 }
-
-// === 辅助函数 (完整保留) ===
 
 function getDirFilesMap (dirPath) {
     if (dirCache[dirPath]) return dirCache[dirPath];
@@ -371,7 +357,6 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
     let imagePath = findLocalImage(system, basename);
     let videoPath = findLocalVideo(system, basename);
 
-    // 检查旧数据图片是否存在且非空
     if (
         imagePath &&
         fs.existsSync(path.join(config.mediaDir, imagePath)) &&
@@ -420,12 +405,10 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                     }
                     if (scraperData.screenUrl) {
                         await downloadMedia(scraperData.screenUrl, system, 'screenshots', basename + '.png');
-                        // 如果封面下载失败，使用截图补位
                         if (!imagePath) {
                             imagePath = path.join(system, 'screenshots', basename + '.png').replace(/\\/g, '/');
                         }
                     }
-                    // 如果以上都失败了，再尝试本地查找一次
                     if (!imagePath) imagePath = findLocalImage(system, basename);
                 }
 
@@ -443,7 +426,6 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
         }
     }
 
-    // 确保最终写入数据库前，路径是有效的字符串
     return new Promise((resolve) => {
         db.run(
             `INSERT INTO games (path, system, filename, name, image_path, video_path, desc, rating, developer, publisher, genre, players) 
@@ -467,7 +449,6 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
     });
 }
 
-// 【关键修改】检查文件是否存在且大小不为0，否则下载
 async function downloadMedia (url, system, type, filename) {
     const target = path.join(config.mediaDir, system, type, filename);
     let needDownload = true;
@@ -477,185 +458,34 @@ async function downloadMedia (url, system, type, filename) {
         if (stats.size > 0) {
             needDownload = false;
         } else {
-            fs.unlinkSync(target); // 删掉空文件
+            fs.unlinkSync(target);
         }
     }
 
     if (needDownload) {
-        addLog(`⬇️ 下载 ${type}: ${filename}`, system); // 显示下载日志
+        addLog(`⬇️ 下载 ${type}: ${filename}`, system);
         await scraper.downloadFile(url, target);
     }
 }
 
-async function syncHostList () {
-    console.log('正在同步主机列表...');
-    let diskDirs = [];
-    try {
-        const files = fs.readdirSync(config.romsDir);
-        diskDirs = files.filter((file) => {
-            const fullPath = path.join(config.romsDir, file);
-            return (
-                fs.statSync(fullPath).isDirectory() &&
-                !file.startsWith('.') &&
-                !IGNORE_DIRS.includes(file.toLowerCase())
-            );
-        });
-    } catch (e) {
-        return;
-    }
+// 【清理】已删除 importGamelistXml 函数
 
-    const metadata = loadSystemConfig();
-
-    return new Promise((resolve) => {
-        db.serialize(() => {
-            db.run('BEGIN TRANSACTION');
-            if (diskDirs.length > 0) {
-                const placeholders = diskDirs.map(() => '?').join(',');
-                db.run(`DELETE FROM systems WHERE name NOT IN (${placeholders})`, diskDirs);
-            } else {
-                db.run('DELETE FROM systems');
-            }
-
-            const stmt = db.prepare(
-                'INSERT OR REPLACE INTO systems (name, fullname, abbr, maker, release_year, desc, history) VALUES (?, ?, ?, ?, ?, ?, ?)'
-            );
-            diskDirs.forEach((dir) => {
-                const key = dir.toLowerCase();
-                const info = metadata[key] || {};
-                stmt.run(
-                    dir,
-                    info.fullname || dir.toUpperCase(),
-                    info.abbr || dir.substring(0, 4).toUpperCase(),
-                    info.maker || 'Unknown',
-                    info.release_year || '',
-                    info.desc || 'Local Directory',
-                    info.history || ''
-                );
-            });
-            stmt.finalize();
-            db.run('COMMIT', resolve);
-        });
-    });
-}
-
-// 【恢复】完整的 gamelist.xml 导入逻辑，并规范化格式
-function importGamelistXml (system) {
-    return new Promise((resolve) => {
-        const xmlPath = path.join(config.romsDir, system, 'gamelist.xml');
-        if (!fs.existsSync(xmlPath)) return resolve();
-
-        console.log(`[${system}] 正在导入 XML 数据...`);
-        const parser = sax.createStream(false, { trim: true, lowercase: true });
-        let currentGame = null;
-        let currentTag = null;
-        let gamesBatch = [];
-
-        const flush = () => {
-            if (gamesBatch.length === 0) return;
-            db.serialize(() => {
-                db.run('BEGIN TRANSACTION');
-                const stmt = db.prepare(`INSERT OR REPLACE INTO games 
-                    (path, system, filename, name, image_path, video_path, desc, rating, releasedate, developer, publisher, genre, players) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-                gamesBatch.forEach((g) =>
-                    stmt.run(
-                        g.path,
-                        g.system,
-                        g.filename,
-                        g.name,
-                        g.image_path,
-                        g.video_path,
-                        g.desc,
-                        g.rating,
-                        g.releasedate,
-                        g.developer,
-                        g.publisher,
-                        g.genre,
-                        g.players
-                    )
-                );
-                stmt.finalize();
-                db.run('COMMIT');
-            });
-            gamesBatch = [];
-        };
-
-        parser.on('opentag', (node) => {
-            currentTag = node.name;
-            if (node.name === 'game') currentGame = { system };
-        });
-
-        parser.on('text', (text) => {
-            if (currentGame && currentTag) {
-                if (!currentGame[currentTag]) currentGame[currentTag] = '';
-                currentGame[currentTag] += text;
-            }
-        });
-
-        parser.on('closetag', (tagName) => {
-            if (tagName === 'game' && currentGame) {
-                let romPath = currentGame.path || '';
-                if (romPath.startsWith('./')) romPath = romPath.substring(2);
-                const basename = path.basename(romPath, path.extname(romPath));
-
-                let imgPath = currentGame.image || '';
-                if (imgPath.startsWith('./')) imgPath = imgPath.substring(2);
-                if (imgPath) imgPath = path.join(system, imgPath).replace(/\\/g, '/');
-                if (!imgPath) imgPath = findLocalImage(system, basename);
-
-                let videoPath = currentGame.video || '';
-                if (videoPath.startsWith('./')) videoPath = videoPath.substring(2);
-                if (videoPath) videoPath = path.join(system, videoPath).replace(/\\/g, '/');
-                if (!videoPath) videoPath = findLocalVideo(system, basename);
-
-                const gameData = {
-                    path: path.join(system, romPath).replace(/\\/g, '/'),
-                    system,
-                    filename: romPath,
-                    name: currentGame.name || basename,
-                    image_path: imgPath,
-                    video_path: videoPath,
-                    desc: currentGame.desc || '',
-                    rating: currentGame.rating || '0',
-                    releasedate: currentGame.releasedate || '',
-                    developer: currentGame.developer || '',
-                    publisher: currentGame.publisher || '',
-                    genre: currentGame.genre || '',
-                    players: currentGame.players || ''
-                };
-                gamesBatch.push(gameData);
-                if (gamesBatch.length >= 500) flush();
-                currentGame = null;
-            }
-        });
-
-        parser.on('end', () => {
-            flush();
-            resolve();
-        });
-
-        parser.write('<root>');
-        const fsStream = fs.createReadStream(xmlPath);
-        fsStream.on('data', (c) => parser.write(c));
-        fsStream.on('end', () => {
-            parser.write('</root>');
-            parser.end();
-        });
-    });
-}
-
+// 【清理】只进行基本的目录扫描日志输出，不再尝试写入 systems 表
 async function startScan () {
     console.log('=== 系统启动初始化 ===');
-    await syncHostList();
-    const systems = fs.readdirSync(config.romsDir).filter((file) => {
-        const full = path.join(config.romsDir, file);
-        return fs.statSync(full).isDirectory() && !file.startsWith('.') && !IGNORE_DIRS.includes(file.toLowerCase());
-    });
-
-    // 【功能保留】启动时尝试导入本地 XML
-    for (const sys of systems) {
-        await importGamelistXml(sys);
+    let systems = [];
+    try {
+        systems = fs.readdirSync(config.romsDir).filter((file) => {
+            const full = path.join(config.romsDir, file);
+            return (
+                fs.statSync(full).isDirectory() && !file.startsWith('.') && !IGNORE_DIRS.includes(file.toLowerCase())
+            );
+        });
+        console.log(`检测到 ${systems.length} 个主机目录`);
+    } catch (e) {
+        console.error('无法读取 ROM 目录:', e.message);
     }
+
     console.log('=== 初始化完成 ===');
 }
 
@@ -667,6 +497,5 @@ module.exports = {
     startScan,
     addToSyncQueue,
     stopSync,
-    importGamelistXml,
     getGlobalStatus: () => globalStatus
 };
