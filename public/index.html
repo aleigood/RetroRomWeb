@@ -60,9 +60,7 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 margin: 0;
                 -webkit-tap-highlight-color: transparent;
-
-                /* 定义 CSS 变量初始值 */
-                --sidebar-top: 70px;
+                --sidebar-top: 70px; /* 初始位置 */
             }
 
             #app {
@@ -119,9 +117,7 @@
                 padding-left: 16px;
                 padding-right: 16px;
                 background: var(--bg-body);
-                /* 强制禁止横向滚动 */
                 overflow-x: hidden;
-                /* 禁止橡皮筋回弹 */
                 overscroll-behavior: none;
             }
 
@@ -178,43 +174,43 @@
             .van-search__field .van-field__left-icon {
                 color: rgba(255, 255, 255, 0.5) !important;
             }
-
-            /* 自定义空状态图片容器 */
             .van-empty__image {
                 width: auto !important;
                 height: auto !important;
                 margin-bottom: 16px !important;
             }
 
-            /* === 索引栏 & 标记 === */
+            /* === 索引栏 & 滚动条 (完全复原 Old Version) === */
+
+            /* 1. 滚动条主体 */
             .index-hint {
                 position: fixed;
-                right: 4px;
-                width: 4px;
+                right: 4px; /* 严格按照老版本右侧距离 */
+                width: 4px; /* 严格按照老版本宽度 */
                 height: 40px;
                 background: rgba(255, 255, 255, 0.6);
                 border-radius: 4px;
                 z-index: 2500;
-                pointer-events: auto;
-                transition: opacity 0.3s;
+                pointer-events: auto; /* 允许直接拖动 */
+                transition: opacity 0.3s; /* 复原老版本的 0.3s */
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+
+                /* 修复点：默认透明度改回 0.1，而不是 0 */
                 opacity: 0.1;
+
                 touch-action: none;
             }
+            /* 2. 扩大触摸区域 (不可见) */
             .index-hint::before {
                 content: '';
                 position: absolute;
                 top: -10px;
                 bottom: -10px;
-                left: -20px;
+                left: -30px; /* 加宽左侧触摸区 */
                 right: -10px;
                 background: transparent;
             }
-
-            .index-hint.active-scroll {
-                opacity: 0.8;
-            }
-
+            /* 3. 滚动条中间的灰色竖线 (User Request: 必须有) */
             .index-hint::after {
                 content: '';
                 position: absolute;
@@ -226,20 +222,27 @@
                 background: rgba(0, 0, 0, 0.3);
                 border-radius: 2px;
             }
+
+            .index-hint.active-scroll {
+                opacity: 0.8;
+            }
+            /* 拖动时隐藏白条，显示侧边栏 */
             body.touching-sidebar .index-hint {
                 opacity: 0;
             }
 
-            /* 动态跟随位置的索引栏 */
-            .van-index-bar__sidebar {
+            /* === 通用侧边索引栏样式 (Host & Game 统一) === */
+            .van-index-bar__sidebar,
+            .custom-sidebar {
                 position: fixed !important;
-                right: 0 !important;
+                right: 0 !important; /* 严格复原：贴边 */
                 z-index: 2000 !important;
                 width: 30px;
                 background: transparent !important;
                 box-shadow: none !important;
-                opacity: 0;
+                opacity: 0; /* 默认隐藏 */
 
+                /* 核心修复：位置由 CSS 变量统一控制，防止 JS 样式覆盖问题 */
                 top: var(--sidebar-top) !important;
                 bottom: auto !important;
                 height: auto !important;
@@ -258,7 +261,19 @@
                 pointer-events: none !important;
             }
 
-            .van-index-bar__index {
+            /* 触摸状态：显示黑色背景 */
+            body.touching-sidebar .van-index-bar__sidebar,
+            body.touching-sidebar .custom-sidebar {
+                background: rgba(0, 0, 0, 0.7) !important;
+                border-top-left-radius: 16px;
+                border-bottom-left-radius: 16px;
+                opacity: 1 !important;
+                padding: 8px 0;
+                pointer-events: auto !important;
+            }
+
+            .van-index-bar__index,
+            .custom-index-char {
                 padding: 2px 0 !important;
                 text-align: center;
                 color: rgba(255, 255, 255, 0.6) !important;
@@ -267,16 +282,8 @@
                 line-height: 1.4;
             }
 
-            body.touching-sidebar .van-index-bar__sidebar {
-                background: rgba(0, 0, 0, 0.7) !important;
-                border-top-left-radius: 16px;
-                border-bottom-left-radius: 16px;
-                right: 0 !important;
-                opacity: 1 !important;
-                padding: 8px 0;
-                pointer-events: auto !important;
-            }
-            body.touching-sidebar .van-index-bar__index--active {
+            body.touching-sidebar .van-index-bar__index--active,
+            body.touching-sidebar .custom-index-char.active {
                 color: #fff !important;
                 transform: scale(1.5);
             }
@@ -318,6 +325,27 @@
                 font-weight: 800;
                 font-size: 18px;
                 padding: 10px 0 10px 4px !important;
+            }
+
+            /* === 虚拟滚动专用样式 === */
+            .virtual-wrapper {
+                position: relative;
+                width: 100%;
+            }
+            .virtual-row {
+                position: absolute;
+                left: 0;
+                width: 100%;
+                display: grid;
+                gap: 16px;
+            }
+            .virtual-anchor-row {
+                display: flex;
+                align-items: center;
+                color: var(--primary);
+                font-weight: 800;
+                font-size: 18px;
+                padding-left: 4px;
             }
 
             /* === 页面转场动画 === */
@@ -495,14 +523,6 @@
                 font-weight: 500;
             }
 
-            .game-grid-section {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
-                gap: 16px;
-                padding-bottom: 20px;
-                content-visibility: auto;
-                contain-intrinsic-size: 300px;
-            }
             .game-card {
                 background: var(--bg-card);
                 border-radius: 14px;
@@ -512,7 +532,7 @@
                 border: 1px solid rgba(255, 255, 255, 0.05);
                 box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.4);
                 transform: translateZ(0);
-                contain: strict;
+                will-change: transform;
             }
             .game-card:active {
                 transform: scale(0.95);
@@ -534,7 +554,6 @@
                 filter: blur(15px) brightness(0.4) saturate(1.2);
                 z-index: 1;
                 pointer-events: none;
-                will-change: transform, opacity;
             }
             .thumb-img {
                 position: absolute;
@@ -552,7 +571,6 @@
             .lazy-img.loaded {
                 opacity: 1;
             }
-
             .no-img {
                 width: 100%;
                 height: 100%;
@@ -578,7 +596,6 @@
                 border: 1px solid rgba(255, 255, 255, 0.15);
                 font-weight: bold;
             }
-
             .game-info-overlay {
                 position: absolute;
                 bottom: 0;
@@ -621,15 +638,12 @@
                 background: #121212 !important;
                 display: block;
             }
-
             .detail-flex-wrapper {
                 height: 100%;
                 display: flex;
                 flex-direction: column;
                 overflow: hidden;
             }
-
-            /* 顶部栏改为绝对定位，透明背景，允许点击穿透 */
             .detail-top-bar {
                 position: absolute;
                 top: 0;
@@ -639,12 +653,11 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                background: transparent; /* 透明背景，显示下方图片光晕 */
+                background: transparent;
                 z-index: 20;
                 border-bottom: none;
-                pointer-events: none; /* 让点击穿透，不阻挡下方操作 */
+                pointer-events: none;
             }
-
             .detail-close-btn {
                 width: 32px;
                 height: 32px;
@@ -656,23 +669,19 @@
                 justify-content: center;
                 cursor: pointer;
                 border: 1px solid rgba(255, 255, 255, 0.1);
-                pointer-events: auto; /* 按钮本身必须可点击 */
+                pointer-events: auto;
                 transition: background 0.2s;
             }
             .detail-close-btn:active {
                 background: rgba(255, 255, 255, 0.3);
             }
-
             .detail-scroll-container {
                 flex: 1;
                 overflow-y: auto;
                 height: auto;
                 position: relative;
-                /* 强制截断 120vw 的背景图 */
                 overflow-x: hidden;
             }
-
-            /* 轮播区域高度设置为视口高度的 55% */
             .swipe-area {
                 height: 55vh;
                 background: #000;
@@ -687,8 +696,8 @@
                 justify-content: center;
                 position: relative;
                 overflow: hidden;
-                padding-top: 60px; /* 让出顶部 60px 空间 */
-                box-sizing: border-box; /* 确保 padding 包含在尺寸计算内 */
+                padding-top: 60px;
+                box-sizing: border-box;
             }
             .swipe-bg {
                 position: absolute;
@@ -702,22 +711,16 @@
                 z-index: 1;
             }
             .swipe-img {
-                /* 【修改】强制占满容器，实现小图放大 */
                 width: 100%;
                 height: 100%;
-                /* 添加 position: relative 激活 z-index，防止被 absolute 的背景遮挡 */
                 position: relative;
                 z-index: 2;
                 object-fit: contain;
             }
-
-            /* 像素化显示样式 */
             .pixelated {
-                image-rendering: pixelated; /* Chrome/Android */
-                image-rendering: crisp-edges; /* Firefox */
+                image-rendering: pixelated;
+                image-rendering: crisp-edges;
             }
-
-            /* CRT 扫描线蒙版 */
             .crt-lines {
                 position: absolute;
                 top: 0;
@@ -730,7 +733,6 @@
                 pointer-events: none;
                 opacity: 0.6;
             }
-
             .thumb-strip {
                 display: flex;
                 gap: 12px;
@@ -774,7 +776,6 @@
             .d-body {
                 padding: 24px;
             }
-
             .d-marquee-box {
                 position: relative;
                 display: flex;
@@ -787,7 +788,6 @@
                 min-height: 100px;
                 background: transparent;
             }
-
             .d-marquee-bg {
                 position: absolute;
                 top: 50%;
@@ -802,7 +802,6 @@
                 -webkit-mask-image: radial-gradient(circle, black 20%, transparent 70%);
                 pointer-events: none;
             }
-
             .d-marquee-img {
                 position: relative;
                 max-width: 85%;
@@ -922,13 +921,6 @@
                 animation: fadeUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
                 opacity: 0;
             }
-            .fade-img {
-                opacity: 0;
-                transition: opacity 0.5s ease-in-out;
-            }
-            .fade-img.loaded {
-                opacity: 1;
-            }
             @keyframes spin {
                 from {
                     transform: rotate(0deg);
@@ -991,11 +983,10 @@
                             </div>
                         </div>
                     </van-index-bar>
-
                     <van-empty v-if="systems.length===0" description="Library Empty" image="search" />
                 </div>
 
-                <div v-else class="page-container" key="gamelist" @scroll="handleScroll">
+                <div v-else class="page-container" key="gamelist" ref="gameListContainerRef" @scroll="handleGameScroll">
                     <div class="intro-header" :style="{ background: getSysColor(currentSystemObj.name) }">
                         <i class="ri-gamepad-fill intro-bg-icon"></i>
                         <div class="intro-title">{{ currentSystemObj.fullname }}</div>
@@ -1021,8 +1012,6 @@
                                 border-radius: 50%;
                                 cursor: pointer;
                                 display: flex;
-                                align-items: center;
-                                justify-content: center;
                             "
                         >
                             <i
@@ -1030,13 +1019,11 @@
                                 class="ri-loader-4-line spin-anim"
                                 style="color: var(--primary); font-size: 20px"
                             ></i>
-
                             <i
                                 v-else-if="globalStatus.pendingQueue.includes(currentSystemObj.name)"
                                 class="ri-hourglass-line"
                                 style="color: #aaa; font-size: 20px"
                             ></i>
-
                             <i v-else class="ri-refresh-line" style="color: var(--primary); font-size: 20px"></i>
                         </div>
                     </div>
@@ -1045,24 +1032,32 @@
                         >Loading Index...</van-loading
                     >
 
-                    <van-empty v-if="!loading && indexList.length === 0" description="暂无数据">
-                        <template #image>
-                            <i class="ri-gamepad-line" style="font-size: 90px; color: rgba(255, 255, 255, 0.15)"></i>
-                        </template>
+                    <van-empty v-if="!loading && allGames.length === 0" description="暂无数据">
+                        <template #image
+                            ><i class="ri-gamepad-line" style="font-size: 90px; color: rgba(255, 255, 255, 0.15)"></i
+                        ></template>
                     </van-empty>
 
-                    <van-index-bar
-                        v-else
-                        :index-list="indexList"
-                        :sticky="false"
-                        highlight-color="var(--primary)"
-                        @select="onIndexSelect"
-                        ref="gameIndexBarRef"
-                    >
-                        <div v-for="(group, letter) in groupedGames" :key="letter">
-                            <van-index-anchor :index="letter">{{ letter }}</van-index-anchor>
-                            <div class="game-grid-section">
-                                <div v-for="game in group" :key="game.name" class="game-card" @click="openDetail(game)">
+                    <div v-else class="virtual-wrapper" :style="{ height: totalVirtualHeight + 'px' }">
+                        <div
+                            v-for="row in visibleVirtualRows"
+                            :key="row.id"
+                            class="virtual-row"
+                            :class="{ 'virtual-anchor-row': row.type === 'header' }"
+                            :style="{ 
+                                top: row.top + 'px', 
+                                height: row.height + 'px',
+                                gridTemplateColumns: row.type === 'grid' ? `repeat(${virtualColCount}, 1fr)` : 'none'
+                            }"
+                        >
+                            <template v-if="row.type === 'header'">{{ row.text }}</template>
+                            <template v-else-if="row.type === 'grid'">
+                                <div
+                                    v-for="game in row.items"
+                                    :key="game.name"
+                                    class="game-card"
+                                    @click="openDetail(game)"
+                                >
                                     <div class="thumb-box">
                                         <div v-if="!getGamePoster(game)" class="no-img">
                                             <i class="ri-gamepad-line" style="font-size: 32px"></i>
@@ -1094,9 +1089,9 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </template>
                         </div>
-                    </van-index-bar>
+                    </div>
                     <div style="height: 40px"></div>
                 </div>
             </transition>
@@ -1104,15 +1099,31 @@
             <div
                 class="index-hint"
                 v-show="!showDetail && !showLogPopup"
-                :class="{ 'active-scroll': isScrollingPage }"
-                :style="{ top: indicatorTop + 'px', transform: 'none' }"
+                :class="{ 'active-scroll': isScrollingPage || isTouchingIndex }"
+                :style="{ top: indicatorTop + 'px' }"
             ></div>
+
             <div
                 class="side-bubble"
                 :class="{ visible: showLetterToast && !showLogPopup }"
                 :style="{ top: bubbleY + 'px' }"
             >
                 <span>{{ currentLetter }}</span>
+            </div>
+
+            <div
+                v-if="currentSystemObj && !loading && virtualIndexList.length > 0"
+                class="custom-sidebar"
+                ref="customSidebarRef"
+            >
+                <div
+                    v-for="char in virtualIndexList"
+                    :key="char"
+                    class="custom-index-char"
+                    :class="{ active: currentLetter === char && isTouchingIndex }"
+                >
+                    {{ char }}
+                </div>
             </div>
 
             <van-popup
@@ -1129,7 +1140,6 @@
                             <i class="ri-close-fill" style="font-size: 18px; color: rgba(255, 255, 255, 0.3)"></i>
                         </div>
                     </div>
-
                     <div class="detail-scroll-container">
                         <div class="swipe-area">
                             <van-swipe
@@ -1165,15 +1175,10 @@
                                             </div>
                                             <template v-else>
                                                 <img class="swipe-bg lazy-img" v-lazy="getImgUrl(media.url)" />
-
                                                 <div class="crt-lines" v-if="lowResFlags[media.url]"></div>
-
                                                 <img
                                                     class="swipe-img lazy-img"
-                                                    :class="{ 
-                                                        pixelated: lowResFlags[media.url], 
-                                                        loaded: loadedFlags[media.url] 
-                                                    }"
+                                                    :class="{ pixelated: lowResFlags[media.url], loaded: loadedFlags[media.url] }"
                                                     v-lazy="getImgUrl(media.url)"
                                                     @load="onImgLoad($event, media)"
                                                     @click="previewBig(idx)"
@@ -1205,8 +1210,7 @@
                                         class="ts-img"
                                         :src="getImgUrl(selectedGame.image_path) || ''"
                                         style="opacity: 0.5"
-                                    />
-                                    <i class="ri-play-circle-line ts-video-icon"></i>
+                                    /><i class="ri-play-circle-line ts-video-icon"></i>
                                 </template>
                                 <img v-else class="ts-img lazy-img" v-lazy="getImgUrl(media.url)" />
                             </div>
@@ -1216,14 +1220,12 @@
                                 <img v-lazy="getImgUrl(marqueeUrl)" class="d-marquee-bg lazy-img" />
                                 <img v-lazy="getImgUrl(marqueeUrl)" class="d-marquee-img lazy-img" />
                             </div>
-
                             <div class="d-title">{{ selectedGame.name }}</div>
-
                             <div class="d-tags">
-                                <span class="tag" v-if="selectedGame.rating > 0" style="color: #ffd21e">
-                                    <i class="ri-star-fill"></i> {{ (Number(selectedGame.rating) * 5).toFixed(1) }}
-                                </span>
-
+                                <span class="tag" v-if="selectedGame.rating > 0" style="color: #ffd21e"
+                                    ><i class="ri-star-fill"></i> {{ (Number(selectedGame.rating) * 5).toFixed(1)
+                                    }}</span
+                                >
                                 <span class="tag" v-if="selectedGame.releasedate"
                                     >{{ selectedGame.releasedate.substring(0,4) }}</span
                                 >
@@ -1234,7 +1236,6 @@
                                 <span class="tag" v-if="selectedGame.publisher">{{ selectedGame.publisher }}</span>
                                 <span class="tag" v-if="selectedGame.developer">{{ selectedGame.developer }}</span>
                             </div>
-
                             <div class="d-desc">{{ selectedGame.desc || '暂无描述信息。' }}</div>
                             <van-divider content-position="left" style="border-color: rgba(255, 255, 255, 0.1)"
                                 >Available Files ({{ versions.length }})</van-divider
@@ -1294,9 +1295,9 @@
                 <div class="log-header">
                     <div style="font-weight: bold; color: #fff; font-size: 14px">
                         Running Logs
-                        <span v-if="globalStatus.runningSystem" style="color: #705df2; margin-left: 5px">
-                            ({{ progress.current }}/{{ progress.total }})
-                        </span>
+                        <span v-if="globalStatus.runningSystem" style="color: #705df2; margin-left: 5px"
+                            >({{ progress.current }}/{{ progress.total }})</span
+                        >
                     </div>
                     <van-button
                         size="small"
@@ -1305,9 +1306,8 @@
                         :disabled="!globalStatus.runningSystem"
                         @click="stopSync"
                         style="height: 28px; padding: 0 12px"
+                        >全部中止</van-button
                     >
-                        全部中止
-                    </van-button>
                 </div>
                 <div class="log-content">
                     <div v-if="logs.length === 0" style="text-align: center; padding: 20px; color: #666">
@@ -1322,13 +1322,11 @@
         <script src="https://fastly.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
 
         <script>
-            const { createApp, ref, computed, onMounted, nextTick } = Vue;
+            const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 
-            /* === 核心优化：智能懒加载管理器 (Android模式) === */
             const useLazyObserver = () => {
                 let observer = null;
                 const elementStateMap = new WeakMap();
-
                 const initObserver = () => {
                     if (observer) return;
                     observer = new IntersectionObserver(
@@ -1336,15 +1334,13 @@
                             entries.forEach((entry) => {
                                 const el = entry.target;
                                 const state = elementStateMap.get(el);
-
                                 if (entry.isIntersecting) {
-                                    // 300ms 防抖，确保滚动停止才加载
                                     if (!state.loaded && !state.timer) {
                                         state.timer = setTimeout(() => {
                                             loadImage(el, state.src);
                                             state.loaded = true;
                                             observer.unobserve(el);
-                                        }, 300);
+                                        }, 100);
                                     }
                                 } else {
                                     if (state.timer) {
@@ -1354,10 +1350,9 @@
                                 }
                             });
                         },
-                        { rootMargin: '100px 0px' }
+                        { rootMargin: '300px 0px' }
                     );
                 };
-
                 const loadImage = (el, src) => {
                     const img = new Image();
                     img.src = src;
@@ -1366,12 +1361,11 @@
                             el.src = src;
                             el.classList.add('loaded');
                         })
-                        .catch((e) => {
+                        .catch(() => {
                             el.src = src;
                             el.onload = () => el.classList.add('loaded');
                         });
                 };
-
                 return {
                     observe: (el, src) => {
                         initObserver();
@@ -1384,9 +1378,7 @@
                     }
                 };
             };
-
             const lazyManager = useLazyObserver();
-
             const vLazy = {
                 mounted: (el, binding) => {
                     lazyManager.observe(el, binding.value);
@@ -1418,10 +1410,7 @@
                     const currentSwipeIndex = ref(0);
                     const imgSwipe = ref(null);
                     const isPreviewOpen = ref(false);
-
-                    // 新增变量保存图片预览实例，解决关闭报错问题
                     let imagePreviewInstance = null;
-
                     const globalStatus = ref({
                         runningSystem: null,
                         pendingQueue: [],
@@ -1429,67 +1418,55 @@
                         progress: { current: 0, total: 0 }
                     });
                     const isSyncing = ref(false);
-
                     const showLogPopup = ref(false);
                     const logs = ref([]);
                     const progress = ref({ current: 0, total: 0 });
-
                     const showSyncDialog = ref(false);
-                    const syncOps = ref({
-                        syncInfo: true,
-                        syncImages: true,
-                        syncVideo: true,
-                        syncMarquees: true
-                    });
-
-                    const viewingLogSystem = ref(null);
-
+                    const syncOps = ref({ syncInfo: true, syncImages: true, syncVideo: true, syncMarquees: true });
                     const showLetterToast = ref(false);
                     const currentLetter = ref('');
                     const bubbleY = ref(0);
                     const isTouchingIndex = ref(false);
                     const isScrollingPage = ref(false);
                     let scrollTimeout = null;
-
                     const systemIndexBarRef = ref(null);
-                    const gameIndexBarRef = ref(null);
+                    const gameListContainerRef = ref(null);
+                    const customSidebarRef = ref(null);
                     const swipeVideoRef = ref(null);
-
                     const indicatorTop = ref(70);
-
                     let sidebarRectCache = null;
                     let animationFrameId = null;
-
                     let statusPollTimer = null;
                     const transitionName = ref('slide-left');
-
-                    /* 记录低分辨率图片状态 */
                     const lowResFlags = ref({});
-                    /* 记录图片加载完成状态，防止 Vue 渲染丢失 class */
                     const loadedFlags = ref({});
+
+                    const virtualRows = ref([]);
+                    const visibleVirtualRows = ref([]);
+                    const totalVirtualHeight = ref(0);
+                    const virtualColCount = ref(3);
+                    const virtualMap = ref({});
+                    const virtualIndexList = ref([]);
+                    const lastScrollTop = ref(0);
 
                     const fetchSystems = async () => {
                         try {
                             const res = await fetch('/api/systems');
                             systems.value = await res.json();
-                            nextTick(() => updateLayoutFromScroll());
+                            nextTick(() => updateLayoutFromScroll(0, document.body.clientHeight - 80));
                         } catch (e) {
                             console.error(e);
                         }
                     };
 
-                    // 移除开头的条件判断，确保刷新页面后能立即获取状态
                     const pollStatus = async () => {
                         try {
                             const res = await fetch('/api/status/global');
                             const data = await res.json();
-
                             globalStatus.value = data;
                             logs.value = data.logs.reverse();
                             progress.value = data.progress;
                             isSyncing.value = !!data.runningSystem;
-
-                            // 如果正在同步或打开了日志窗口，继续轮询
                             if (isSyncing.value || showLogPopup.value) {
                                 if (statusPollTimer) clearTimeout(statusPollTimer);
                                 statusPollTimer = setTimeout(pollStatus, 1500);
@@ -1502,18 +1479,104 @@
                     const loadGames = async (sysObj) => {
                         loading.value = true;
                         allGames.value = [];
+                        virtualRows.value = [];
+                        visibleVirtualRows.value = [];
                         try {
                             const res = await fetch(`/api/games?system=${sysObj.name}&all=1`);
                             const data = await res.json();
                             allGames.value = data.data;
+                            calculateVirtualLayout();
                         } finally {
                             loading.value = false;
-                            // 等待 loading 状态消失，列表 DOM 渲染完成后，强制重置滚动位置
                             nextTick(() => {
-                                const container = document.querySelector('.page-container');
-                                if (container) container.scrollTop = 0;
-                                updateLayoutFromScroll();
+                                if (gameListContainerRef.value) gameListContainerRef.value.scrollTop = 0;
+                                updateVisibleRows(0);
+                                updateLayoutFromScroll(0, window.innerHeight);
                             });
+                        }
+                    };
+
+                    const calculateVirtualLayout = () => {
+                        if (!allGames.value.length) return;
+                        const containerWidth = window.innerWidth - 32;
+                        const itemMinWidth = 105;
+                        const gap = 16;
+                        const cols = Math.floor((containerWidth + gap) / (itemMinWidth + gap));
+                        virtualColCount.value = cols;
+                        const realItemWidth = (containerWidth - (cols - 1) * gap) / cols;
+                        const itemHeight = realItemWidth * (4 / 3);
+                        const headerHeight = 44;
+                        const rowHeight = itemHeight + 20;
+
+                        const groups = {};
+                        allGames.value.forEach((game) => {
+                            let letter = (game.name || '#')[0].toUpperCase();
+                            if (!/[A-Z]/.test(letter)) letter = '#';
+                            if (!groups[letter]) groups[letter] = [];
+                            groups[letter].push(game);
+                        });
+                        const sortedKeys = Object.keys(groups).sort();
+                        virtualIndexList.value = sortedKeys;
+
+                        let currentTop = 0;
+                        const rows = [];
+                        const map = {};
+
+                        sortedKeys.forEach((letter) => {
+                            map[letter] = currentTop;
+                            rows.push({
+                                id: `h-${letter}`,
+                                type: 'header',
+                                text: letter,
+                                top: currentTop,
+                                height: headerHeight
+                            });
+                            currentTop += headerHeight;
+                            const games = groups[letter];
+                            for (let i = 0; i < games.length; i += cols) {
+                                const chunk = games.slice(i, i + cols);
+                                rows.push({
+                                    id: `g-${letter}-${i}`,
+                                    type: 'grid',
+                                    items: chunk,
+                                    top: currentTop,
+                                    height: rowHeight
+                                });
+                                currentTop += rowHeight;
+                            }
+                        });
+                        virtualRows.value = rows;
+                        virtualMap.value = map;
+                        totalVirtualHeight.value = currentTop;
+                    };
+
+                    const updateVisibleRows = (scrollTop) => {
+                        const viewportHeight = window.innerHeight;
+                        const buffer = 300;
+                        const startY = scrollTop - buffer;
+                        const endY = scrollTop + viewportHeight + buffer;
+                        visibleVirtualRows.value = virtualRows.value.filter((row) => {
+                            const rowBottom = row.top + row.height;
+                            return rowBottom > startY && row.top < endY;
+                        });
+                    };
+
+                    const handleGameScroll = (e) => {
+                        const scrollTop = e.target.scrollTop;
+                        lastScrollTop.value = scrollTop;
+                        handleScroll(e);
+                        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                        animationFrameId = requestAnimationFrame(() => {
+                            updateVisibleRows(scrollTop);
+                        });
+                    };
+
+                    const jumpToLetter = (char) => {
+                        const targetTop = virtualMap.value[char];
+                        if (targetTop !== undefined && gameListContainerRef.value) {
+                            const wrapper = document.querySelector('.virtual-wrapper');
+                            const offset = wrapper ? wrapper.offsetTop : 300;
+                            gameListContainerRef.value.scrollTo({ top: targetTop + offset, behavior: 'auto' });
                         }
                     };
 
@@ -1522,6 +1585,7 @@
                         window.history.pushState({ page: 'gamelist', systemName: sysObj.name }, '');
                         currentSystemObj.value = sysObj;
                         indicatorTop.value = 70;
+                        document.body.style.setProperty('--sidebar-top', '70px');
                         if (globalStatus.value.runningSystem) pollStatus();
                         loadGames(sysObj);
                     };
@@ -1542,27 +1606,44 @@
                     };
 
                     const updateLayoutFromScroll = () => {
-                        const container = document.querySelector('.page-container');
-                        if (!container) return;
-                        const scrollTop = container.scrollTop;
-                        const scrollHeight = container.scrollHeight;
-                        const clientHeight = container.clientHeight;
-                        const scrollRange = scrollHeight - clientHeight;
-                        const ratio = scrollRange > 0 ? scrollTop / scrollRange : 0;
-                        const safeTop = 66;
+                        const safeTop = 66; // 导航栏高度+间距
                         const safeBottomPadding = 20;
-                        const indicatorHeight = 40;
+                        const indicatorHeight = 40; // 滚动条高度
                         const viewHeight = window.innerHeight;
                         const trackLength = viewHeight - safeTop - safeBottomPadding - indicatorHeight;
+
+                        const container = currentSystemObj.value
+                            ? gameListContainerRef.value
+                            : document.querySelector('.page-container');
+                        if (!container) return;
+
+                        const scrollRange = container.scrollHeight - container.clientHeight;
+                        const ratio = scrollRange > 0 ? container.scrollTop / scrollRange : 0;
+
+                        // 1. 计算滚动条位置
                         const currentIndTop = safeTop + ratio * trackLength;
                         indicatorTop.value = currentIndTop;
-                        const sidebar = document.querySelector('.van-index-bar__sidebar');
+
+                        // 2. 统一计算侧边栏位置（无论是 System List 还是 Game List）
+                        const sidebar = currentSystemObj.value
+                            ? customSidebarRef.value
+                            : document.querySelector('.van-index-bar__sidebar');
+
                         if (sidebar) {
-                            const sbHeight = sidebar.offsetHeight;
+                            const sbHeight = sidebar.offsetHeight || 0;
+
+                            // 目标位置：让侧边栏垂直居中对齐到滚动条滑块的中心
+                            // 滚动条中心 = currentIndTop + (indicatorHeight / 2)
+                            // 侧边栏起始Top = 滚动条中心 - (sbHeight / 2)
                             let targetSidebarTop = currentIndTop + indicatorHeight / 2 - sbHeight / 2;
-                            const minSidebarTop = 70;
-                            const maxSidebarTop = viewHeight - sbHeight - 10;
-                            targetSidebarTop = Math.max(minSidebarTop, Math.min(targetSidebarTop, maxSidebarTop));
+
+                            // 边界检查（Clamp）
+                            const minTop = safeTop;
+                            const maxTop = viewHeight - sbHeight - safeBottomPadding;
+
+                            targetSidebarTop = Math.max(minTop, Math.min(targetSidebarTop, maxTop));
+
+                            // 核心修复：直接设置 CSS 变量，确保两个侧边栏都生效
                             document.body.style.setProperty('--sidebar-top', `${targetSidebarTop}px`);
                         }
                     };
@@ -1579,80 +1660,98 @@
                     };
 
                     const handleIndexTouch = (e) => {
+                        // 统一阻止默认行为，防止浏览器回弹
+                        if (
+                            e.target.closest('.index-hint') ||
+                            e.target.closest('.van-index-bar__sidebar') ||
+                            e.target.closest('.custom-sidebar')
+                        ) {
+                            e.preventDefault();
+                        }
+
                         if (e.type === 'touchstart') {
-                            const isHint = e.target.classList.contains('index-hint');
+                            const isHint =
+                                e.target.closest('.index-hint') ||
+                                e.target.closest('.van-index-bar__sidebar') ||
+                                e.target.closest('.custom-sidebar');
                             if (!isHint) return;
+
                             isTouchingIndex.value = true;
                             document.body.classList.add('touching-sidebar');
-                            e.preventDefault();
-                            const sidebar = document.querySelector('.van-index-bar__sidebar');
+
+                            const isGame = !!currentSystemObj.value;
+                            const list = isGame ? virtualIndexList.value : systemIndexList.value;
+                            const sidebar = isGame
+                                ? customSidebarRef.value
+                                : document.querySelector('.van-index-bar__sidebar');
+
                             if (sidebar) {
                                 const rect = sidebar.getBoundingClientRect();
-                                const indexCount = (currentSystemObj.value ? indexList.value : systemIndexList.value)
-                                    .length;
                                 sidebarRectCache = {
                                     top: rect.top,
                                     height: rect.height,
-                                    itemHeight: rect.height / indexCount,
-                                    list: currentSystemObj.value ? indexList.value : systemIndexList.value
+                                    itemHeight: rect.height / list.length,
+                                    list: list,
+                                    isGame: isGame
                                 };
                             }
+                            calcCurrentLetter(e.touches[0]);
                         }
+
                         if (isTouchingIndex.value) {
-                            e.preventDefault();
-                            if (e.type === 'touchend' || e.type === 'touchcancel') {
+                            if (e.type === 'touchmove') {
+                                calcCurrentLetter(e.touches[0]);
+                            } else if (e.type === 'touchend' || e.type === 'touchcancel') {
                                 isTouchingIndex.value = false;
                                 document.body.classList.remove('touching-sidebar');
                                 setTimeout(() => (showLetterToast.value = false), 300);
-                                if (animationFrameId) cancelAnimationFrame(animationFrameId);
-                                updateLayoutFromScroll();
-                                return;
-                            }
-                            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-                            animationFrameId = requestAnimationFrame(() => {
-                                const touch = e.touches[0];
 
-                                if (sidebarRectCache) {
-                                    const minY = sidebarRectCache.top;
-                                    const maxY = sidebarRectCache.top + sidebarRectCache.height;
-                                    bubbleY.value = Math.max(minY, Math.min(touch.clientY, maxY));
-                                } else {
-                                    bubbleY.value = touch.clientY;
-                                }
-
-                                if (sidebarRectCache && sidebarRectCache.list.length > 0) {
-                                    const relativeY = touch.clientY - sidebarRectCache.top;
-                                    let index = Math.floor(relativeY / sidebarRectCache.itemHeight);
-                                    index = Math.max(0, Math.min(index, sidebarRectCache.list.length - 1));
-                                    const char = sidebarRectCache.list[index];
-                                    if (char && char !== currentLetter.value) {
-                                        currentLetter.value = char;
-                                        showLetterToast.value = true;
-                                        const activeBar = currentSystemObj.value
-                                            ? gameIndexBarRef.value
-                                            : systemIndexBarRef.value;
-                                        if (activeBar) {
-                                            activeBar.scrollTo(char);
-                                        }
+                                if (currentLetter.value) {
+                                    if (sidebarRectCache && sidebarRectCache.isGame) {
+                                        jumpToLetter(currentLetter.value);
+                                    } else {
+                                        if (systemIndexBarRef.value)
+                                            systemIndexBarRef.value.scrollTo(currentLetter.value);
                                     }
                                 }
-                            });
+                                updateLayoutFromScroll();
+                            }
                         }
                     };
 
-                    const onIndexSelect = (index) => {
-                        if (isTouchingIndex.value) {
-                            currentLetter.value = index;
+                    const calcCurrentLetter = (touch) => {
+                        if (!sidebarRectCache || sidebarRectCache.list.length === 0) return;
+
+                        const relativeY = touch.clientY - sidebarRectCache.top;
+                        let index = Math.floor(relativeY / sidebarRectCache.itemHeight);
+                        index = Math.max(0, Math.min(index, sidebarRectCache.list.length - 1));
+                        const char = sidebarRectCache.list[index];
+
+                        if (char && char !== currentLetter.value) {
+                            currentLetter.value = char;
+                            showLetterToast.value = true;
+
+                            // 修复：首页和游戏页都支持震动
+                            if (navigator.vibrate) {
+                                navigator.vibrate(15);
+                            }
+                        } else if (char) {
                             showLetterToast.value = true;
                         }
+
+                        const minY = sidebarRectCache.top;
+                        const maxY = sidebarRectCache.top + sidebarRectCache.height;
+                        bubbleY.value = Math.max(minY, Math.min(touch.clientY, maxY));
+                    };
+
+                    const onIndexSelect = (index) => {
+                        // 逻辑已由 handleIndexTouch 接管
                     };
 
                     window.addEventListener('popstate', (event) => {
                         const state = event.state;
                         if (isPreviewOpen.value) {
                             isPreviewOpen.value = false;
-
-                            // 使用保存的实例来关闭预览，修复 "vant.closeImagePreview is not a function" 错误
                             if (imagePreviewInstance) {
                                 imagePreviewInstance.close();
                                 imagePreviewInstance = null;
@@ -1660,12 +1759,10 @@
                             return;
                         }
                         const targetPage = state && state.page ? state.page : 'home';
-
                         if (targetPage === 'gamelist') {
                             showLogPopup.value = false;
                             showDetail.value = false;
                             pauseAllVideos();
-
                             if (!currentSystemObj.value && state.systemName) {
                                 transitionName.value = 'slide-left';
                                 const sys = systems.value.find((s) => s.name === state.systemName);
@@ -1679,7 +1776,6 @@
                             showLogPopup.value = false;
                             showDetail.value = false;
                             pauseAllVideos();
-
                             transitionName.value = 'slide-right';
                             currentSystemObj.value = null;
                             showSearch.value = false;
@@ -1695,12 +1791,18 @@
 
                     onMounted(() => {
                         fetchSystems();
-                        // 启动时检查是否有后台任务在跑
                         pollStatus();
                         window.history.replaceState({ page: 'home' }, '');
+
                         window.addEventListener('touchstart', handleIndexTouch, { passive: false });
                         window.addEventListener('touchmove', handleIndexTouch, { passive: false });
                         window.addEventListener('touchend', handleIndexTouch);
+                        window.addEventListener('resize', () => {
+                            if (currentSystemObj.value) {
+                                calculateVirtualLayout();
+                                updateVisibleRows(lastScrollTop.value);
+                            }
+                        });
                         setTimeout(() => updateLayoutFromScroll(), 500);
                     });
 
@@ -1721,13 +1823,10 @@
                         selectedGame.value = game;
                         currentSwipeIndex.value = 0;
                         showDetail.value = true;
-
-                        // 强制重置详情页滚动位置
                         nextTick(() => {
                             const detailContainer = document.querySelector('.detail-scroll-container');
                             if (detailContainer) detailContainer.scrollTop = 0;
                         });
-
                         versions.value = [];
                         currentVersionId.value = null;
                         const res = await fetch(
@@ -1735,7 +1834,6 @@
                         );
                         versions.value = await res.json();
                         if (versions.value.length > 0) currentVersionId.value = versions.value[0].id;
-
                         nextTick(() => {
                             if (imgSwipe.value) imgSwipe.value.swipeTo(0, { immediate: true });
                             checkAutoPlay(0);
@@ -1745,30 +1843,24 @@
                     const closeDetail = () => {
                         window.history.back();
                     };
-
                     const viewLogs = () => {
                         window.history.pushState({ page: 'log' }, '');
                         showLogPopup.value = true;
                         pollStatus();
                     };
-
                     const triggerSync = async () => {
                         if (showLogPopup.value) return;
-
                         const currentSysName = currentSystemObj.value.name;
                         const isRunning = globalStatus.value.runningSystem === currentSysName;
                         const isQueued = globalStatus.value.pendingQueue.includes(currentSysName);
-
                         if (isRunning || isQueued) {
                             viewLogs();
                         } else {
                             showSyncDialog.value = true;
                         }
                     };
-
                     const startSync = async () => {
                         const sysName = currentSystemObj.value.name;
-
                         if (globalStatus.value.runningSystem) {
                             if (!globalStatus.value.pendingQueue.includes(sysName)) {
                                 globalStatus.value.pendingQueue.push(sysName);
@@ -1776,19 +1868,15 @@
                         } else {
                             globalStatus.value.runningSystem = sysName;
                         }
-
                         await fetch(`/api/scan/${sysName}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(syncOps.value)
                         });
-
                         vant.showToast({ message: '请求已提交', icon: 'success' });
-
                         pollStatus();
                         viewLogs();
                     };
-
                     const stopSync = async () => {
                         try {
                             await fetch(`/api/stop-scan`, { method: 'POST' });
@@ -1797,7 +1885,6 @@
                             console.error(e);
                         }
                     };
-
                     const handlePopupClose = (val) => {
                         if (val === false) window.history.back();
                     };
@@ -1809,12 +1896,10 @@
                     const swipeTo = (idx) => {
                         if (imgSwipe.value) imgSwipe.value.swipeTo(idx);
                     };
-
                     const onSwipeChange = (idx) => {
                         currentSwipeIndex.value = idx;
                         checkAutoPlay(idx);
                     };
-
                     const checkAutoPlay = (idx) => {
                         const media = displayMedia.value[idx];
                         pauseAllVideos();
@@ -1831,33 +1916,26 @@
                             });
                         }
                     };
-
                     const previewBig = (idx) => {
                         const imagesOnly = displayMedia.value.filter((m) => m.type !== 'video');
                         if (imagesOnly.length === 0) return;
-
                         const currentMedia = displayMedia.value[idx];
                         if (currentMedia.type === 'video') return;
-
                         const imgIndex = imagesOnly.indexOf(currentMedia);
                         if (imgIndex === -1) return;
-
                         window.history.pushState({ page: 'preview' }, '');
                         isPreviewOpen.value = true;
                         pauseAllVideos();
-
-                        // 保存实例以便稍后关闭
                         imagePreviewInstance = vant.showImagePreview({
                             images: imagesOnly.map((i) => getImgUrl(i.url)),
                             startPosition: imgIndex,
                             closeable: true,
                             onClose: () => {
                                 if (isPreviewOpen.value) window.history.back();
-                                imagePreviewInstance = null; // 清空引用
+                                imagePreviewInstance = null;
                             }
                         });
                     };
-
                     const getSysColor = (sysName) => {
                         const colors = [
                             'linear-gradient(135deg, #ff5e57, #d63031)',
@@ -1879,63 +1957,30 @@
                                   .map((p) => encodeURIComponent(p))
                                   .join('/')
                             : '';
-
-                    /* 【修复】恢复 onImgLoad 完整逻辑，确保 CRT 效果和加载状态正常工作 */
                     const onImgLoad = (e, media) => {
                         e.target.classList.add('loaded');
-
-                        // 1. 同步加载状态给 Vue，防止渲染时 class 丢失
                         loadedFlags.value[media.url] = true;
-
-                        // 2. 检测是否为低分辨率（高度 < 720px）
-                        // 且排除封面（Cover/covers）和标题（titles）
                         const isCover = media.type === 'covers' || media.type === 'Cover' || media.type === 'titles';
-
                         if (!isCover && e.target.naturalHeight && e.target.naturalHeight < 720) {
                             lowResFlags.value[media.url] = true;
                         }
                     };
-
                     const download = (id) => (window.location.href = `/api/download/${id}`);
-
                     const getGamePoster = (game) => {
                         const url = game.image_path || game.marquee_path || game.video_path;
                         return getImgUrl(url);
                     };
 
-                    const groupedGames = computed(() => {
-                        if (!allGames.value.length) return {};
-                        const groups = {};
-                        allGames.value.forEach((game) => {
-                            let letter = (game.name || '#')[0].toUpperCase();
-                            if (!/[A-Z]/.test(letter)) letter = '#';
-                            if (!groups[letter]) groups[letter] = [];
-                            groups[letter].push(game);
-                        });
-                        return Object.keys(groups)
-                            .sort()
-                            .reduce((obj, key) => {
-                                obj[key] = groups[key];
-                                return obj;
-                            }, {});
-                    });
-                    const indexList = computed(() => Object.keys(groupedGames.value));
-
-                    // 【关键修改】修改为按厂商(maker)分组
                     const groupedSystems = computed(() => {
                         if (!systems.value.length) return {};
                         const groups = {};
                         systems.value.forEach((sys) => {
-                            // 获取 Maker 的首字母 (例如 "N" for Nintendo, "S" for Sega)
                             const makerName = sys.maker || 'Unknown';
                             let letter = makerName[0].toUpperCase();
-
                             if (!/[A-Z]/.test(letter)) letter = '#';
                             if (!groups[letter]) groups[letter] = [];
                             groups[letter].push(sys);
                         });
-
-                        // 对 key 进行排序
                         return Object.keys(groups)
                             .sort()
                             .reduce((obj, key) => {
@@ -1960,7 +2005,6 @@
                         if (selectedGame.value && selectedGame.value.video_path) {
                             list.push({ type: 'video', url: selectedGame.value.video_path });
                         }
-
                         if (currentVersionId.value) {
                             const ver = versions.value.find((v) => v.id === currentVersionId.value);
                             if (ver && ver.gallery && ver.gallery.length > 0) {
@@ -1979,8 +2023,6 @@
                         loading,
                         showSearch,
                         keyword,
-                        groupedGames,
-                        indexList,
                         showDetail,
                         selectedGame,
                         versions,
@@ -2024,16 +2066,22 @@
                         groupedSystems,
                         systemIndexList,
                         handleScroll,
+                        handleGameScroll,
                         isScrollingPage,
                         systemIndexBarRef,
-                        gameIndexBarRef,
+                        gameListContainerRef,
+                        customSidebarRef,
                         indicatorTop,
                         progress,
-                        getGamePoster,
                         globalStatus,
-                        // 【修复】确保将这两个状态变量导出给模板，否则 CRT 效果无法生效
                         lowResFlags,
-                        loadedFlags
+                        loadedFlags,
+                        getGamePoster,
+                        allGames,
+                        visibleVirtualRows,
+                        totalVirtualHeight,
+                        virtualColCount,
+                        virtualIndexList
                     };
                 }
             });
