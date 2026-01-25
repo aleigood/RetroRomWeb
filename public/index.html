@@ -60,7 +60,6 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 margin: 0;
                 -webkit-tap-highlight-color: transparent;
-                --sidebar-top: 70px; /* 初始位置 */
             }
 
             #app {
@@ -180,37 +179,41 @@
                 margin-bottom: 16px !important;
             }
 
-            /* === 索引栏 & 滚动条 (完全复原 Old Version) === */
+            /* === 索引栏 & 滚动条 === */
 
-            /* 1. 滚动条主体 */
+            /* 隐藏 Vant 原生侧边栏 */
+            .van-index-bar__sidebar {
+                display: none !important;
+            }
+
+            /* 滚动条主体 */
             .index-hint {
                 position: fixed;
-                right: 4px; /* 严格按照老版本右侧距离 */
-                width: 4px; /* 严格按照老版本宽度 */
+                right: 4px;
+                width: 4px;
                 height: 40px;
                 background: rgba(255, 255, 255, 0.6);
                 border-radius: 4px;
                 z-index: 2500;
-                pointer-events: auto; /* 允许直接拖动 */
-                transition: opacity 0.3s; /* 复原老版本的 0.3s */
+                pointer-events: auto;
+                transition: opacity 0.3s;
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+                opacity: 0.1; /* 默认微弱可见 */
 
-                /* 修复点：默认透明度改回 0.1，而不是 0 */
-                opacity: 0.1;
-
+                /* 关键：允许默认行为但禁止浏览器自带手势，解决震动权限问题 */
                 touch-action: none;
             }
-            /* 2. 扩大触摸区域 (不可见) */
+            /* 扩大触摸区域 */
             .index-hint::before {
                 content: '';
                 position: absolute;
                 top: -10px;
                 bottom: -10px;
-                left: -30px; /* 加宽左侧触摸区 */
+                left: -30px;
                 right: -10px;
                 background: transparent;
             }
-            /* 3. 滚动条中间的灰色竖线 (User Request: 必须有) */
+            /* 灰色竖线装饰 */
             .index-hint::after {
                 content: '';
                 position: absolute;
@@ -226,24 +229,23 @@
             .index-hint.active-scroll {
                 opacity: 0.8;
             }
-            /* 拖动时隐藏白条，显示侧边栏 */
+            /* 拖动侧边栏时隐藏滚动条 */
             body.touching-sidebar .index-hint {
                 opacity: 0;
             }
 
-            /* === 通用侧边索引栏样式 (Host & Game 统一) === */
-            .van-index-bar__sidebar,
+            /* === 统一自定义侧边索引栏样式 === */
             .custom-sidebar {
                 position: fixed !important;
-                right: 0 !important; /* 严格复原：贴边 */
+                right: 0 !important;
                 z-index: 2000 !important;
                 width: 30px;
                 background: transparent !important;
                 box-shadow: none !important;
-                opacity: 0; /* 默认隐藏 */
+                opacity: 0; /* 默认隐藏，触摸时显示 */
 
-                /* 核心修复：位置由 CSS 变量统一控制，防止 JS 样式覆盖问题 */
-                top: var(--sidebar-top) !important;
+                /* 初始位置，JS会动态更新 */
+                top: 70px;
                 bottom: auto !important;
                 height: auto !important;
                 transform: translateY(0) !important;
@@ -252,17 +254,16 @@
                 flex-direction: column !important;
                 justify-content: center !important;
 
+                /* 关键：允许触摸事件触发 */
                 touch-action: none;
                 user-select: none;
                 -webkit-user-select: none;
-                transition:
-                    opacity 0.2s,
-                    top 0.1s linear;
+
+                transition: opacity 0.2s; /* 移除 top 过渡，保证跟随无延迟 */
                 pointer-events: none !important;
             }
 
             /* 触摸状态：显示黑色背景 */
-            body.touching-sidebar .van-index-bar__sidebar,
             body.touching-sidebar .custom-sidebar {
                 background: rgba(0, 0, 0, 0.7) !important;
                 border-top-left-radius: 16px;
@@ -272,7 +273,6 @@
                 pointer-events: auto !important;
             }
 
-            .van-index-bar__index,
             .custom-index-char {
                 padding: 2px 0 !important;
                 text-align: center;
@@ -280,12 +280,15 @@
                 font-size: 10px;
                 font-weight: 700 !important;
                 line-height: 1.4;
+                transition:
+                    transform 0.1s,
+                    color 0.1s;
             }
 
-            body.touching-sidebar .van-index-bar__index--active,
+            /* 激活字母高亮样式 */
             body.touching-sidebar .custom-index-char.active {
                 color: #fff !important;
-                transform: scale(1.5);
+                transform: scale(1.6);
             }
 
             .side-bubble {
@@ -1112,12 +1115,13 @@
             </div>
 
             <div
-                v-if="currentSystemObj && !loading && virtualIndexList.length > 0"
+                v-if="(!loading && (currentSystemObj ? virtualIndexList.length > 0 : systemIndexList.length > 0))"
                 class="custom-sidebar"
                 ref="customSidebarRef"
+                :style="{ top: sidebarTop + 'px' }"
             >
                 <div
-                    v-for="char in virtualIndexList"
+                    v-for="char in (currentSystemObj ? virtualIndexList : systemIndexList)"
                     :key="char"
                     class="custom-index-char"
                     :class="{ active: currentLetter === char && isTouchingIndex }"
@@ -1434,6 +1438,7 @@
                     const customSidebarRef = ref(null);
                     const swipeVideoRef = ref(null);
                     const indicatorTop = ref(70);
+                    const sidebarTop = ref(70);
                     let sidebarRectCache = null;
                     let animationFrameId = null;
                     let statusPollTimer = null;
@@ -1585,7 +1590,7 @@
                         window.history.pushState({ page: 'gamelist', systemName: sysObj.name }, '');
                         currentSystemObj.value = sysObj;
                         indicatorTop.value = 70;
-                        document.body.style.setProperty('--sidebar-top', '70px');
+                        sidebarTop.value = 70; // 切换页面时重置位置
                         if (globalStatus.value.runningSystem) pollStatus();
                         loadGames(sysObj);
                     };
@@ -1625,9 +1630,7 @@
                         indicatorTop.value = currentIndTop;
 
                         // 2. 统一计算侧边栏位置（无论是 System List 还是 Game List）
-                        const sidebar = currentSystemObj.value
-                            ? customSidebarRef.value
-                            : document.querySelector('.van-index-bar__sidebar');
+                        const sidebar = customSidebarRef.value || document.querySelector('.custom-sidebar');
 
                         if (sidebar) {
                             const sbHeight = sidebar.offsetHeight || 0;
@@ -1643,8 +1646,8 @@
 
                             targetSidebarTop = Math.max(minTop, Math.min(targetSidebarTop, maxTop));
 
-                            // 核心修复：直接设置 CSS 变量，确保两个侧边栏都生效
-                            document.body.style.setProperty('--sidebar-top', `${targetSidebarTop}px`);
+                            // 核心修复：直接更新 Vue 响应式变量，驱动 :style 更新
+                            sidebarTop.value = targetSidebarTop;
                         }
                     };
 
@@ -1660,11 +1663,13 @@
                     };
 
                     const handleIndexTouch = (e) => {
-                        // 统一阻止默认行为，防止浏览器回弹
+                        // 修复：移除 touchstart 的 preventDefault，解决首次加载震动失效问题
+                        // 仅在 touchmove 时阻止默认行为，防止页面滚动
                         if (
-                            e.target.closest('.index-hint') ||
-                            e.target.closest('.van-index-bar__sidebar') ||
-                            e.target.closest('.custom-sidebar')
+                            e.type !== 'touchstart' &&
+                            (e.target.closest('.index-hint') ||
+                                e.target.closest('.van-index-bar__sidebar') ||
+                                e.target.closest('.custom-sidebar'))
                         ) {
                             e.preventDefault();
                         }
@@ -1679,11 +1684,11 @@
                             isTouchingIndex.value = true;
                             document.body.classList.add('touching-sidebar');
 
-                            const isGame = !!currentSystemObj.value;
-                            const list = isGame ? virtualIndexList.value : systemIndexList.value;
-                            const sidebar = isGame
-                                ? customSidebarRef.value
-                                : document.querySelector('.van-index-bar__sidebar');
+                            // 统一使用 customSidebarRef
+                            const sidebar = customSidebarRef.value || document.querySelector('.custom-sidebar');
+
+                            // 动态判断当前使用哪个列表数据
+                            const list = currentSystemObj.value ? virtualIndexList.value : systemIndexList.value;
 
                             if (sidebar) {
                                 const rect = sidebar.getBoundingClientRect();
@@ -1692,7 +1697,7 @@
                                     height: rect.height,
                                     itemHeight: rect.height / list.length,
                                     list: list,
-                                    isGame: isGame
+                                    isGame: !!currentSystemObj.value
                                 };
                             }
                             calcCurrentLetter(e.touches[0]);
@@ -1714,6 +1719,7 @@
                                             systemIndexBarRef.value.scrollTo(currentLetter.value);
                                     }
                                 }
+                                // 拖动结束时，确保位置与滚动条对齐
                                 updateLayoutFromScroll();
                             }
                         }
@@ -1731,9 +1737,13 @@
                             currentLetter.value = char;
                             showLetterToast.value = true;
 
-                            // 修复：首页和游戏页都支持震动
+                            // 震动反馈：移除条件判断，强制调用，解决首次交互问题
                             if (navigator.vibrate) {
-                                navigator.vibrate(15);
+                                try {
+                                    navigator.vibrate(15);
+                                } catch (e) {
+                                    // 忽略可能的权限错误
+                                }
                             }
                         } else if (char) {
                             showLetterToast.value = true;
@@ -1794,6 +1804,7 @@
                         pollStatus();
                         window.history.replaceState({ page: 'home' }, '');
 
+                        // passive: false 用于 touchmove 中阻止默认滚动
                         window.addEventListener('touchstart', handleIndexTouch, { passive: false });
                         window.addEventListener('touchmove', handleIndexTouch, { passive: false });
                         window.addEventListener('touchend', handleIndexTouch);
@@ -2072,6 +2083,7 @@
                         gameListContainerRef,
                         customSidebarRef,
                         indicatorTop,
+                        sidebarTop,
                         progress,
                         globalStatus,
                         lowResFlags,
