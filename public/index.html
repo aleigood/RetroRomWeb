@@ -23,13 +23,6 @@
                 --accent: #ff4757;
                 --nav-height: 56px;
 
-                /* 搜索框深色样式 */
-                --van-search-content-background: rgba(255, 255, 255, 0.1) !important;
-                --van-search-label-color: #fff !important;
-                --van-text-color: #fff !important;
-                --van-search-input-height: 36px !important;
-                --van-field-input-text-color: #fff !important;
-
                 /* 空状态样式优化 */
                 --van-empty-description-color: #666 !important;
                 --van-empty-description-padding: 0 !important;
@@ -140,6 +133,12 @@
                 padding: 24px !important;
                 text-align: center;
             }
+            /* 关键修复：强制让对话框内的复选框文字变亮，解决看不清的问题 */
+            .van-dialog .van-checkbox__label {
+                color: #e0e0e0 !important;
+                font-size: 15px;
+            }
+
             .van-dialog__footer {
                 padding: 0 !important;
                 display: flex !important;
@@ -166,13 +165,44 @@
                 color: white !important;
             }
 
-            /* 搜索框样式 */
+            /* === 搜索框重构样式 === */
+            .van-search__content {
+                background-color: #25252b !important;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                align-items: center;
+            }
             .van-search__field .van-field__control {
-                color: #fff !important;
+                color: #f2f2f2 !important;
+                font-weight: 500;
             }
             .van-search__field .van-field__left-icon {
-                color: rgba(255, 255, 255, 0.5) !important;
+                color: #666 !important;
+                margin-right: 4px !important;
+                display: flex;
+                align-items: center;
             }
+            input::placeholder {
+                color: #555 !important;
+            }
+
+            /* === 自定义清除按钮 (解决点击区域小和失焦隐藏问题) === */
+            /* 修复：调整边距，确保离右边框有一定距离，同时保持大点击区 */
+            .custom-clear-btn {
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+                color: #666;
+                padding: 0 10px; /* 大点击范围 */
+                margin-right: 0px; /* 恢复正常边距，不再贴边 */
+                cursor: pointer;
+                transition: color 0.2s;
+            }
+            .custom-clear-btn:active {
+                color: #999;
+            }
+
             .van-empty__image {
                 width: auto !important;
                 height: auto !important;
@@ -1002,10 +1032,17 @@
                             placeholder="Find your memory..."
                             shape="round"
                             background="transparent"
+                            :clearable="false"
                             style="flex: 1; padding: 0"
                             @search="onSearch"
-                            @clear="onClearSearch"
-                        ></van-search>
+                            ref="searchRef"
+                        >
+                            <template #right-icon>
+                                <div v-show="keyword" class="custom-clear-btn" @click.stop="onClearSearch">
+                                    <i class="ri-close-circle-fill"></i>
+                                </div>
+                            </template>
+                        </van-search>
 
                         <div
                             @click="triggerSync"
@@ -1445,6 +1482,7 @@
                     const transitionName = ref('slide-left');
                     const lowResFlags = ref({});
                     const loadedFlags = ref({});
+                    const searchRef = ref(null);
 
                     const virtualRows = ref([]);
                     const visibleVirtualRows = ref([]);
@@ -1453,6 +1491,13 @@
                     const virtualMap = ref({});
                     const virtualIndexList = ref([]);
                     const lastScrollTop = ref(0);
+
+                    // 关键修复：监听 keyword 变化，一旦清空则自动重置搜索
+                    watch(keyword, (newVal) => {
+                        if (newVal === '' && currentSystemObj.value) {
+                            onClearSearch();
+                        }
+                    });
 
                     const fetchSystems = async () => {
                         try {
@@ -1492,7 +1537,8 @@
                         virtualRows.value = [];
                         visibleVirtualRows.value = [];
                         try {
-                            const res = await fetch(`/api/games?system=${sysObj.name}&all=1`);
+                            const k = keyword.value ? encodeURIComponent(keyword.value) : '';
+                            const res = await fetch(`/api/games?system=${sysObj.name}&all=1&keyword=${k}`);
                             const data = await res.json();
                             allGames.value = data.data;
                             calculateVirtualLayout();
@@ -1573,6 +1619,12 @@
 
                     const handleGameScroll = (e) => {
                         const scrollTop = e.target.scrollTop;
+
+                        // === 修复：滚动时让输入框失焦 ===
+                        if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                            document.activeElement.blur();
+                        }
+
                         lastScrollTop.value = scrollTop;
                         handleScroll(e);
                         if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -1594,8 +1646,9 @@
                         transitionName.value = 'slide-left';
                         window.history.pushState({ page: 'gamelist', systemName: sysObj.name }, '');
                         currentSystemObj.value = sysObj;
+                        keyword.value = '';
                         indicatorTop.value = 70;
-                        sidebarTop.value = 70; // 切换页面时重置位置
+                        sidebarTop.value = 70;
                         if (globalStatus.value.runningSystem) pollStatus();
                         loadGames(sysObj);
                     };
@@ -1630,28 +1683,18 @@
                         const scrollRange = container.scrollHeight - container.clientHeight;
                         const ratio = scrollRange > 0 ? container.scrollTop / scrollRange : 0;
 
-                        // 1. 计算滚动条位置
                         const currentIndTop = safeTop + ratio * trackLength;
                         indicatorTop.value = currentIndTop;
 
-                        // 2. 统一计算侧边栏位置（无论是 System List 还是 Game List）
                         const sidebar = customSidebarRef.value || document.querySelector('.custom-sidebar');
 
                         if (sidebar) {
                             const sbHeight = sidebar.offsetHeight || 0;
-
-                            // 目标位置：让侧边栏垂直居中对齐到滚动条滑块的中心
-                            // 滚动条中心 = currentIndTop + (indicatorHeight / 2)
-                            // 侧边栏起始Top = 滚动条中心 - (sbHeight / 2)
                             let targetSidebarTop = currentIndTop + indicatorHeight / 2 - sbHeight / 2;
-
-                            // 边界检查（Clamp）
                             const minTop = safeTop;
                             const maxTop = viewHeight - sbHeight - safeBottomPadding;
 
                             targetSidebarTop = Math.max(minTop, Math.min(targetSidebarTop, maxTop));
-
-                            // 核心修复：直接更新 Vue 响应式变量，驱动 :style 更新
                             sidebarTop.value = targetSidebarTop;
                         }
                     };
@@ -1668,20 +1711,14 @@
                     };
 
                     const handleIndexTouch = (e) => {
-                        // 判断是否是索引栏相关的目标元素
                         const isHint =
                             e.target.closest('.index-hint') ||
                             e.target.closest('.van-index-bar__sidebar') ||
                             e.target.closest('.custom-sidebar');
 
-                        // === 修改开始 ===
-                        // 核心修复：只要是针对侧边栏的操作，必须在 touchstart 阶段就阻止默认行为。
-                        // 这告诉浏览器"这是应用控制的手势"，从而立即允许 navigator.vibrate 生效，
-                        // 否则浏览器会因为等待判断是否为"页面滚动"而拦截首次震动。
                         if (isHint) {
                             e.preventDefault();
                         }
-                        // === 修改结束 ===
 
                         if (e.type === 'touchstart') {
                             if (!isHint) return;
@@ -1689,10 +1726,8 @@
                             isTouchingIndex.value = true;
                             document.body.classList.add('touching-sidebar');
 
-                            // 统一使用 customSidebarRef
                             const sidebar = customSidebarRef.value || document.querySelector('.custom-sidebar');
 
-                            // 动态判断当前使用哪个列表数据
                             const list = currentSystemObj.value ? virtualIndexList.value : systemIndexList.value;
 
                             if (sidebar) {
@@ -1724,29 +1759,19 @@
                                             systemIndexBarRef.value.scrollTo(currentLetter.value);
                                     }
                                 }
-                                // 拖动结束时，确保位置与滚动条对齐
                                 updateLayoutFromScroll();
                             }
                         }
                     };
 
-                    // 定义一个安全的震动帮助函数（放在 setup() 内部或 calcCurrentLetter 上方均可）
                     const safeVibrate = () => {
-                        // 1. 如果设备不支持震动，直接返回
                         if (!navigator.vibrate) return;
-
-                        // 2. 关键：检查用户是否已激活页面（Chrome 专有 API）
-                        // 如果用户还没有进行过有效交互（点击等），直接跳过，避免报错
                         if (navigator.userActivation && !navigator.userActivation.hasBeenActive) {
                             return;
                         }
-
-                        // 3. 最后的防线：使用 try-catch 吞掉所有潜在的报错
                         try {
                             navigator.vibrate(15);
-                        } catch (e) {
-                            // 保持静默，不要在控制台输出任何内容
-                        }
+                        } catch (e) {}
                     };
 
                     const calcCurrentLetter = (touch) => {
@@ -1760,8 +1785,6 @@
                         if (char && char !== currentLetter.value) {
                             currentLetter.value = char;
                             showLetterToast.value = true;
-
-                            // === 修改处：使用安全的震动调用 ===
                             safeVibrate();
                         } else if (char) {
                             showLetterToast.value = true;
@@ -1772,9 +1795,7 @@
                         bubbleY.value = Math.max(minY, Math.min(touch.clientY, maxY));
                     };
 
-                    const onIndexSelect = (index) => {
-                        // 逻辑已由 handleIndexTouch 接管
-                    };
+                    const onIndexSelect = (index) => {};
 
                     window.addEventListener('popstate', (event) => {
                         const state = event.state;
@@ -1822,7 +1843,6 @@
                         pollStatus();
                         window.history.replaceState({ page: 'home' }, '');
 
-                        // passive: false 用于 touchmove 中阻止默认滚动
                         window.addEventListener('touchstart', handleIndexTouch, { passive: false });
                         window.addEventListener('touchmove', handleIndexTouch, { passive: false });
                         window.addEventListener('touchend', handleIndexTouch);
@@ -2046,6 +2066,16 @@
                         return list;
                     });
 
+                    const onSearch = () => {
+                        if (currentSystemObj.value) {
+                            loadGames(currentSystemObj.value);
+                        }
+                    };
+                    const onClearSearch = () => {
+                        keyword.value = '';
+                        onSearch();
+                    };
+
                     return {
                         systems,
                         currentSystemObj,
@@ -2084,8 +2114,8 @@
                         viewLogs,
                         handlePopupClose,
                         handleLogClose,
-                        onSearch: () => {},
-                        onClearSearch: () => {},
+                        onSearch,
+                        onClearSearch,
                         showLetterToast,
                         currentLetter,
                         bubbleY,
@@ -2111,7 +2141,8 @@
                         visibleVirtualRows,
                         totalVirtualHeight,
                         virtualColCount,
-                        virtualIndexList
+                        virtualIndexList,
+                        searchRef
                     };
                 }
             });
