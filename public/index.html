@@ -1472,12 +1472,17 @@
                             logs.value = data.logs.reverse();
                             progress.value = data.progress;
                             isSyncing.value = !!data.runningSystem;
+
                             if (isSyncing.value || showLogPopup.value) {
                                 if (statusPollTimer) clearTimeout(statusPollTimer);
                                 statusPollTimer = setTimeout(pollStatus, 1500);
                             }
                         } catch (e) {
-                            console.error(e);
+                            console.error('Network error, retrying...', e);
+                            if (isSyncing.value || showLogPopup.value) {
+                                if (statusPollTimer) clearTimeout(statusPollTimer);
+                                statusPollTimer = setTimeout(pollStatus, 3000);
+                            }
                         }
                     };
 
@@ -1663,22 +1668,22 @@
                     };
 
                     const handleIndexTouch = (e) => {
-                        // 修复：移除 touchstart 的 preventDefault，解决首次加载震动失效问题
-                        // 仅在 touchmove 时阻止默认行为，防止页面滚动
-                        if (
-                            e.type !== 'touchstart' &&
-                            (e.target.closest('.index-hint') ||
-                                e.target.closest('.van-index-bar__sidebar') ||
-                                e.target.closest('.custom-sidebar'))
-                        ) {
+                        // 判断是否是索引栏相关的目标元素
+                        const isHint =
+                            e.target.closest('.index-hint') ||
+                            e.target.closest('.van-index-bar__sidebar') ||
+                            e.target.closest('.custom-sidebar');
+
+                        // === 修改开始 ===
+                        // 核心修复：只要是针对侧边栏的操作，必须在 touchstart 阶段就阻止默认行为。
+                        // 这告诉浏览器"这是应用控制的手势"，从而立即允许 navigator.vibrate 生效，
+                        // 否则浏览器会因为等待判断是否为"页面滚动"而拦截首次震动。
+                        if (isHint) {
                             e.preventDefault();
                         }
+                        // === 修改结束 ===
 
                         if (e.type === 'touchstart') {
-                            const isHint =
-                                e.target.closest('.index-hint') ||
-                                e.target.closest('.van-index-bar__sidebar') ||
-                                e.target.closest('.custom-sidebar');
                             if (!isHint) return;
 
                             isTouchingIndex.value = true;
@@ -1725,6 +1730,25 @@
                         }
                     };
 
+                    // 定义一个安全的震动帮助函数（放在 setup() 内部或 calcCurrentLetter 上方均可）
+                    const safeVibrate = () => {
+                        // 1. 如果设备不支持震动，直接返回
+                        if (!navigator.vibrate) return;
+
+                        // 2. 关键：检查用户是否已激活页面（Chrome 专有 API）
+                        // 如果用户还没有进行过有效交互（点击等），直接跳过，避免报错
+                        if (navigator.userActivation && !navigator.userActivation.hasBeenActive) {
+                            return;
+                        }
+
+                        // 3. 最后的防线：使用 try-catch 吞掉所有潜在的报错
+                        try {
+                            navigator.vibrate(15);
+                        } catch (e) {
+                            // 保持静默，不要在控制台输出任何内容
+                        }
+                    };
+
                     const calcCurrentLetter = (touch) => {
                         if (!sidebarRectCache || sidebarRectCache.list.length === 0) return;
 
@@ -1737,14 +1761,8 @@
                             currentLetter.value = char;
                             showLetterToast.value = true;
 
-                            // 震动反馈：移除条件判断，强制调用，解决首次交互问题
-                            if (navigator.vibrate) {
-                                try {
-                                    navigator.vibrate(15);
-                                } catch (e) {
-                                    // 忽略可能的权限错误
-                                }
-                            }
+                            // === 修改处：使用安全的震动调用 ===
+                            safeVibrate();
                         } else if (char) {
                             showLetterToast.value = true;
                         }
