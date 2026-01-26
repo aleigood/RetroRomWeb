@@ -330,6 +330,38 @@ router.get('/api/download/:id', async (ctx) => {
     ctx.body = fs.createReadStream(fullPath);
 });
 
+// 【新增】用于在线游玩的专用路由，支持在 URL 中包含文件名
+// 街机模拟器 (FBNeo/MAME) 必须通过文件名 (如 kof97.zip) 来识别游戏
+// :filename 参数实际上在后端不使用，只为了让 URL 看起来是对的
+router.get('/api/play/:id/:filename', async (ctx) => {
+    const id = ctx.params.id;
+    // 我们忽略传入的 :filename，直接用 ID 查数据库获取真实文件路径
+    const game = await new Promise((resolve) => {
+        db.get('SELECT path, filename FROM games WHERE id = ?', [id], (err, row) => {
+            if (err) {
+                console.error(err);
+                return resolve(null);
+            }
+            resolve(row);
+        });
+    });
+
+    if (!game) {
+        ctx.status = 404;
+        return;
+    }
+    const fullPath = path.join(config.romsDir, game.path);
+    if (!fs.existsSync(fullPath)) {
+        ctx.status = 404;
+        ctx.body = 'File not found';
+        return;
+    }
+
+    // 在线播放模式，不设置 Content-Disposition attachment
+    ctx.type = path.extname(game.filename);
+    ctx.body = fs.createReadStream(fullPath);
+});
+
 app.use(router.routes()).use(router.allowedMethods());
 app.listen(config.port, () => {
     console.log(`RetroRomWeb V13 (Queue Mode) started on http://localhost:${config.port}`);

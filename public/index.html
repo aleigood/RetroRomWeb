@@ -2150,6 +2150,13 @@
                         // 如果配置了 bios，构建指向后端 /bios/ 接口的完整 URL，否则留空
                         const biosUrl = biosFilename ? `${window.location.origin}/bios/${biosFilename}` : '';
 
+                        // 【核心修复】修改游戏下载 URL
+                        // 对于街机模拟器，文件名必须正确 (例如 kof97.zip)，不能是纯数字 ID
+                        // 我们使用新的路由 /api/play/:id/:filename 来“伪装”成静态文件
+                        // 注意：ver.filename 必须是正确的文件名 (如 kof97.zip)
+                        const safeFilename = encodeURIComponent(ver.filename);
+                        const gameUrl = `${window.location.origin}/api/play/${ver.id}/${safeFilename}`;
+
                         // 【本地化修改】指向 data/ 目录
                         const htmlContent = `
                         <!DOCTYPE html>
@@ -2170,7 +2177,8 @@
                                 // === 新增：注入 BIOS URL ===
                                 window.EJS_biosUrl = '${biosUrl}';
                                 
-                                window.EJS_gameUrl = '${window.location.origin}/api/download/${ver.id}?play=1';
+                                // 使用带有文件名的 URL
+                                window.EJS_gameUrl = '${gameUrl}';
                                 window.EJS_pathtodata = 'data/';
                                 window.EJS_startOnLoaded = true;
                                 window.EJS_defaultOptions = {
