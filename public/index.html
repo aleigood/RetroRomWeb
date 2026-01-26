@@ -2117,7 +2117,7 @@
                         return !!currentSystemObj.value.core;
                     };
 
-                    // 【关键修复】使用 iframe 隔离运行，彻底解决声音残留问题
+                    // 【文件名修正版】startGame
                     const startGame = (ver) => {
                         const coreName = currentSystemObj.value.core;
                         if (!coreName) {
@@ -2128,36 +2128,24 @@
                         showEmulator.value = true;
                         pauseAllVideos();
 
-                        // 1. 清理容器
                         const container = document.getElementById('game');
                         container.innerHTML = '';
-
-                        // 2. 创建 iframe
                         const iframe = document.createElement('iframe');
                         iframe.style.width = '100%';
                         iframe.style.height = '100%';
                         iframe.style.border = 'none';
                         iframe.id = 'emulator-iframe';
 
-                        // 3. 构建隔离环境的 HTML
                         const safeName = selectedGame.value.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
-
-                        // === 新增：BIOS 处理逻辑 ===
-                        // 获取当前系统的 bios 文件名 (例如: neogeo.zip, scph5501.bin)
-                        // 依赖于你在 systems.json 中配置的 "bios" 字段
                         const biosFilename = currentSystemObj.value.bios;
-
-                        // 如果配置了 bios，构建指向后端 /bios/ 接口的完整 URL，否则留空
                         const biosUrl = biosFilename ? `${window.location.origin}/bios/${biosFilename}` : '';
 
-                        // 【核心修复】修改游戏下载 URL
-                        // 对于街机模拟器，文件名必须正确 (例如 kof97.zip)，不能是纯数字 ID
-                        // 我们使用新的路由 /api/play/:id/:filename 来“伪装”成静态文件
-                        // 注意：ver.filename 必须是正确的文件名 (如 kof97.zip)
+                        // 【关键修改】在 URL 后面拼接真实文件名
+                        // 例如: /api/play-merged/123/kof97.zip
+                        // 这样 EmulatorJS 保存文件时就是 kof97.zip，FBNeo 就能认出来了
                         const safeFilename = encodeURIComponent(ver.filename);
-                        const gameUrl = `${window.location.origin}/api/play/${ver.id}/${safeFilename}`;
+                        const gameUrl = `${window.location.origin}/api/play-merged/${ver.id}/${safeFilename}`;
 
-                        // 【本地化修改】指向 data/ 目录
                         const htmlContent = `
                         <!DOCTYPE html>
                         <html>
@@ -2173,14 +2161,11 @@
                                 window.EJS_player = '#emulator';
                                 window.EJS_core = '${coreName}';
                                 window.EJS_gameName = '${safeName}';
-                                
-                                // === 新增：注入 BIOS URL ===
                                 window.EJS_biosUrl = '${biosUrl}';
-                                
-                                // 使用带有文件名的 URL
                                 window.EJS_gameUrl = '${gameUrl}';
                                 window.EJS_pathtodata = 'data/';
                                 window.EJS_startOnLoaded = true;
+                                
                                 window.EJS_defaultOptions = {
                                     'save-state-location': 'browser',
                                     'save-sram-location': 'browser'
@@ -2192,8 +2177,6 @@
                         `;
 
                         container.appendChild(iframe);
-
-                        // 4. 写入 iframe 内容
                         const doc = iframe.contentWindow.document;
                         doc.open();
                         doc.write(htmlContent);

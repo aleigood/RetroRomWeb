@@ -277,7 +277,7 @@ async function searchByText (systemId, filename, ssConfig) {
 
 function getLocalizedText (arr) {
     if (!Array.isArray(arr)) return arr ? arr.text : '';
-    const regions = ['jp', 'cn', 'zh', 'tw', 'hk', 'us', 'en', 'eu', 'ss'];
+    const regions = ['us', 'jp', 'cn', 'zh', 'tw', 'hk', 'en', 'eu', 'ss'];
     for (const r of regions) {
         const found = arr.find((n) => n.region && n.region.toLowerCase() === r);
         if (found) return found.text;

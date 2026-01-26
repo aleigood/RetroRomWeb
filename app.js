@@ -9,8 +9,32 @@ const config = require('./config');
 const db = require('./db/database');
 const scanner = require('./scripts/scanner');
 
+// === 1. 全局加载 systems.json ===
+// 这样我们就能知道每个平台用的是什么核心
+let systemsConfig = {};
+try {
+    systemsConfig = fs.readJsonSync(path.join(__dirname, 'systems.json'));
+} catch (e) {
+    console.error('Failed to load systems.json:', e);
+}
+
+// === 2. 定义启用“自动合并”的街机核心列表 ===
+// 只有在这个列表里的核心，才会触发解压合并逻辑
+// 你可以根据需要添加其他核心，如 mame2003_plus 等
+const ARCADE_CORES = [
+    'fbneo',
+    'fbalpha2012',
+    'mame2003',
+    'mame2003_plus',
+    'mame2010',
+    'mame2015',
+    'mame',
+    'finalburn_neo'
+];
+
 const app = new Koa();
 const router = new Router();
+const AdmZip = require('adm-zip');
 
 app.use(range);
 app.use(koaBody());
@@ -360,6 +384,166 @@ router.get('/api/play/:id/:filename', async (ctx) => {
     // 在线播放模式，不设置 Content-Disposition attachment
     ctx.type = path.extname(game.filename);
     ctx.body = fs.createReadStream(fullPath);
+});
+
+// 【新增】根据游戏名称查找“父ROM” (逻辑：同名游戏中文件名最短的那个)
+router.get('/api/find-parent', async (ctx) => {
+    const { system, name } = ctx.query;
+    if (!system || !name) {
+        ctx.status = 400;
+        return;
+    }
+
+    return new Promise((resolve) => {
+        // SQL 逻辑：
+        // 1. 查找所有 system 和 name 相同的游戏
+        // 2. 按 filename 的长度升序排序 (最短的排前面)
+        // 3. 取第 1 个
+        const sql = `
+            SELECT id, filename 
+            FROM games 
+            WHERE system = ? AND name = ? 
+            ORDER BY length(filename) ASC 
+            LIMIT 1
+        `;
+
+        db.get(sql, [system, name], (err, row) => {
+            if (err) {
+                ctx.status = 500;
+                ctx.body = { error: err.message };
+            } else {
+                // 如果找到了，row 就是最短文件名的那个游戏
+                ctx.body = row || null;
+            }
+            resolve();
+        });
+    });
+});
+
+// 【修正 V4】服务端动态合并接口：增加核心判断限制
+router.get('/api/play-merged/:id/:filename', async (ctx) => {
+    const id = ctx.params.id;
+
+    // 1. 获取当前游戏
+    const game = await new Promise((resolve, reject) => {
+        db.get('SELECT * FROM games WHERE id = ?', [id], (err, row) => {
+            if (err) return reject(err);
+            resolve(row);
+        });
+    });
+
+    if (!game) {
+        ctx.status = 404;
+        return;
+    }
+
+    console.log(`[Server] Request play: ${game.filename} (ID: ${id})`);
+    const childPath = path.join(config.romsDir, game.path);
+    const downloadName = path.basename(game.filename);
+
+    // ============================================================
+    // 【核心判断逻辑】
+    // 1. 获取该游戏所属系统的配置
+    const sysKey = (game.system || '').toLowerCase();
+    const sysConf = systemsConfig[sysKey];
+    // 2. 获取该系统的核心 (core)
+    const core = sysConf ? sysConf.core : '';
+
+    // 3. 检查是否在街机核心白名单中
+    const isArcade = ARCADE_CORES.includes(core);
+
+    if (!isArcade) {
+        console.log(`[Server] Core '${core}' is not an arcade core. Skipping merge logic.`);
+        // 非街机游戏，直接发送原文件 (流式传输，速度最快)
+        if (fs.existsSync(childPath)) {
+            ctx.type = path.extname(downloadName);
+            ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(downloadName)}"`);
+            ctx.body = fs.createReadStream(childPath);
+            return;
+        } else {
+            ctx.status = 404;
+            ctx.body = 'File not found';
+            return;
+        }
+    }
+    // ============================================================
+
+    // --- 以下是街机合并逻辑 (只有 isArcade = true 才会走到这里) ---
+
+    // 2. 查找父游戏
+    const parentGame = await new Promise((resolve, reject) => {
+        db.get(
+            'SELECT * FROM games WHERE system = ? AND name = ? ORDER BY length(filename) ASC LIMIT 1',
+            [game.system, game.name],
+            (err, row) => {
+                if (err) return reject(err);
+                resolve(row);
+            }
+        );
+    });
+
+    // 准备基础 ZIP 包
+    let finalZip = null;
+    if (fs.existsSync(childPath)) {
+        try {
+            finalZip = new AdmZip(childPath);
+        } catch (e) {
+            console.error('[Server] Failed to load child zip:', e);
+            ctx.status = 500;
+            return;
+        }
+    } else {
+        ctx.status = 404;
+        ctx.body = 'Game file not found';
+        return;
+    }
+
+    // 3. 合并父游戏
+    if (parentGame && parentGame.id !== game.id) {
+        const parentPath = path.join(config.romsDir, parentGame.path);
+        if (fs.existsSync(parentPath)) {
+            try {
+                console.log(`[Server] Merging Parent: ${parentGame.filename}`);
+                const parentZip = new AdmZip(parentPath);
+                parentZip.getEntries().forEach((entry) => {
+                    if (!finalZip.getEntry(entry.entryName)) {
+                        finalZip.addFile(entry.entryName, entry.getData());
+                    }
+                });
+            } catch (e) {
+                console.error('[Server] Parent merge failed:', e);
+            }
+        }
+    }
+
+    // 4. 合并 BIOS (仅限街机)
+    if (config.biosDir) {
+        // 这里可以做个简单的判断，比如 only NeoGeo need bios，或者不管都尝试合并
+        // 由于前面已经过滤了 ARCADE_CORES，这里合并 BIOS 是安全的
+        const biosPath = path.join(config.biosDir, 'neogeo.zip');
+        if (fs.existsSync(biosPath)) {
+            try {
+                // 可选：只为 neogeo, fba, fbneo 等系统合并 BIOS
+                console.log('[Server] Merging BIOS: neogeo.zip');
+                const biosZip = new AdmZip(biosPath);
+                biosZip.getEntries().forEach((entry) => {
+                    if (!finalZip.getEntry(entry.entryName)) {
+                        finalZip.addFile(entry.entryName, entry.getData());
+                    }
+                });
+            } catch (e) {
+                console.error('[Server] BIOS merge failed:', e);
+            }
+        }
+    }
+
+    // 5. 发送最终文件
+    const finalBuffer = finalZip.toBuffer();
+    console.log(`[Server] Final package size: ${(finalBuffer.length / 1024).toFixed(2)}KB`);
+
+    ctx.set('Content-Type', 'application/zip');
+    ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(downloadName)}"`);
+    ctx.body = finalBuffer;
 });
 
 app.use(router.routes()).use(router.allowedMethods());
