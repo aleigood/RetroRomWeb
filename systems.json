@@ -7,7 +7,8 @@
         "desc": "索尼的开山之作，凭借 3D 技术彻底改变了游戏行业格局。",
         "history": "【复仇诞生的王者】PlayStation 的诞生源于任天堂在 CD-ROM 合作项目上对索尼的一次“背叛”。索尼愤而独立开发主机，凭借大容量 CD 介质带来的 CG 电影化叙事（如《最终幻想 VII》）和卓越的 3D 处理能力，彻底击溃了世嘉与任天堂的长期垄断。它让电子游戏从儿童玩具转变为大众娱乐文化。",
         "id": 57,
-        "core": "psx"
+        "core": "psx",
+        "bios": "scph5501.bin"
     },
     "ps2": {
         "fullname": "Sony PlayStation 2",
@@ -160,7 +161,8 @@
         "desc": "口袋里的 32 位强机，拥有大量优秀的 2D 动作游戏。",
         "history": "【口袋里的 SNES】拥有强大的 32 位性能，是 2D 像素艺术最后的辉煌堡垒。在 3D 游戏大行其道的年代，GBA 贡献了《黄金太阳》、《恶魔城》、《火焰纹章》等无数 2D 巅峰作品。",
         "id": 12,
-        "core": "gba"
+        "core": "gba",
+        "bios": "gba_bios.bin"
     },
     "nds": {
         "fullname": "Nintendo DS",
@@ -209,7 +211,8 @@
         "desc": "FC 的磁碟机外设，诞生了《塞尔达传说》初代。",
         "history": "【可读写的磁碟】FC 的底座外设，使用专用的软盘。它的优势是容量比早期卡带大且支持存档，还能在便利店廉价覆写新游戏。《塞尔达传说》和《银河战士》的初代都是在此平台首发。",
         "id": 106,
-        "core": "nes"
+        "core": "nes",
+        "bios": "disksys.rom"
     },
     "pokemini": {
         "fullname": "Nintendo Pokémon Mini",
@@ -276,7 +279,8 @@
         "desc": "MD 的 CD-ROM 外设，引入了全动态视频（FMV）游戏。",
         "history": "【FMV 的狂热】MD 的光盘扩展装置。虽然增加了存储空间和 CD 音质，但大量充斥着低成本真人视频（FMV）的互动电影游戏（如《午夜陷阱》）引发了巨大争议，最终促成了游戏分级制度（ESRB）的建立。",
         "id": 20,
-        "core": "segaCD"
+        "core": "segaCD",
+        "bios": "bios_CD_U.bin"
     },
     "sega32x": {
         "fullname": "Sega 32X",
@@ -295,7 +299,8 @@
         "release_year": "1994",
         "desc": "世嘉的 32 位主机，2D 格斗游戏的神器。",
         "history": "【2D 之王，3D 之殇】为了应对 PlayStation，世嘉临时为土星塞入了双 CPU 架构，导致开发难度极高，3D 性能难以发挥。但它拥有完美的街机 2D 移植能力（如《卡普空 vs SNK》），是硬核玩家心中的“2D 格斗神机”。",
-        "id": 22
+        "id": 22,
+        "bios": "sega_101.bin"
     },
     "dreamcast": {
         "fullname": "Sega Dreamcast",
@@ -304,7 +309,8 @@
         "release_year": "1998",
         "desc": "世嘉最后一款主机，虽败犹荣，拥有大量创意游戏。",
         "history": "【悲情的先驱】世嘉的绝唱，也是第一台 128 位主机。它极具创新：内置调制解调器支持联网对战、手柄上有可视化的存储卡（VMU）。尽管拥有《莎木》、《索尼克大冒险》等超前大作，但受累于财务危机，最终导致世嘉退出硬件市场。",
-        "id": 23
+        "id": 23,
+        "bios": "dc_boot.bin"
     },
     "gamegear": {
         "fullname": "Sega Game Gear",
@@ -503,7 +509,8 @@
         "desc": "把街机带回家，格斗游戏迷的圣殿。",
         "history": "【土豪的玩具】SNK 的伟大构想：让家用机拥有与街机完全一致的性能（MVS/AES）。在 16 位时代，它是性能怪兽，但主机和卡带（容量高达 330Mb）都贵得离谱。它是《拳皇》、《合金弹头》、《侍魂》的故乡。",
         "id": 142,
-        "core": "neogeo"
+        "core": "fbneo",
+        "bios": "neogeo.zip"
     },
     "cps1": {
         "fullname": "Capcom Play System I",

@@ -2126,6 +2126,14 @@
                         // 3. 构建隔离环境的 HTML
                         const safeName = selectedGame.value.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
 
+                        // === 新增：BIOS 处理逻辑 ===
+                        // 获取当前系统的 bios 文件名 (例如: neogeo.zip, scph5501.bin)
+                        // 依赖于你在 systems.json 中配置的 "bios" 字段
+                        const biosFilename = currentSystemObj.value.bios;
+
+                        // 如果配置了 bios，构建指向后端 /bios/ 接口的完整 URL，否则留空
+                        const biosUrl = biosFilename ? `${window.location.origin}/bios/${biosFilename}` : '';
+
                         // 【本地化修改】指向 data/ 目录
                         const htmlContent = `
                         <!DOCTYPE html>
@@ -2142,7 +2150,10 @@
                                 window.EJS_player = '#emulator';
                                 window.EJS_core = '${coreName}';
                                 window.EJS_gameName = '${safeName}';
-                                window.EJS_biosUrl = '';
+                                
+                                // === 新增：注入 BIOS URL ===
+                                window.EJS_biosUrl = '${biosUrl}';
+                                
                                 window.EJS_gameUrl = '${window.location.origin}/api/download/${ver.id}?play=1';
                                 window.EJS_pathtodata = 'data/';
                                 window.EJS_startOnLoaded = true;

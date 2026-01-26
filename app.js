@@ -141,7 +141,9 @@ router.get('/api/systems', async (ctx) => {
                         desc: info.desc || 'Detected local directory.',
                         history: info.history || info.desc || 'No details available.',
                         // 【新增】读取 JSON 中的 core 字段配置
-                        core: info.core || ''
+                        core: info.core || '',
+                        // 【修复】补充 bios 字段，否则前端无法获取 neogeo.zip
+                        bios: info.bios || ''
                     };
                 });
 
@@ -259,6 +261,34 @@ router.get('/api/game-versions', async (ctx) => {
             }
         );
     });
+});
+
+router.get('/bios/:filename', async (ctx) => {
+    const filename = ctx.params.filename;
+    // 使用 config 中配置的 biosDir
+    if (!config.biosDir) {
+        ctx.status = 404;
+        ctx.body = 'BIOS directory not configured';
+        return;
+    }
+
+    const filePath = path.join(config.biosDir, filename);
+
+    // 安全检查，防止路径遍历攻击
+    if (!filePath.startsWith(path.resolve(config.biosDir))) {
+        ctx.status = 403;
+        return;
+    }
+
+    if (fs.existsSync(filePath)) {
+        ctx.type = path.extname(filename);
+        // 使用流式传输
+        ctx.body = fs.createReadStream(filePath);
+    } else {
+        console.error(`BIOS file not found: ${filePath}`); // 在服务端控制台打印错误，方便调试
+        ctx.status = 404;
+        ctx.body = 'BIOS file not found';
+    }
 });
 
 router.get('/api/download/:id', async (ctx) => {
