@@ -139,7 +139,9 @@ router.get('/api/systems', async (ctx) => {
                         maker: info.maker || 'Unknown',
                         year: info.release_year || '0000', // 给个默认值方便排序
                         desc: info.desc || 'Detected local directory.',
-                        history: info.history || info.desc || 'No details available.'
+                        history: info.history || info.desc || 'No details available.',
+                        // 【新增】读取 JSON 中的 core 字段配置
+                        core: info.core || ''
                     };
                 });
 
@@ -284,7 +286,16 @@ router.get('/api/download/:id', async (ctx) => {
 
     const filename = path.basename(game.filename);
     const encoded = encodeURIComponent(filename);
-    ctx.set('Content-Disposition', `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
+
+    // 【新增】如果请求参数包含 play=1，则不设置 Content-Disposition 为 attachment
+    // 这样浏览器/模拟器可以作为媒体资源直接加载，而不是下载文件
+    if (ctx.query.play && ctx.query.play === '1') {
+        // 不设置 attachment，允许内联播放
+        // Koa-static 或 mime 模块会自动处理 content-type
+    } else {
+        ctx.set('Content-Disposition', `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
+    }
+
     ctx.type = path.extname(filename);
     ctx.body = fs.createReadStream(fullPath);
 });

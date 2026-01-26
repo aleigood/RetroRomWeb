@@ -133,7 +133,6 @@
                 padding: 24px !important;
                 text-align: center;
             }
-            /* 关键修复：强制让对话框内的复选框文字变亮，解决看不清的问题 */
             .van-dialog .van-checkbox__label {
                 color: #e0e0e0 !important;
                 font-size: 15px;
@@ -185,8 +184,6 @@
                 color: #555 !important;
             }
 
-            /* === 自定义清除按钮 (解决点击区域小和失焦隐藏问题) === */
-            /* 修复：调整边距，确保离右边框有一定距离，同时保持大点击区 */
             .custom-clear-btn {
                 height: 100%;
                 display: flex;
@@ -194,8 +191,8 @@
                 justify-content: center;
                 font-size: 18px;
                 color: #666;
-                padding: 0 10px; /* 大点击范围 */
-                margin-right: 0px; /* 恢复正常边距，不再贴边 */
+                padding: 0 10px;
+                margin-right: 0px;
                 cursor: pointer;
                 transition: color 0.2s;
             }
@@ -210,13 +207,10 @@
             }
 
             /* === 索引栏 & 滚动条 === */
-
-            /* 隐藏 Vant 原生侧边栏 */
             .van-index-bar__sidebar {
                 display: none !important;
             }
 
-            /* 滚动条主体 */
             .index-hint {
                 position: fixed;
                 right: 4px;
@@ -228,12 +222,9 @@
                 pointer-events: auto;
                 transition: opacity 0.3s;
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-                opacity: 0.1; /* 默认微弱可见 */
-
-                /* 关键：允许默认行为但禁止浏览器自带手势，解决震动权限问题 */
+                opacity: 0.1;
                 touch-action: none;
             }
-            /* 扩大触摸区域 */
             .index-hint::before {
                 content: '';
                 position: absolute;
@@ -243,7 +234,6 @@
                 right: -10px;
                 background: transparent;
             }
-            /* 灰色竖线装饰 */
             .index-hint::after {
                 content: '';
                 position: absolute;
@@ -259,12 +249,10 @@
             .index-hint.active-scroll {
                 opacity: 0.8;
             }
-            /* 拖动侧边栏时隐藏滚动条 */
             body.touching-sidebar .index-hint {
                 opacity: 0;
             }
 
-            /* === 统一自定义侧边索引栏样式 === */
             .custom-sidebar {
                 position: fixed !important;
                 right: 0 !important;
@@ -272,28 +260,21 @@
                 width: 30px;
                 background: transparent !important;
                 box-shadow: none !important;
-                opacity: 0; /* 默认隐藏，触摸时显示 */
-
-                /* 初始位置，JS会动态更新 */
+                opacity: 0;
                 top: 70px;
                 bottom: auto !important;
                 height: auto !important;
                 transform: translateY(0) !important;
-
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: center !important;
-
-                /* 关键：允许触摸事件触发 */
                 touch-action: none;
                 user-select: none;
                 -webkit-user-select: none;
-
-                transition: opacity 0.2s; /* 移除 top 过渡，保证跟随无延迟 */
+                transition: opacity 0.2s;
                 pointer-events: none !important;
             }
 
-            /* 触摸状态：显示黑色背景 */
             body.touching-sidebar .custom-sidebar {
                 background: rgba(0, 0, 0, 0.7) !important;
                 border-top-left-radius: 16px;
@@ -314,8 +295,6 @@
                     transform 0.1s,
                     color 0.1s;
             }
-
-            /* 激活字母高亮样式 */
             body.touching-sidebar .custom-index-char.active {
                 color: #fff !important;
                 transform: scale(1.6);
@@ -360,7 +339,6 @@
                 padding: 10px 0 10px 4px !important;
             }
 
-            /* === 虚拟滚动专用样式 === */
             .virtual-wrapper {
                 position: relative;
                 width: 100%;
@@ -381,7 +359,6 @@
                 padding-left: 4px;
             }
 
-            /* === 页面转场动画 === */
             .slide-left-enter-active,
             .slide-left-leave-active,
             .slide-right-enter-active,
@@ -424,7 +401,6 @@
                 z-index: 20;
             }
 
-            /* 主机列表样式 */
             .sys-group {
                 display: flex;
                 flex-direction: column;
@@ -595,7 +571,6 @@
                 object-fit: contain;
                 z-index: 2;
             }
-
             .lazy-img {
                 opacity: 0;
                 transition: opacity 0.4s ease-out;
@@ -899,6 +874,19 @@
                 align-items: center;
                 gap: 6px;
             }
+            .play-btn {
+                background: linear-gradient(135deg, #2ecc71, #27ae60);
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 24px;
+                font-size: 13px;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-right: 8px;
+            }
 
             .log-popup {
                 background: #1c1c22 !important;
@@ -927,6 +915,79 @@
                 border-bottom: 1px solid rgba(255, 255, 255, 0.05);
                 padding: 6px 0;
                 font-size: 12px;
+            }
+
+            /* === 模拟器覆盖层样式修正 (布局重构) === */
+            #emulator-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: #000;
+                z-index: 9999;
+                display: flex;
+                flex-direction: column; /* 垂直排列：顶部栏 -> 游戏 -> 底部占位 */
+            }
+
+            /* 1. 顶部控制栏 */
+            .emu-top-bar {
+                height: 60px;
+                width: 100%;
+                background: #101014; /* 略亮的背景色 */
+                display: flex;
+                justify-content: center; /* 按钮居中 */
+                align-items: center;
+                gap: 30px;
+                z-index: 10002;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                flex-shrink: 0; /* 防止被压缩 */
+            }
+
+            /* 2. 游戏画面区域 */
+            #game {
+                width: 100%;
+                flex: 1; /* 自动填满剩余高度 */
+                background: #000;
+            }
+
+            /* 3. 底部占位区块 (10%) */
+            .emu-bottom-spacer {
+                height: 10vh; /* 占屏幕高度的 10% */
+                width: 100%;
+                background: #000;
+                flex-shrink: 0; /* 固定高度，不压缩 */
+                z-index: 10000;
+            }
+
+            /* 按钮样式 */
+            .emu-btn {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                color: rgba(255, 255, 255, 0.9);
+                padding: 8px 24px;
+                border-radius: 20px;
+                font-weight: 600;
+                font-size: 13px;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                cursor: pointer;
+                transition: all 0.2s;
+                user-select: none;
+                -webkit-user-select: none;
+            }
+            .emu-btn:active {
+                background: rgba(255, 255, 255, 0.25);
+                transform: scale(0.96);
+            }
+            .emu-btn.danger {
+                background: rgba(235, 77, 75, 0.2);
+                border-color: rgba(235, 77, 75, 0.4);
+                color: #ffcccc;
+            }
+            .emu-btn.danger:active {
+                background: rgba(235, 77, 75, 0.4);
             }
 
             @keyframes gradientMove {
@@ -970,6 +1031,18 @@
     </head>
     <body>
         <div id="app">
+            <div id="emulator-overlay" v-show="showEmulator">
+                <div class="emu-top-bar">
+                    <div class="emu-btn danger" @click="closeEmulator">
+                        <i class="ri-close-circle-line" style="font-size: 18px"></i> 退出游戏
+                    </div>
+                </div>
+
+                <div id="game"></div>
+
+                <div class="emu-bottom-spacer"></div>
+            </div>
+
             <div class="navbar">
                 <div class="nav-btn" v-if="currentSystemObj" @click="handleUiBack">
                     <i class="ri-arrow-left-line"></i>
@@ -1291,9 +1364,14 @@
                                 <div style="flex: 1; min-width: 0; padding-right: 10px">
                                     <div class="v-file">{{ ver.filename }}</div>
                                 </div>
-                                <button class="dl-btn" @click.stop="download(ver.id)">
-                                    <i class="ri-download-cloud-2-line"></i> GET
-                                </button>
+                                <div style="display: flex; align-items: center">
+                                    <button v-if="canPlay()" class="play-btn" @click.stop="startGame(ver)">
+                                        <i class="ri-gamepad-fill"></i> PLAY
+                                    </button>
+                                    <button class="dl-btn" @click.stop="download(ver.id)">
+                                        <i class="ri-download-cloud-2-line"></i> GET
+                                    </button>
+                                </div>
                             </div>
                             <div style="height: 40px"></div>
                         </div>
@@ -1492,7 +1570,8 @@
                     const virtualIndexList = ref([]);
                     const lastScrollTop = ref(0);
 
-                    // 关键修复：监听 keyword 变化，一旦清空则自动重置搜索
+                    const showEmulator = ref(false);
+
                     watch(keyword, (newVal) => {
                         if (newVal === '' && currentSystemObj.value) {
                             onClearSearch();
@@ -1619,12 +1698,9 @@
 
                     const handleGameScroll = (e) => {
                         const scrollTop = e.target.scrollTop;
-
-                        // === 修复：滚动时让输入框失焦 ===
                         if (document.activeElement && document.activeElement.tagName === 'INPUT') {
                             document.activeElement.blur();
                         }
-
                         lastScrollTop.value = scrollTop;
                         handleScroll(e);
                         if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -1669,9 +1745,9 @@
                     };
 
                     const updateLayoutFromScroll = () => {
-                        const safeTop = 66; // 导航栏高度+间距
+                        const safeTop = 66;
                         const safeBottomPadding = 20;
-                        const indicatorHeight = 40; // 滚动条高度
+                        const indicatorHeight = 40;
                         const viewHeight = window.innerHeight;
                         const trackLength = viewHeight - safeTop - safeBottomPadding - indicatorHeight;
 
@@ -2020,6 +2096,85 @@
                         return getImgUrl(url);
                     };
 
+                    const canPlay = () => {
+                        if (!currentSystemObj.value) return false;
+                        return !!currentSystemObj.value.core;
+                    };
+
+                    // 【关键修复】使用 iframe 隔离运行，彻底解决声音残留问题
+                    const startGame = (ver) => {
+                        const coreName = currentSystemObj.value.core;
+                        if (!coreName) {
+                            vant.showToast('该主机暂不支持在线游玩 (No Core Defined)');
+                            return;
+                        }
+
+                        showEmulator.value = true;
+                        pauseAllVideos();
+
+                        // 1. 清理容器
+                        const container = document.getElementById('game');
+                        container.innerHTML = '';
+
+                        // 2. 创建 iframe
+                        const iframe = document.createElement('iframe');
+                        iframe.style.width = '100%';
+                        iframe.style.height = '100%';
+                        iframe.style.border = 'none';
+                        iframe.id = 'emulator-iframe';
+
+                        // 3. 构建隔离环境的 HTML
+                        const safeName = selectedGame.value.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
+
+                        // 【本地化修改】指向 data/ 目录
+                        const htmlContent = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <style>
+                                body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; overflow: hidden; }
+                                #emulator { width: 100%; height: 100%; }
+                            </style>
+                        </head>
+                        <body>
+                            <div id="emulator"></div>
+                            <script>
+                                window.EJS_player = '#emulator';
+                                window.EJS_core = '${coreName}';
+                                window.EJS_gameName = '${safeName}';
+                                window.EJS_biosUrl = '';
+                                window.EJS_gameUrl = '${window.location.origin}/api/download/${ver.id}?play=1';
+                                window.EJS_pathtodata = 'data/';
+                                window.EJS_startOnLoaded = true;
+                                window.EJS_defaultOptions = {
+                                    'save-state-location': 'browser',
+                                    'save-sram-location': 'browser'
+                                };
+                            <\/script>
+                            <script src="data/loader.js"><\/script>
+                        </body>
+                        </html>
+                        `;
+
+                        container.appendChild(iframe);
+
+                        // 4. 写入 iframe 内容
+                        const doc = iframe.contentWindow.document;
+                        doc.open();
+                        doc.write(htmlContent);
+                        doc.close();
+                    };
+
+                    const closeEmulator = () => {
+                        showEmulator.value = false;
+                        const container = document.getElementById('game');
+                        if (container) {
+                            // 直接移除 iframe，这是唯一能彻底杀死 WASM 进程和音频的方法
+                            container.innerHTML = '';
+                        }
+                        window.EJS_player = null;
+                    };
+
                     const groupedSystems = computed(() => {
                         if (!systems.value.length) return {};
                         const groups = {};
@@ -2142,7 +2297,12 @@
                         totalVirtualHeight,
                         virtualColCount,
                         virtualIndexList,
-                        searchRef
+                        searchRef,
+                        // Emulator Props
+                        showEmulator,
+                        startGame,
+                        closeEmulator,
+                        canPlay
                     };
                 }
             });
