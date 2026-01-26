@@ -848,20 +848,39 @@
                 margin-bottom: 30px;
                 white-space: pre-wrap;
             }
+
+            /* === 修复布局问题 === */
             .ver-item {
                 background: #25252b;
                 border-radius: 16px;
                 padding: 16px;
                 margin-bottom: 12px;
                 border: 1px solid rgba(255, 255, 255, 0.05);
+                /* 关键修改：垂直排列 */
                 display: flex;
-                justify-content: space-between;
-                align-items: center;
+                flex-direction: column;
+                align-items: stretch; /* 让子元素占满宽度 */
+                gap: 12px; /* 上下间距 */
+            }
+            .v-file {
+                font-size: 14px;
+                color: #f2f2f2;
+                /* 允许长文件名换行，不再截断 */
+                white-space: normal;
+                word-break: break-all;
+                line-height: 1.4;
+            }
+            .ver-btn-group {
+                /* 按钮组容器：右对齐 */
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
             }
             .ver-item.selected {
                 border-color: var(--primary);
                 background: #2d2d36;
             }
+
             .dl-btn {
                 background: linear-gradient(135deg, #705df2, #a29bfe);
                 color: white;
@@ -885,7 +904,6 @@
                 display: flex;
                 align-items: center;
                 gap: 6px;
-                margin-right: 8px;
             }
 
             .log-popup {
@@ -1361,10 +1379,8 @@
                                 :class="{ selected: currentVersionId === ver.id }"
                                 @click="switchVersion(ver)"
                             >
-                                <div style="flex: 1; min-width: 0; padding-right: 10px">
-                                    <div class="v-file">{{ ver.filename }}</div>
-                                </div>
-                                <div style="display: flex; align-items: center">
+                                <div class="v-file">{{ ver.filename }}</div>
+                                <div class="ver-btn-group">
                                     <button v-if="canPlay()" class="play-btn" @click.stop="startGame(ver)">
                                         <i class="ri-gamepad-fill"></i> PLAY
                                     </button>
