@@ -2114,12 +2114,14 @@
 
                     const canPlay = () => {
                         if (!currentSystemObj.value) return false;
-                        return !!currentSystemObj.value.core;
+                        // 【修改】核心字段变更为 ejs_core
+                        return !!currentSystemObj.value.ejs_core;
                     };
 
                     // 【文件名修正版】startGame
                     const startGame = (ver) => {
-                        const coreName = currentSystemObj.value.core;
+                        // 【修改】核心字段变更为 ejs_core
+                        const coreName = currentSystemObj.value.ejs_core;
                         if (!coreName) {
                             vant.showToast('该主机暂不支持在线游玩 (No Core Defined)');
                             return;
@@ -2146,6 +2148,18 @@
                         const safeFilename = encodeURIComponent(ver.filename);
                         const gameUrl = `${window.location.origin}/api/play-merged/${ver.id}/${safeFilename}`;
 
+                        // 【新增】动态生成额外参数 (如 EJS_threads 等)
+                        let extraConfig = '';
+                        for (const [key, val] of Object.entries(currentSystemObj.value)) {
+                            // 排除 ejs_core，只处理其他 ejs_ 开头的配置
+                            if (key.startsWith('ejs_') && key !== 'ejs_core') {
+                                // 将 ejs_threads 转换为 EJS_threads
+                                const upperKey = key.replace('ejs_', 'EJS_');
+                                const safeVal = typeof val === 'string' ? `'${val}'` : val;
+                                extraConfig += `window.${upperKey} = ${safeVal};\n`;
+                            }
+                        }
+
                         const htmlContent = `
                         <!DOCTYPE html>
                         <html>
@@ -2166,6 +2180,9 @@
                                 window.EJS_pathtodata = 'data/';
                                 window.EJS_startOnLoaded = true;
                                 
+                                // 注入动态参数
+                                ${extraConfig}
+
                                 window.EJS_defaultOptions = {
                                     'save-state-location': 'browser',
                                     'save-sram-location': 'browser'

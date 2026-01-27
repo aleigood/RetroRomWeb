@@ -1,3 +1,7 @@
+/**
+ * scanner.js
+ * 负责扫描 ROM 目录，与数据库同步，并调用 scraper 抓取元数据
+ */
 const fs = require('fs-extra');
 const path = require('path');
 // 【清理】不再需要 xml 解析库
@@ -122,7 +126,8 @@ async function processSystemSync (system, options) {
 
     const sysConfig = loadSystemConfig();
     const sysInfo = sysConfig[system.toLowerCase()] || {};
-    const scraperId = sysInfo.id;
+    // 【修改】适配 systems.json 字段变更：id -> scraper_id
+    const scraperId = sysInfo.scraper_id;
     const syncOps = options || { syncInfo: true, syncImages: true, syncVideo: true, syncMarquees: true };
 
     if (scraperId) {
@@ -467,8 +472,6 @@ async function downloadMedia (url, system, type, filename) {
         await scraper.downloadFile(url, target);
     }
 }
-
-// 【清理】已删除 importGamelistXml 函数
 
 // 【清理】只进行基本的目录扫描日志输出，不再尝试写入 systems 表
 async function startScan () {

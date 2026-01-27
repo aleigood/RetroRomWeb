@@ -1,3 +1,8 @@
+/**
+ * app.js
+ * 服务端入口文件
+ * 负责提供 API、文件服务以及动态 ROM 合并功能
+ */
 const Koa = require('koa');
 const Router = require('koa-router');
 const serve = require('koa-static');
@@ -8,6 +13,7 @@ const fs = require('fs-extra');
 const config = require('./config');
 const db = require('./db/database');
 const scanner = require('./scripts/scanner');
+const AdmZip = require('adm-zip');
 
 // === 1. 全局加载 systems.json ===
 // 这样我们就能知道每个平台用的是什么核心
@@ -20,7 +26,7 @@ try {
 
 // === 2. 定义启用“自动合并”的街机核心列表 ===
 // 只有在这个列表里的核心，才会触发解压合并逻辑
-// 你可以根据需要添加其他核心，如 mame2003_plus 等
+// 这里的名称必须与 systems.json 中的 ejs_core 保持一致
 const ARCADE_CORES = [
     'fbneo',
     'fbalpha2012',
@@ -34,7 +40,6 @@ const ARCADE_CORES = [
 
 const app = new Koa();
 const router = new Router();
-const AdmZip = require('adm-zip');
 
 app.use(range);
 app.use(koaBody());
@@ -129,7 +134,7 @@ router.post('/api/stop-scan', async (ctx) => {
     ctx.body = { status: 'stopped', message: 'Stopping all tasks...' };
 });
 
-// 【核心修改】删除SQL查询 systems 表，改为“库存(DB) + 知识(JSON) = 最终列表”
+// 【核心修改】服务端返回系统列表
 router.get('/api/systems', async (ctx) => {
     return new Promise((resolve) => {
         // 1. 从 JSON 文件加载静态元数据
@@ -154,7 +159,8 @@ router.get('/api/systems', async (ctx) => {
                     const key = (row.system || '').toLowerCase();
                     const info = metadata[key] || {};
 
-                    return {
+                    // 构造基础对象
+                    const sysObj = {
                         name: row.system, // 文件夹名/数据库标识
                         count: row.count,
                         // 优先用 JSON 配置，没有则回退到文件夹名
@@ -164,11 +170,20 @@ router.get('/api/systems', async (ctx) => {
                         year: info.release_year || '0000', // 给个默认值方便排序
                         desc: info.desc || 'Detected local directory.',
                         history: info.history || info.desc || 'No details available.',
-                        // 【新增】读取 JSON 中的 core 字段配置
-                        core: info.core || '',
-                        // 【修复】补充 bios 字段，否则前端无法获取 neogeo.zip
+                        // 【修改】读取新的 ejs_core 字段
+                        ejs_core: info.ejs_core || '',
                         bios: info.bios || ''
                     };
+
+                    // 【新增】动态合并所有 ejs_ 开头的额外参数 (如 ejs_threads, ejs_mouse 等)
+                    // 这样前端就不需要硬编码处理这些参数了
+                    Object.keys(info).forEach((k) => {
+                        if (k.startsWith('ejs_') && k !== 'ejs_core') {
+                            sysObj[k] = info[k];
+                        }
+                    });
+
+                    return sysObj;
                 });
 
                 // 4. 内存排序：先按 Maker (A-Z)，再按 Year (Old-New)
@@ -309,7 +324,7 @@ router.get('/bios/:filename', async (ctx) => {
         // 使用流式传输
         ctx.body = fs.createReadStream(filePath);
     } else {
-        console.error(`BIOS file not found: ${filePath}`); // 在服务端控制台打印错误，方便调试
+        console.error(`BIOS file not found: ${filePath}`);
         ctx.status = 404;
         ctx.body = 'BIOS file not found';
     }
@@ -341,11 +356,8 @@ router.get('/api/download/:id', async (ctx) => {
     const filename = path.basename(game.filename);
     const encoded = encodeURIComponent(filename);
 
-    // 【新增】如果请求参数包含 play=1，则不设置 Content-Disposition 为 attachment
-    // 这样浏览器/模拟器可以作为媒体资源直接加载，而不是下载文件
     if (ctx.query.play && ctx.query.play === '1') {
         // 不设置 attachment，允许内联播放
-        // Koa-static 或 mime 模块会自动处理 content-type
     } else {
         ctx.set('Content-Disposition', `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
     }
@@ -354,12 +366,10 @@ router.get('/api/download/:id', async (ctx) => {
     ctx.body = fs.createReadStream(fullPath);
 });
 
-// 【新增】用于在线游玩的专用路由，支持在 URL 中包含文件名
-// 街机模拟器 (FBNeo/MAME) 必须通过文件名 (如 kof97.zip) 来识别游戏
+// 【在线游玩路由】
 // :filename 参数实际上在后端不使用，只为了让 URL 看起来是对的
 router.get('/api/play/:id/:filename', async (ctx) => {
     const id = ctx.params.id;
-    // 我们忽略传入的 :filename，直接用 ID 查数据库获取真实文件路径
     const game = await new Promise((resolve) => {
         db.get('SELECT path, filename FROM games WHERE id = ?', [id], (err, row) => {
             if (err) {
@@ -381,12 +391,10 @@ router.get('/api/play/:id/:filename', async (ctx) => {
         return;
     }
 
-    // 在线播放模式，不设置 Content-Disposition attachment
     ctx.type = path.extname(game.filename);
     ctx.body = fs.createReadStream(fullPath);
 });
 
-// 【新增】根据游戏名称查找“父ROM” (逻辑：同名游戏中文件名最短的那个)
 router.get('/api/find-parent', async (ctx) => {
     const { system, name } = ctx.query;
     if (!system || !name) {
@@ -395,10 +403,6 @@ router.get('/api/find-parent', async (ctx) => {
     }
 
     return new Promise((resolve) => {
-        // SQL 逻辑：
-        // 1. 查找所有 system 和 name 相同的游戏
-        // 2. 按 filename 的长度升序排序 (最短的排前面)
-        // 3. 取第 1 个
         const sql = `
             SELECT id, filename 
             FROM games 
@@ -412,7 +416,6 @@ router.get('/api/find-parent', async (ctx) => {
                 ctx.status = 500;
                 ctx.body = { error: err.message };
             } else {
-                // 如果找到了，row 就是最短文件名的那个游戏
                 ctx.body = row || null;
             }
             resolve();
@@ -420,7 +423,7 @@ router.get('/api/find-parent', async (ctx) => {
     });
 });
 
-// 【修正 V4】服务端动态合并接口：增加核心判断限制
+// 【修正 V5】服务端动态合并接口：使用 ejs_core 并基于配置判断 BIOS 合并
 router.get('/api/play-merged/:id/:filename', async (ctx) => {
     const id = ctx.params.id;
 
@@ -446,8 +449,8 @@ router.get('/api/play-merged/:id/:filename', async (ctx) => {
     // 1. 获取该游戏所属系统的配置
     const sysKey = (game.system || '').toLowerCase();
     const sysConf = systemsConfig[sysKey];
-    // 2. 获取该系统的核心 (core)
-    const core = sysConf ? sysConf.core : '';
+    // 2. 获取该系统的核心 (使用 ejs_core)
+    const core = sysConf ? sysConf.ejs_core : '';
 
     // 3. 检查是否在街机核心白名单中
     const isArcade = ARCADE_CORES.includes(core);
@@ -516,15 +519,14 @@ router.get('/api/play-merged/:id/:filename', async (ctx) => {
         }
     }
 
-    // 4. 合并 BIOS (仅限街机)
-    if (config.biosDir) {
-        // 这里可以做个简单的判断，比如 only NeoGeo need bios，或者不管都尝试合并
-        // 由于前面已经过滤了 ARCADE_CORES，这里合并 BIOS 是安全的
-        const biosPath = path.join(config.biosDir, 'neogeo.zip');
+    // 4. 合并 BIOS
+    // 【核心修改】只当 systems.json 中该主机配置了 'bios' 字段时才尝试合并该 BIOS 文件
+    // 例如 neogeo 配置了 "bios": "neogeo.zip"，则会在此处合并
+    if (config.biosDir && sysConf && sysConf.bios) {
+        const biosPath = path.join(config.biosDir, sysConf.bios);
         if (fs.existsSync(biosPath)) {
             try {
-                // 可选：只为 neogeo, fba, fbneo 等系统合并 BIOS
-                console.log('[Server] Merging BIOS: neogeo.zip');
+                console.log(`[Server] Merging BIOS for ${sysKey}: ${sysConf.bios}`);
                 const biosZip = new AdmZip(biosPath);
                 biosZip.getEntries().forEach((entry) => {
                     if (!finalZip.getEntry(entry.entryName)) {
@@ -532,7 +534,7 @@ router.get('/api/play-merged/:id/:filename', async (ctx) => {
                     }
                 });
             } catch (e) {
-                console.error('[Server] BIOS merge failed:', e);
+                console.error(`[Server] BIOS merge failed (${sysConf.bios}):`, e);
             }
         }
     }
