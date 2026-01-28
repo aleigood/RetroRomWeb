@@ -1114,10 +1114,7 @@
 
             /* === 修复移动端图片预览闪烁问题 (GPU 加速) === */
             .van-image-preview__image {
-                /* 强制 GPU 渲染，防止 CPU/GPU 切换闪烁 */
-                transform: translate3d(0, 0, 0) !important;
-                -webkit-transform: translate3d(0, 0, 0) !important;
-                /* 告知浏览器此元素将进行变换 */
+                /* 移除了强制 transform !important，恢复手势缩放功能 */
                 will-change: transform;
                 /* 隐藏背面 */
                 backface-visibility: hidden;
@@ -1564,6 +1561,8 @@
                 :start-position="previewStartIndex"
                 :show-index="false"
                 :close-on-click-overlay="false"
+                :min-zoom="1"
+                :max-zoom="3"
                 @click-overlay="closePreview"
                 @change="onPreviewChange"
             >
