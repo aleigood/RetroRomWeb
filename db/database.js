@@ -11,6 +11,7 @@ const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {
     // 游戏表
+    // 【修改】同步增加了 marquee_path, box_texture_path, screenshot_path 字段定义
     db.run(`CREATE TABLE IF NOT EXISTS games (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         path TEXT UNIQUE,
@@ -19,6 +20,9 @@ db.serialize(() => {
         name TEXT,
         image_path TEXT,
         video_path TEXT,
+        marquee_path TEXT,
+        box_texture_path TEXT,
+        screenshot_path TEXT,
         desc TEXT,
         rating TEXT,
         releasedate TEXT,
