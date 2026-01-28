@@ -1081,6 +1081,19 @@
                 animation: spin 1s linear infinite;
                 opacity: 1;
             }
+
+            /* === 修复移动端图片预览闪烁问题 (GPU 加速) === */
+            .van-image-preview__image {
+                /* 强制 GPU 渲染，防止 CPU/GPU 切换闪烁 */
+                transform: translate3d(0, 0, 0) !important;
+                -webkit-transform: translate3d(0, 0, 0) !important;
+                /* 告知浏览器此元素将进行变换 */
+                will-change: transform;
+                /* 隐藏背面 */
+                backface-visibility: hidden;
+                -webkit-backface-visibility: hidden;
+                z-index: 1;
+            }
         </style>
     </head>
     <body>
