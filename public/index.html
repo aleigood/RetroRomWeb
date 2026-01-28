@@ -53,6 +53,11 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 margin: 0;
                 -webkit-tap-highlight-color: transparent;
+                /* 禁止长按选中文字 */
+                -webkit-user-select: none;
+                user-select: none;
+                /* 【新增】禁止长按弹出系统菜单 (如保存图片等) */
+                -webkit-touch-callout: none;
             }
 
             #app {
@@ -61,7 +66,17 @@
                 position: relative;
                 overflow: hidden;
             }
+            /* 【新增】全局图片和链接禁止长按呼出菜单 */
+            img,
+            a {
+                -webkit-touch-callout: none !important;
+                pointer-events: auto; /* 确保点击事件依然有效 */
+            }
 
+            /* 【新增】确保游戏卡片容器也禁止呼出菜单 */
+            .game-card {
+                -webkit-touch-callout: none !important;
+            }
             /* === 基础组件样式 === */
             .navbar {
                 background: rgba(28, 28, 34, 0.5);
@@ -173,6 +188,9 @@
             .van-search__field .van-field__control {
                 color: #f2f2f2 !important;
                 font-weight: 500;
+                /* 确保输入框文字可选，否则无法移动光标 */
+                -webkit-user-select: text !important;
+                user-select: text !important;
             }
             .van-search__field .van-field__left-icon {
                 color: #666 !important;
@@ -1944,6 +1962,19 @@
                                 updateVisibleRows(lastScrollTop.value);
                             }
                         });
+
+                        // 【修改】全局禁止长按菜单，只允许输入框使用（如粘贴功能）
+                        window.addEventListener(
+                            'contextmenu',
+                            (e) => {
+                                // 如果不是输入框或文本域，一律阻止菜单弹出
+                                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                                    e.preventDefault();
+                                }
+                            },
+                            { passive: false }
+                        );
+
                         setTimeout(() => updateLayoutFromScroll(), 500);
                     });
 
