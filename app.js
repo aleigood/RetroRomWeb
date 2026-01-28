@@ -129,6 +129,24 @@ router.post('/api/scan/:system', async (ctx) => {
     }
 });
 
+// 【新增】单游戏强制刷新
+router.post('/api/scan-single', async (ctx) => {
+    const { system, filename } = ctx.request.body;
+    if (!system || !filename) {
+        ctx.status = 400;
+        ctx.body = { error: 'Missing system or filename' };
+        return;
+    }
+
+    try {
+        await scanner.syncSingleGame(system, filename);
+        ctx.body = { status: 'ok' };
+    } catch (e) {
+        ctx.status = 500;
+        ctx.body = { error: e.message };
+    }
+});
+
 router.post('/api/stop-scan', async (ctx) => {
     scanner.stopSync();
     ctx.body = { status: 'stopped', message: 'Stopping all tasks...' };

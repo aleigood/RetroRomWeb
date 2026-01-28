@@ -818,12 +818,42 @@
                 z-index: 1;
                 filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
             }
+            /* === 修改：标题行 Flex 布局，处理长标题和按钮位置 === */
+            .d-title-row {
+                display: flex;
+                align-items: flex-start; /* 关键：顶部对齐，防止长标题导致按钮下沉 */
+                justify-content: space-between;
+                gap: 16px; /* 文字和按钮的间距 */
+                margin-bottom: 16px;
+            }
             .d-title {
                 font-size: 26px;
                 font-weight: 800;
-                margin-bottom: 16px;
                 color: #fff;
+                flex: 1; /* 占据剩余空间 */
+                margin-bottom: 0;
+                line-height: 1.2;
+                word-wrap: break-word; /* 强制长单词换行 */
+                overflow-wrap: break-word;
             }
+            .d-refresh-btn {
+                width: 32px;
+                height: 32px;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                flex-shrink: 0; /* 禁止按钮被压缩 */
+                margin-top: 2px; /* 视觉微调，对齐首行文字 */
+                transition: background 0.2s;
+            }
+            .d-refresh-btn:active {
+                background: rgba(255, 255, 255, 0.25);
+            }
+            /* === */
+
             .d-tags {
                 display: flex;
                 gap: 8px;
@@ -1401,7 +1431,20 @@
                                 <img v-lazy="getImgUrl(marqueeUrl)" class="d-marquee-bg lazy-img" />
                                 <img v-lazy="getImgUrl(marqueeUrl)" class="d-marquee-img lazy-img" />
                             </div>
-                            <div class="d-title">{{ selectedGame.name }}</div>
+                            <div class="d-title-row">
+                                <div class="d-title">{{ selectedGame.name }}</div>
+                                <div
+                                    class="d-refresh-btn"
+                                    @click.stop="refreshGame"
+                                    :style="{ opacity: isRefreshing ? 0.7 : 1 }"
+                                >
+                                    <i
+                                        class="ri-refresh-line"
+                                        :class="{ 'spin-anim': isRefreshing }"
+                                        style="color: #705df2"
+                                    ></i>
+                                </div>
+                            </div>
                             <div class="d-tags">
                                 <span class="tag" v-if="selectedGame.rating > 0" style="color: #ffd21e"
                                     ><i class="ri-star-fill"></i> {{ (Number(selectedGame.rating) * 5).toFixed(1)
@@ -1639,6 +1682,7 @@
                     const previewImages = ref([]);
                     const previewStartIndex = ref(0);
                     const activePreviewIndex = ref(0);
+                    const isRefreshing = ref(false); // 新增：刷新状态
 
                     const globalStatus = ref({
                         runningSystem: null,
@@ -2306,6 +2350,48 @@
                         window.EJS_player = null;
                     };
 
+                    // === 新增：单游戏刷新逻辑 ===
+                    const refreshGame = async () => {
+                        if (isRefreshing.value || !currentVersionId.value) return;
+
+                        try {
+                            await vant.showConfirmDialog({
+                                title: '重新抓取元数据',
+                                message: '确定要重新扫描此游戏吗？这将覆盖当前的简介、评分和图片。',
+                                confirmButtonColor: '#705df2'
+                            });
+
+                            isRefreshing.value = true;
+                            // 获取当前选中的文件名
+                            const ver = versions.value.find((v) => v.id === currentVersionId.value);
+                            if (!ver) return;
+
+                            await fetch('/api/scan-single', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    system: currentSystemObj.value.name,
+                                    filename: ver.filename
+                                })
+                            });
+
+                            vant.showToast({ message: '刷新成功，请重新打开详情页查看', icon: 'success' });
+                            // 稍微延迟后关闭详情页，触发列表刷新
+                            setTimeout(() => {
+                                window.history.back();
+                                loadGames(currentSystemObj.value); // 刷新列表数据
+                            }, 1000);
+                        } catch (e) {
+                            if (e !== 'cancel') {
+                                vant.showToast('刷新请求失败');
+                                console.error(e);
+                            }
+                        } finally {
+                            isRefreshing.value = false;
+                        }
+                    };
+                    // ===
+
                     const groupedSystems = computed(() => {
                         if (!systems.value.length) return {};
                         const groups = {};
@@ -2438,7 +2524,10 @@
                         previewStartIndex,
                         activePreviewIndex,
                         closePreview,
-                        onPreviewChange
+                        onPreviewChange,
+                        // New Export
+                        refreshGame,
+                        isRefreshing
                     };
                 }
             });

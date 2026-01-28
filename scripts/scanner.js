@@ -114,6 +114,41 @@ async function addToSyncQueue (system, options = {}) {
     return { success: true };
 }
 
+// === 新增：强制同步单个游戏 (API入口) ===
+async function syncSingleGame (system, filename) {
+    if (globalStatus.runningSystem) {
+        throw new Error('Global sync is running, please wait.');
+    }
+
+    console.log(`[Manual Sync] ${system} -> ${filename}`);
+
+    // 1. 获取系统配置（为了 Scraper ID）
+    const sysConfig = loadSystemConfig();
+    const sysInfo = sysConfig[system.toLowerCase()] || {};
+    const scraperId = sysInfo.scraper_id;
+
+    // 2. 查找现有数据（为了路径或备份）
+    const oldData = await new Promise((resolve) => {
+        db.get('SELECT * FROM games WHERE system = ? AND filename = ?', [system, filename], (err, row) => {
+            resolve(row || null);
+        });
+    });
+
+    // 3. 删除旧记录 (必须删除，否则 processNewGame 可能会因为 UNIQUE 约束报错或跳过)
+    await new Promise((resolve) => {
+        db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], resolve);
+    });
+
+    // 4. 强制执行抓取逻辑
+    // 注意：我们将 oldData 传进去，以便 processNewGame 能复用 image_path（如果刮削失败）
+    // 但是我们将 syncOps 全部设为 true，强迫它去尝试 scraper
+    const forceOps = { syncInfo: true, syncImages: true, syncVideo: true, syncMarquees: true };
+
+    await processNewGame(system, filename, oldData, forceOps, scraperId);
+
+    return true;
+}
+
 // === 核心：执行单个系统的同步逻辑 ===
 async function processSystemSync (system, options) {
     globalStatus.runningSystem = system;
@@ -500,5 +535,6 @@ module.exports = {
     startScan,
     addToSyncQueue,
     stopSync,
-    getGlobalStatus: () => globalStatus
+    getGlobalStatus: () => globalStatus,
+    syncSingleGame // 新增导出
 };
