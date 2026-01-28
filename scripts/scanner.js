@@ -4,8 +4,6 @@
  */
 const fs = require('fs-extra');
 const path = require('path');
-// 【清理】不再需要 xml 解析库
-// const sax = require('sax');
 const config = require('../config');
 const db = require('../db/database');
 const scraper = require('../utils/scraper');
@@ -49,7 +47,7 @@ const IGNORE_DIRS = [
     'wheel',
     'marquees',
     'boxart',
-    'boxtextures', // 【新增】忽略 boxtextures 目录，防止被误认为游戏
+    'boxtextures',
     'marquee',
     'video',
     'videos',
@@ -65,10 +63,8 @@ const IGNORE_DIRS = [
     'logs'
 ];
 
-// 缓存目录结构，减少IO
 const dirCache = {};
 
-// === 全局同步状态管理 ===
 const globalStatus = {
     runningSystem: null,
     pendingQueue: [],
@@ -83,23 +79,20 @@ function addLog (message, systemPrefix = null) {
     const time = new Date().toLocaleTimeString();
     const prefix = systemPrefix || globalStatus.runningSystem || 'System';
     const logMsg = `[${time}] [${prefix}] ${message}`;
-
     globalStatus.logs.push(logMsg);
-    if (globalStatus.logs.length > 200) {
-        globalStatus.logs.shift();
-    }
+    if (globalStatus.logs.length > 200) globalStatus.logs.shift();
     console.log(logMsg);
 }
 
-// === 核心：添加任务到队列 (API入口) ===
+function ensureMediaTable () {
+    db.run('CREATE TABLE IF NOT EXISTS media_library (url TEXT PRIMARY KEY, local_path TEXT)');
+}
+
+// === 核心：添加任务到队列 ===
 async function addToSyncQueue (system, options = {}) {
-    if (globalStatus.runningSystem === system) {
-        return { success: false, message: '该主机正在同步中' };
-    }
+    if (globalStatus.runningSystem === system) return { success: false, message: '该主机正在同步中' };
     const inQueue = globalStatus.pendingQueue.find((task) => task.system === system);
-    if (inQueue) {
-        return { success: false, message: '该主机已在等待队列中' };
-    }
+    if (inQueue) return { success: false, message: '该主机已在等待队列中' };
 
     if (!globalStatus.runningSystem) {
         addLog('立即启动同步任务', system);
@@ -111,76 +104,68 @@ async function addToSyncQueue (system, options = {}) {
         globalStatus.pendingQueue.push({ system, options });
         addLog(`当前忙碌 (${globalStatus.runningSystem})，已加入等待队列`, system);
     }
-
     return { success: true };
 }
 
-// === 新增：强制同步单个游戏 (API入口) ===
+// === 单游戏强制刷新 ===
 async function syncSingleGame (system, filename, options) {
-    if (globalStatus.runningSystem) {
-        throw new Error('Global sync is running, please wait.');
-    }
-
+    if (globalStatus.runningSystem) throw new Error('Global sync is running, please wait.');
+    ensureMediaTable();
     console.log(`[Manual Sync] ${system} -> ${filename}`);
 
-    // 1. 获取系统配置（为了 Scraper ID）
     const sysConfig = loadSystemConfig();
     const sysInfo = sysConfig[system.toLowerCase()] || {};
     const scraperId = sysInfo.scraper_id;
 
-    // 2. 查找现有数据（为了路径或备份）
     const oldData = await new Promise((resolve) => {
         db.get('SELECT * FROM games WHERE system = ? AND filename = ?', [system, filename], (err, row) => {
-            // 【修复】处理错误回调，修复 ESLint 报错
             if (err) console.error('[Scanner] DB Check Error:', err);
             resolve(row || null);
         });
     });
 
-    // 3. 删除旧记录 (必须删除，否则 processNewGame 可能会因为 UNIQUE 约束报错或跳过)
     await new Promise((resolve) => {
         db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], resolve);
     });
 
-    // 4. 强制执行抓取逻辑
-    // 【修改】使用传入的 options，如果没有传则使用默认值
-    // 默认不下载视频和包装图，防止单点刷新时意外下载大文件
+    // 单游戏刷新本身就是强制的，所以这里 incremental 无意义，设为默认
     const defaultOps = { syncInfo: true, syncImages: true, syncVideo: false, syncMarquees: true, syncBoxArt: false };
     const syncOps = options || defaultOps;
 
-    // oldData 传进去是为了复用可能存在的图片路径，但我们会根据 options 决定是否重新下载
     await processNewGame(system, filename, oldData, syncOps, scraperId);
+
+    console.log(`[Manual Sync] Cleaning orphaned media for ${system}...`);
+    await cleanOrphanedMedia(system);
 
     return true;
 }
 
-// === 核心：执行单个系统的同步逻辑 ===
+// === 核心：执行系统同步 ===
 async function processSystemSync (system, options) {
+    ensureMediaTable();
     globalStatus.runningSystem = system;
     globalStatus.isStopping = false;
     globalStatus.progress = { current: 0, total: 0 };
 
     for (const key in dirCache) delete dirCache[key];
-
     addLog('准备开始同步...', system);
 
     const sysConfig = loadSystemConfig();
     const sysInfo = sysConfig[system.toLowerCase()] || {};
-    // 【修改】适配 systems.json 字段变更：id -> scraper_id
     const scraperId = sysInfo.scraper_id;
 
-    // 【修改】默认选项：不下载视频和包装图
-    const syncOps = options || {
+    // 【修改】默认 incremental: true (增量更新)
+    const defaultOps = {
         syncInfo: true,
         syncImages: true,
         syncVideo: false,
         syncMarquees: true,
-        syncBoxArt: false
+        syncBoxArt: false,
+        incremental: true // 默认开启
     };
+    const syncOps = options ? { ...defaultOps, ...options } : defaultOps;
 
-    if (scraperId) {
-        addLog(`Scraper ID: ${scraperId}`, system);
-    }
+    if (scraperId) addLog(`Scraper ID: ${scraperId}`, system);
 
     const systemDir = path.join(config.romsDir, system);
     let diskFiles = [];
@@ -200,68 +185,63 @@ async function processSystemSync (system, options) {
     });
 
     const dbFilenameMap = {};
-    dbGames.forEach((g) => {
-        dbFilenameMap[g.filename] = g;
-    });
+    dbGames.forEach((g) => (dbFilenameMap[g.filename] = g));
 
     const toAdd = diskFiles.filter((f) => !dbFilenameMap[f]);
     const toDelete = dbGames.filter((g) => !diskFiles.includes(g.filename));
 
+    // 【修改】构建更新列表 logic
     const toUpdate = dbGames
         .filter((g) => {
             if (!diskFiles.includes(g.filename)) return false;
             if (globalStatus.isStopping) return false;
 
+            // 【关键逻辑】如果 incremental 为 false (强制刷新)，直接返回 true，不再判断是否缺失
+            if (syncOps.incremental === false) {
+                return true;
+            }
+
+            // --- 以下是增量逻辑 (只有在 incremental=true 时执行) ---
             const missingInfo = syncOps.syncInfo && (!g.desc || g.desc === '暂无简介');
 
             let missingImg = syncOps.syncImages && !g.image_path;
             if (!missingImg && syncOps.syncImages && g.image_path) {
                 const fullPath = path.join(config.mediaDir, g.image_path);
-                if (!fs.existsSync(fullPath) || fs.statSync(fullPath).size === 0) {
-                    missingImg = true;
-                }
+                if (!fs.existsSync(fullPath) || fs.statSync(fullPath).size === 0) missingImg = true;
             }
 
             let missingVid = syncOps.syncVideo && !g.video_path;
             if (!missingVid && syncOps.syncVideo && g.video_path) {
                 const fullPath = path.join(config.mediaDir, g.video_path);
-                if (!fs.existsSync(fullPath) || fs.statSync(fullPath).size === 0) {
-                    missingVid = true;
-                }
+                if (!fs.existsSync(fullPath) || fs.statSync(fullPath).size === 0) missingVid = true;
             }
 
             let missingMarquee = false;
             if (syncOps.syncMarquees) {
-                const basename = path.basename(g.filename, path.extname(g.filename));
-                const targetPath = path.join(config.mediaDir, system, 'marquees', basename + '.png');
-                if (!fs.existsSync(targetPath) || fs.statSync(targetPath).size === 0) {
-                    missingMarquee = true;
-                }
+                const targetPath = g.marquee_path ? path.join(config.mediaDir, g.marquee_path) : '';
+                if (!targetPath || !fs.existsSync(targetPath) || fs.statSync(targetPath).size === 0) { missingMarquee = true; }
             }
 
-            // 【新增】检查 Box Texture 是否缺失
             let missingBoxArt = false;
             if (syncOps.syncBoxArt) {
-                const basename = path.basename(g.filename, path.extname(g.filename));
-                const targetPath = path.join(config.mediaDir, system, 'boxtextures', basename + '.png');
-                if (!fs.existsSync(targetPath) || fs.statSync(targetPath).size === 0) {
-                    missingBoxArt = true;
-                }
+                const targetPath = g.box_texture_path ? path.join(config.mediaDir, g.box_texture_path) : '';
+                if (!targetPath || !fs.existsSync(targetPath) || fs.statSync(targetPath).size === 0) { missingBoxArt = true; }
             }
 
             return missingInfo || missingImg || missingVid || missingMarquee || missingBoxArt;
         })
         .map((g) => g.filename);
 
-    addLog(`新增 ${toAdd.length}, 删除 ${toDelete.length}, 更新 ${toUpdate.length}`, system);
+    addLog(
+        `新增 ${toAdd.length}, 删除 ${toDelete.length}, 更新 ${toUpdate.length} (增量: ${syncOps.incremental})`,
+        system
+    );
 
     if (toDelete.length > 0) {
         db.serialize(() => {
             db.run('BEGIN TRANSACTION');
             const deleteStmt = db.prepare('DELETE FROM games WHERE id = ?');
             toDelete.forEach((game) => {
-                const basename = path.basename(game.filename, path.extname(game.filename));
-                deleteLocalImages(system, basename);
                 deleteStmt.run(game.id);
             });
             deleteStmt.finalize();
@@ -272,7 +252,8 @@ async function processSystemSync (system, options) {
     const taskList = Array.from(new Set([...toAdd, ...toUpdate]));
 
     if (taskList.length === 0) {
-        addLog('没有需要处理的文件', system);
+        addLog('文件无变化，检查冗余资源...', system);
+        await cleanOrphanedMedia(system);
         finishCurrentSystem();
         return;
     }
@@ -287,17 +268,15 @@ async function processSystemSync (system, options) {
                 checkFinish(completedCount, taskList.length);
                 return;
             }
-
             try {
                 const oldData = dbFilenameMap[filename] || null;
+                // 注意：即使是 Force Update，我们也是先删除旧数据再 ProcessNewGame
                 if (oldData) {
                     await new Promise((resolve) =>
                         db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], resolve)
                     );
                 }
-
                 await processNewGame(system, filename, oldData, syncOps, scraperId);
-
                 completedCount++;
                 globalStatus.progress.current = completedCount;
                 checkFinish(completedCount, taskList.length);
@@ -312,14 +291,63 @@ async function processSystemSync (system, options) {
 
 function checkFinish (current, total) {
     if (current >= total) {
-        addLog('当前主机同步完成', globalStatus.runningSystem);
-        finishCurrentSystem();
+        addLog('同步完成，开始清理冗余资源...', globalStatus.runningSystem);
+        cleanOrphanedMedia(globalStatus.runningSystem)
+            .then(() => {
+                addLog('资源清理完毕', globalStatus.runningSystem);
+                finishCurrentSystem();
+            })
+            .catch((err) => {
+                console.error('Cleanup error:', err);
+                finishCurrentSystem();
+            });
+    }
+}
+
+async function cleanOrphanedMedia (system) {
+    const sql = 'SELECT image_path, video_path, marquee_path, box_texture_path, screenshot_path FROM games WHERE system = ?';
+    const rows = await new Promise((resolve) => {
+        db.all(sql, [system], (err, r) => {
+            if (err) console.error('Clean query error:', err);
+            resolve(r || []);
+        });
+    });
+
+    const validPaths = new Set();
+    rows.forEach((row) => {
+        if (row.image_path) validPaths.add(path.normalize(row.image_path));
+        if (row.video_path) validPaths.add(path.normalize(row.video_path));
+        if (row.marquee_path) validPaths.add(path.normalize(row.marquee_path));
+        if (row.box_texture_path) validPaths.add(path.normalize(row.box_texture_path));
+        if (row.screenshot_path) validPaths.add(path.normalize(row.screenshot_path));
+    });
+
+    const folders = ['covers', 'videos', 'marquees', 'boxtextures', 'screenshots'];
+
+    for (const folder of folders) {
+        const dirPath = path.join(config.mediaDir, system, folder);
+        if (!fs.existsSync(dirPath)) continue;
+
+        const files = fs.readdirSync(dirPath);
+        for (const file of files) {
+            if (file.startsWith('.')) continue;
+
+            const fullPath = path.join(dirPath, file);
+            const dbStylePath = path.join(system, folder, file);
+
+            if (!validPaths.has(path.normalize(dbStylePath))) {
+                try {
+                    fs.unlinkSync(fullPath);
+                } catch (e) {
+                    console.error(`删除失败: ${file}`, e.message);
+                }
+            }
+        }
     }
 }
 
 function finishCurrentSystem () {
     globalStatus.runningSystem = null;
-
     if (globalStatus.pendingQueue.length > 0 && !globalStatus.isStopping) {
         const nextTask = globalStatus.pendingQueue.shift();
         addLog(`自动启动下一个任务: ${nextTask.system}`, 'Queue');
@@ -391,19 +419,6 @@ function findLocalVideo (system, romBasename) {
     return null;
 }
 
-function deleteLocalImages (system, romBasename) {
-    // 【修改】添加 'boxtextures'
-    const types = ['covers', 'screenshots', 'miximages', 'titles', 'videos', 'marquees', 'boxtextures'];
-    types.forEach((type) => {
-        [...IMG_EXTS, ...VIDEO_EXTS].forEach((ext) => {
-            const p = path.join(config.mediaDir, system, type, romBasename + ext);
-            if (fs.existsSync(p)) {
-                fs.unlinkSync(p);
-            }
-        });
-    });
-}
-
 function loadSystemConfig () {
     if (systemsConfig) return systemsConfig;
     try {
@@ -421,25 +436,16 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
 
     let imagePath = findLocalImage(system, basename);
     let videoPath = findLocalVideo(system, basename);
+    let marqueePath = null;
+    let boxTexturePath = null;
+    let screenshotPath = null;
 
-    if (
-        imagePath &&
-        fs.existsSync(path.join(config.mediaDir, imagePath)) &&
-        fs.statSync(path.join(config.mediaDir, imagePath)).size === 0
-    ) {
-        imagePath = null;
-    }
-
-    if (!imagePath && oldData?.image_path && fs.existsSync(path.join(config.mediaDir, oldData.image_path))) {
-        if (fs.statSync(path.join(config.mediaDir, oldData.image_path)).size > 0) {
-            imagePath = oldData.image_path;
-        }
-    }
-
-    if (!videoPath && oldData?.video_path && fs.existsSync(path.join(config.mediaDir, oldData.video_path))) {
-        if (fs.statSync(path.join(config.mediaDir, oldData.video_path)).size > 0) {
-            videoPath = oldData.video_path;
-        }
+    if (oldData) {
+        if (oldData.image_path) imagePath = oldData.image_path;
+        if (oldData.video_path) videoPath = oldData.video_path;
+        if (oldData.marquee_path) marqueePath = oldData.marquee_path;
+        if (oldData.box_texture_path) boxTexturePath = oldData.box_texture_path;
+        if (oldData.screenshot_path) screenshotPath = oldData.screenshot_path;
     }
 
     const gameInfo = {
@@ -452,7 +458,6 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
         players: oldData?.players || ''
     };
 
-    // 【修改】判定是否需要抓取：增加 options.syncBoxArt
     const shouldScrape =
         options.syncInfo ||
         options.syncImages ||
@@ -469,32 +474,33 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                 addLog(`匹配成功: ${scraperData.name}`, system);
                 if (options.syncInfo) Object.assign(gameInfo, scraperData);
 
+                const safeName = scraperData.name.replace(/[\\/:*?"<>|]/g, '-').trim();
+
+                const handleDownload = async (url, folder, type) => {
+                    if (!url) return null;
+                    const ext = path.extname(url) || '.png';
+                    const fileName = safeName + ext;
+                    const dbPath = path.join(system, folder, fileName).replace(/\\/g, '/');
+
+                    await downloadMedia(url, system, type, fileName);
+                    return dbPath;
+                };
+
                 if (options.syncImages) {
-                    if (scraperData.boxArtUrl) {
-                        await downloadMedia(scraperData.boxArtUrl, system, 'covers', basename + '.png');
-                        imagePath = path.join(system, 'covers', basename + '.png').replace(/\\/g, '/');
-                    }
-                    if (scraperData.screenUrl) {
-                        await downloadMedia(scraperData.screenUrl, system, 'screenshots', basename + '.png');
-                        if (!imagePath) {
-                            imagePath = path.join(system, 'screenshots', basename + '.png').replace(/\\/g, '/');
-                        }
-                    }
-                    if (!imagePath) imagePath = findLocalImage(system, basename);
+                    if (scraperData.boxArtUrl) { imagePath = await handleDownload(scraperData.boxArtUrl, 'covers', 'covers'); }
+                    if (scraperData.screenUrl) { screenshotPath = await handleDownload(scraperData.screenUrl, 'screenshots', 'screenshots'); }
                 }
 
-                if (options.syncVideo && scraperData.videoUrl) {
-                    await downloadMedia(scraperData.videoUrl, system, 'videos', basename + '.mp4');
-                    videoPath = path.join(system, 'videos', basename + '.mp4').replace(/\\/g, '/');
+                if (options.syncVideo) {
+                    if (scraperData.videoUrl) { videoPath = await handleDownload(scraperData.videoUrl, 'videos', 'videos'); }
                 }
 
-                if (options.syncMarquees && scraperData.marqueeUrl) {
-                    await downloadMedia(scraperData.marqueeUrl, system, 'marquees', basename + '.png');
+                if (options.syncMarquees) {
+                    if (scraperData.marqueeUrl) { marqueePath = await handleDownload(scraperData.marqueeUrl, 'marquees', 'marquees'); }
                 }
 
-                // 【新增】下载 Box Texture
-                if (options.syncBoxArt && scraperData.boxTextureUrl) {
-                    await downloadMedia(scraperData.boxTextureUrl, system, 'boxtextures', basename + '.png');
+                if (options.syncBoxArt) {
+                    if (scraperData.boxTextureUrl) { boxTexturePath = await handleDownload(scraperData.boxTextureUrl, 'boxtextures', 'boxtextures'); }
                 }
             }
         } catch (e) {
@@ -504,8 +510,11 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
 
     return new Promise((resolve) => {
         db.run(
-            `INSERT INTO games (path, system, filename, name, image_path, video_path, desc, rating, developer, publisher, genre, players) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO games (
+                path, system, filename, name, 
+                image_path, video_path, marquee_path, box_texture_path, screenshot_path,
+                desc, rating, developer, publisher, genre, players
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 romPath,
                 system,
@@ -513,6 +522,9 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                 gameInfo.name,
                 imagePath,
                 videoPath,
+                marqueePath,
+                boxTexturePath,
+                screenshotPath,
                 gameInfo.desc,
                 gameInfo.rating,
                 gameInfo.developer,
@@ -527,26 +539,44 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
 
 async function downloadMedia (url, system, type, filename) {
     const target = path.join(config.mediaDir, system, type, filename);
-    let needDownload = true;
 
     if (fs.existsSync(target)) {
         const stats = fs.statSync(target);
-        if (stats.size > 0) {
-            needDownload = false;
-        } else {
-            fs.unlinkSync(target);
+        if (stats.size > 0) return;
+        fs.unlinkSync(target);
+    }
+
+    const existing = await new Promise((resolve) => {
+        db.get('SELECT local_path FROM media_library WHERE url = ?', [url], (err, row) => {
+            if (err) console.error(err);
+            resolve(row);
+        });
+    });
+
+    if (existing) {
+        const sourcePath = path.join(config.mediaDir, existing.local_path);
+        if (fs.existsSync(sourcePath)) {
+            try {
+                fs.ensureDirSync(path.dirname(target));
+                fs.linkSync(sourcePath, target);
+                addLog(`🔗 空间优化: ${filename} (HardLink)`, system);
+                return;
+            } catch (e) {}
         }
     }
 
-    if (needDownload) {
-        addLog(`⬇️ 下载 ${type}: ${filename}`, system);
-        await scraper.downloadFile(url, target);
+    addLog(`⬇️ 下载 ${type}: ${filename}`, system);
+    await scraper.downloadFile(url, target);
+
+    if (fs.existsSync(target)) {
+        const relPath = path.relative(config.mediaDir, target).replace(/\\/g, '/');
+        db.run('INSERT OR REPLACE INTO media_library (url, local_path) VALUES (?, ?)', [url, relPath]);
     }
 }
 
-// 【清理】只进行基本的目录扫描日志输出，不再尝试写入 systems 表
 async function startScan () {
     console.log('=== 系统启动初始化 ===');
+    ensureMediaTable();
     let systems = [];
     try {
         systems = fs.readdirSync(config.romsDir).filter((file) => {
@@ -559,7 +589,6 @@ async function startScan () {
     } catch (e) {
         console.error('无法读取 ROM 目录:', e.message);
     }
-
     console.log('=== 初始化完成 ===');
 }
 
@@ -572,5 +601,5 @@ module.exports = {
     addToSyncQueue,
     stopSync,
     getGlobalStatus: () => globalStatus,
-    syncSingleGame // 新增导出
+    syncSingleGame
 };

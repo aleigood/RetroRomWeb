@@ -750,10 +750,10 @@
                 height: 100%;
                 position: relative;
                 z-index: 2;
-                object-fit: contain;
+                object-fit: contain; /* 关键：这会保证图片保持比例并尽可能撑满容器（顶边） */
             }
             .pixelated {
-                image-rendering: pixelated;
+                image-rendering: pixelated; /* 关键：放大时不模糊，保持像素颗粒 */
                 image-rendering: crisp-edges;
             }
             .crt-lines {
@@ -1420,10 +1420,12 @@
                                             </div>
                                             <template v-else>
                                                 <img class="swipe-bg lazy-img" v-lazy="getImgUrl(media.url)" />
-                                                <div class="crt-lines" v-if="lowResFlags[media.url]"></div>
+
+                                                <div class="crt-lines" v-if="media.type === 'screenshots'"></div>
+
                                                 <img
                                                     class="swipe-img lazy-img"
-                                                    :class="{ pixelated: lowResFlags[media.url], loaded: loadedFlags[media.url] }"
+                                                    :class="{ pixelated: media.type === 'screenshots', loaded: loadedFlags[media.url] }"
                                                     v-lazy="getImgUrl(media.url)"
                                                     @load="onImgLoad($event, media)"
                                                     @click="previewBig(idx)"
@@ -1537,28 +1539,45 @@
 
             <van-dialog
                 v-model:show="showSyncDialog"
-                title="选择同步内容"
+                title="同步选项"
                 show-cancel-button
                 confirm-button-text="开始同步"
                 confirm-button-color="#705df2"
                 @confirm="startSync"
             >
-                <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 12px">
-                    <van-checkbox v-model="syncOps.syncInfo" shape="square" checked-color="#705df2"
-                        >游戏信息 (Info)</van-checkbox
-                    >
-                    <van-checkbox v-model="syncOps.syncImages" shape="square" checked-color="#705df2"
-                        >游戏图片 (封面/截图)</van-checkbox
-                    >
-                    <van-checkbox v-model="syncOps.syncMarquees" shape="square" checked-color="#705df2"
-                        >Marquees (Logo)</van-checkbox
-                    >
-                    <van-checkbox v-model="syncOps.syncBoxArt" shape="square" checked-color="#705df2"
-                        >包装展开图 (Box Texture)</van-checkbox
-                    >
-                    <van-checkbox v-model="syncOps.syncVideo" shape="square" checked-color="#705df2"
-                        >游戏视频 (Video)</van-checkbox
-                    >
+                <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 8px">
+                    <div style="font-size: 13px; color: #888; font-weight: 600; margin-bottom: 4px">刷新机制</div>
+
+                    <van-checkbox v-model="syncOps.incremental" shape="square" checked-color="#705df2">
+                        <div>
+                            <span style="font-weight: bold; color: #fff">增量刷新 (Smart Sync)</span>
+                            <div style="font-size: 11px; color: #666; margin-top: 2px">
+                                {{ syncOps.incremental ? '跳过已有数据的游戏 (推荐)' : '强制重新抓取所有游戏数据' }}
+                            </div>
+                        </div>
+                    </van-checkbox>
+
+                    <van-divider style="margin: 12px 0; border-color: rgba(255, 255, 255, 0.1)"></van-divider>
+
+                    <div style="font-size: 13px; color: #888; font-weight: 600; margin-bottom: 4px">抓取内容</div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px">
+                        <van-checkbox v-model="syncOps.syncInfo" shape="square" checked-color="#705df2"
+                            >游戏信息 (Info)</van-checkbox
+                        >
+                        <van-checkbox v-model="syncOps.syncImages" shape="square" checked-color="#705df2"
+                            >游戏图片 (封面/截图)</van-checkbox
+                        >
+                        <van-checkbox v-model="syncOps.syncMarquees" shape="square" checked-color="#705df2"
+                            >Marquees (Logo)</van-checkbox
+                        >
+                        <van-checkbox v-model="syncOps.syncBoxArt" shape="square" checked-color="#705df2"
+                            >包装展开图 (Box Texture)</van-checkbox
+                        >
+                        <van-checkbox v-model="syncOps.syncVideo" shape="square" checked-color="#705df2"
+                            >游戏视频 (Video)</van-checkbox
+                        >
+                    </div>
                 </div>
             </van-dialog>
 
@@ -1772,7 +1791,8 @@
                         syncImages: true,
                         syncVideo: false,
                         syncMarquees: true,
-                        syncBoxArt: false
+                        syncBoxArt: false,
+                        incremental: true
                     });
                     const showLetterToast = ref(false);
                     const currentLetter = ref('');
@@ -2331,17 +2351,16 @@
                     const onImgLoad = (e, media) => {
                         e.target.classList.add('loaded');
                         loadedFlags.value[media.url] = true;
-
-                        // 【修改】只让类型为 'screenshots' 的图片使用复古滤镜效果
-                        if (media.type === 'screenshots') {
-                            if (e.target.naturalHeight && e.target.naturalHeight < 720) {
-                                lowResFlags.value[media.url] = true;
-                            }
-                        }
                     };
                     const download = (id) => (window.location.href = `/api/download/${id}`);
                     const getGamePoster = (game) => {
-                        const url = game.image_path || game.marquee_path || game.video_path;
+                        // 优先级：封面 -> 包装 -> Logo -> 截图 -> 视频
+                        const url =
+                            game.image_path ||
+                            game.box_texture_path ||
+                            game.marquee_path ||
+                            game.screenshot_path ||
+                            game.video_path;
                         return getImgUrl(url);
                     };
 
