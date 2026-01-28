@@ -1556,7 +1556,6 @@
                     <van-checkbox v-model="syncOps.syncBoxArt" shape="square" checked-color="#705df2"
                         >包装展开图 (Box Texture)</van-checkbox
                     >
-
                     <van-checkbox v-model="syncOps.syncVideo" shape="square" checked-color="#705df2"
                         >游戏视频 (Video)</van-checkbox
                     >
@@ -1588,7 +1587,6 @@
                         <van-checkbox v-model="syncOps.syncBoxArt" shape="square" checked-color="#705df2"
                             >包装展开图 (Box Texture)</van-checkbox
                         >
-
                         <van-checkbox v-model="syncOps.syncVideo" shape="square" checked-color="#705df2"
                             >游戏视频 (Video)</van-checkbox
                         >
@@ -1768,12 +1766,13 @@
                     const logs = ref([]);
                     const progress = ref({ current: 0, total: 0 });
                     const showSyncDialog = ref(false);
+                    // 【修改】默认 syncVideo: false, syncBoxArt: false
                     const syncOps = ref({
                         syncInfo: true,
                         syncImages: true,
-                        syncVideo: false, // 默认不下载视频
+                        syncVideo: false,
                         syncMarquees: true,
-                        syncBoxArt: false // 默认不下载包装图
+                        syncBoxArt: false
                     });
                     const showLetterToast = ref(false);
                     const currentLetter = ref('');
@@ -2332,9 +2331,12 @@
                     const onImgLoad = (e, media) => {
                         e.target.classList.add('loaded');
                         loadedFlags.value[media.url] = true;
-                        const isCover = media.type === 'covers' || media.type === 'Cover' || media.type === 'titles';
-                        if (!isCover && e.target.naturalHeight && e.target.naturalHeight < 720) {
-                            lowResFlags.value[media.url] = true;
+
+                        // 【修改】只让类型为 'screenshots' 的图片使用复古滤镜效果
+                        if (media.type === 'screenshots') {
+                            if (e.target.naturalHeight && e.target.naturalHeight < 720) {
+                                lowResFlags.value[media.url] = true;
+                            }
                         }
                     };
                     const download = (id) => (window.location.href = `/api/download/${id}`);
@@ -2500,17 +2502,33 @@
                         return '';
                     });
 
+                    // 【修改】重新编排轮播图顺序
                     const displayMedia = computed(() => {
                         const list = [];
+                        // 1. Video (放最前面)
                         if (selectedGame.value && selectedGame.value.video_path) {
                             list.push({ type: 'video', url: selectedGame.value.video_path });
                         }
                         if (currentVersionId.value) {
                             const ver = versions.value.find((v) => v.id === currentVersionId.value);
                             if (ver && ver.gallery && ver.gallery.length > 0) {
-                                const images = ver.gallery.filter((g) => g.type !== 'marquees');
-                                list.push(...images);
+                                // 分类提取
+                                const covers = ver.gallery.filter((g) => g.type === 'covers');
+                                const boxtextures = ver.gallery.filter((g) => g.type === 'boxtextures');
+                                const others = ver.gallery.filter(
+                                    (g) => g.type !== 'covers' && g.type !== 'boxtextures' && g.type !== 'marquees' // Logo 不放轮播图
+                                );
+
+                                // 2. Cover
+                                list.push(...covers);
+
+                                // 3. Boxtextures (放第二个位置)
+                                list.push(...boxtextures);
+
+                                // 4. Others (Screenshots, etc.)
+                                list.push(...others);
                             } else if (selectedGame.value.image_path) {
+                                // 如果没有 gallery，回退使用单一封面
                                 list.push({ type: 'Cover', url: selectedGame.value.image_path });
                             }
                         }
