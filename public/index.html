@@ -1553,6 +1553,10 @@
                     <van-checkbox v-model="syncOps.syncMarquees" shape="square" checked-color="#705df2"
                         >Marquees (Logo)</van-checkbox
                     >
+                    <van-checkbox v-model="syncOps.syncBoxArt" shape="square" checked-color="#705df2"
+                        >包装展开图 (Box Texture)</van-checkbox
+                    >
+
                     <van-checkbox v-model="syncOps.syncVideo" shape="square" checked-color="#705df2"
                         >游戏视频 (Video)</van-checkbox
                     >
@@ -1581,6 +1585,10 @@
                         <van-checkbox v-model="syncOps.syncMarquees" shape="square" checked-color="#705df2"
                             >Marquees (Logo)</van-checkbox
                         >
+                        <van-checkbox v-model="syncOps.syncBoxArt" shape="square" checked-color="#705df2"
+                            >包装展开图 (Box Texture)</van-checkbox
+                        >
+
                         <van-checkbox v-model="syncOps.syncVideo" shape="square" checked-color="#705df2"
                             >游戏视频 (Video)</van-checkbox
                         >
@@ -1760,7 +1768,13 @@
                     const logs = ref([]);
                     const progress = ref({ current: 0, total: 0 });
                     const showSyncDialog = ref(false);
-                    const syncOps = ref({ syncInfo: true, syncImages: true, syncVideo: true, syncMarquees: true });
+                    const syncOps = ref({
+                        syncInfo: true,
+                        syncImages: true,
+                        syncVideo: false, // 默认不下载视频
+                        syncMarquees: true,
+                        syncBoxArt: false // 默认不下载包装图
+                    });
                     const showLetterToast = ref(false);
                     const currentLetter = ref('');
                     const bubbleY = ref(0);

@@ -310,28 +310,39 @@ function parseGameData (gameData, originalFilename) {
     let screenUrl = '';
     let videoUrl = '';
     let marqueeUrl = '';
+    let boxTextureUrl = '';
 
     if (Array.isArray(gameData.medias)) {
         const availableTypes = gameData.medias.map((m) => `${m.type}(${m.region})`).join(', ');
         console.log(`[Scraper Debug] 游戏 "${name}" 可用媒体: ${availableTypes}`);
 
-        const findMedia = (types, regionOrder = ['jp', 'us', 'en', 'eu', 'wor']) => {
-            for (const r of regionOrder) {
-                const m = gameData.medias.find(
-                    (m) => types.includes(m.type.toLowerCase()) && m.region && m.region.toLowerCase() === r
-                );
-                if (m) return m.url;
+        // 【核心修改】策略 A：类型优先 + 指定地区顺序
+        // 地区顺序：US (美) -> JP (日) -> EU (欧) -> WOR (世界) -> EN (英)
+        const findMedia = (types, regionOrder = ['us', 'jp', 'eu', 'wor', 'en']) => {
+            // 第一层：优先遍历要求的媒体类型 (如先找 box-2d，必须找完所有地区确认没有，才去找 box-3d)
+            for (const type of types) {
+                // 第二层：按地区优先级查找当前类型
+                for (const r of regionOrder) {
+                    const m = gameData.medias.find(
+                        (m) => m.type.toLowerCase() === type && m.region && m.region.toLowerCase() === r
+                    );
+                    if (m) return m.url;
+                }
+
+                // 保底机制：如果偏好地区都没找到当前类型，但在其他地区(如 fr, kr)找到了，也优先使用当前类型
+                // 这确保了 "box-2d(fr)" 会优于 "box-3d(us)"
+                const fallback = gameData.medias.find((m) => m.type.toLowerCase() === type);
+                if (fallback) return fallback.url;
             }
-            const fallback = gameData.medias.find((m) => types.includes(m.type.toLowerCase()));
-            return fallback ? fallback.url : null;
+            return null;
         };
 
         boxArtUrl = findMedia(['box-2d', 'box-3d']);
         screenUrl = findMedia(['ss', 'fanart']);
         videoUrl = findMedia(['video-normalized', 'video']);
-
         // Inspiration #4: 优先查找 wheel-hd
         marqueeUrl = findMedia(['wheel-hd', 'wheel', 'marquee', 'screenmarquee', 'screenmarqueesmall', 'sstitle']);
+        boxTextureUrl = findMedia(['box-texture']);
 
         if (!marqueeUrl) {
             console.log('[Scraper Debug] ⚠️ 未找到 Logo (wheel/marquee/title) 图片!');
@@ -350,7 +361,8 @@ function parseGameData (gameData, originalFilename) {
         boxArtUrl,
         screenUrl,
         videoUrl,
-        marqueeUrl
+        marqueeUrl,
+        boxTextureUrl
     };
 }
 

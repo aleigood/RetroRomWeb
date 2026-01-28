@@ -78,7 +78,7 @@ function getDirFilesMap (dirPath) {
 }
 
 const getImageCollection = (system, romFilename) => {
-    const types = ['covers', 'miximages', 'screenshots', 'titles', 'marquees'];
+    const types = ['covers', 'miximages', 'screenshots', 'titles', 'marquees', 'boxtextures'];
     const exts = ['.png', '.jpg', '.jpeg', '.gif'];
     const images = [];
 

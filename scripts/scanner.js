@@ -49,6 +49,7 @@ const IGNORE_DIRS = [
     'wheel',
     'marquees',
     'boxart',
+    'boxtextures', // 【新增】忽略 boxtextures 目录，防止被误认为游戏
     'marquee',
     'video',
     'videos',
@@ -130,10 +131,8 @@ async function syncSingleGame (system, filename, options) {
     // 2. 查找现有数据（为了路径或备份）
     const oldData = await new Promise((resolve) => {
         db.get('SELECT * FROM games WHERE system = ? AND filename = ?', [system, filename], (err, row) => {
-            // 【修改点】增加错误处理
-            if (err) {
-                console.error('[Scanner] Check old data error:', err);
-            }
+            // 【修复】处理错误回调，修复 ESLint 报错
+            if (err) console.error('[Scanner] DB Check Error:', err);
             resolve(row || null);
         });
     });
@@ -144,8 +143,9 @@ async function syncSingleGame (system, filename, options) {
     });
 
     // 4. 强制执行抓取逻辑
-    // 【修改】使用传入的 options，如果没有传则默认全开
-    const defaultOps = { syncInfo: true, syncImages: true, syncVideo: true, syncMarquees: true };
+    // 【修改】使用传入的 options，如果没有传则使用默认值
+    // 默认不下载视频和包装图，防止单点刷新时意外下载大文件
+    const defaultOps = { syncInfo: true, syncImages: true, syncVideo: false, syncMarquees: true, syncBoxArt: false };
     const syncOps = options || defaultOps;
 
     // oldData 传进去是为了复用可能存在的图片路径，但我们会根据 options 决定是否重新下载
@@ -168,7 +168,15 @@ async function processSystemSync (system, options) {
     const sysInfo = sysConfig[system.toLowerCase()] || {};
     // 【修改】适配 systems.json 字段变更：id -> scraper_id
     const scraperId = sysInfo.scraper_id;
-    const syncOps = options || { syncInfo: true, syncImages: true, syncVideo: true, syncMarquees: true };
+
+    // 【修改】默认选项：不下载视频和包装图
+    const syncOps = options || {
+        syncInfo: true,
+        syncImages: true,
+        syncVideo: false,
+        syncMarquees: true,
+        syncBoxArt: false
+    };
 
     if (scraperId) {
         addLog(`Scraper ID: ${scraperId}`, system);
@@ -230,7 +238,18 @@ async function processSystemSync (system, options) {
                     missingMarquee = true;
                 }
             }
-            return missingInfo || missingImg || missingVid || missingMarquee;
+
+            // 【新增】检查 Box Texture 是否缺失
+            let missingBoxArt = false;
+            if (syncOps.syncBoxArt) {
+                const basename = path.basename(g.filename, path.extname(g.filename));
+                const targetPath = path.join(config.mediaDir, system, 'boxtextures', basename + '.png');
+                if (!fs.existsSync(targetPath) || fs.statSync(targetPath).size === 0) {
+                    missingBoxArt = true;
+                }
+            }
+
+            return missingInfo || missingImg || missingVid || missingMarquee || missingBoxArt;
         })
         .map((g) => g.filename);
 
@@ -373,7 +392,8 @@ function findLocalVideo (system, romBasename) {
 }
 
 function deleteLocalImages (system, romBasename) {
-    const types = ['covers', 'screenshots', 'miximages', 'titles', 'videos', 'marquees'];
+    // 【修改】添加 'boxtextures'
+    const types = ['covers', 'screenshots', 'miximages', 'titles', 'videos', 'marquees', 'boxtextures'];
     types.forEach((type) => {
         [...IMG_EXTS, ...VIDEO_EXTS].forEach((ext) => {
             const p = path.join(config.mediaDir, system, type, romBasename + ext);
@@ -432,8 +452,14 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
         players: oldData?.players || ''
     };
 
+    // 【修改】判定是否需要抓取：增加 options.syncBoxArt
     const shouldScrape =
-        options.syncInfo || options.syncImages || options.syncVideo || options.syncMarquees || !oldData;
+        options.syncInfo ||
+        options.syncImages ||
+        options.syncVideo ||
+        options.syncMarquees ||
+        options.syncBoxArt ||
+        !oldData;
 
     if (shouldScrape) {
         addLog(`处理: ${filename}`, system);
@@ -464,6 +490,11 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
 
                 if (options.syncMarquees && scraperData.marqueeUrl) {
                     await downloadMedia(scraperData.marqueeUrl, system, 'marquees', basename + '.png');
+                }
+
+                // 【新增】下载 Box Texture
+                if (options.syncBoxArt && scraperData.boxTextureUrl) {
+                    await downloadMedia(scraperData.boxTextureUrl, system, 'boxtextures', basename + '.png');
                 }
             }
         } catch (e) {
