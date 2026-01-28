@@ -651,6 +651,7 @@
                 flex-direction: column;
                 overflow: hidden;
             }
+            /* 【修改】顶部栏增加过渡效果 */
             .detail-top-bar {
                 position: absolute;
                 top: 0;
@@ -664,6 +665,12 @@
                 z-index: 20;
                 border-bottom: none;
                 pointer-events: none;
+                transition: transform 0.3s ease-in-out; /* 新增过渡动画 */
+            }
+
+            /* 【新增】隐藏状态：向上平移出视野 */
+            .detail-top-bar.hidden {
+                transform: translateY(-100%);
             }
             .detail-close-btn {
                 width: 32px;
@@ -936,10 +943,6 @@
                 display: flex;
                 justify-content: flex-end;
                 gap: 10px;
-            }
-            .ver-item.selected {
-                border-color: var(--primary);
-                background: #2d2d36;
             }
             .dl-btn {
                 background: linear-gradient(135deg, #705df2, #a29bfe);
@@ -1380,12 +1383,12 @@
                 :style="{ height: '100%' }"
             >
                 <div v-if="selectedGame" class="detail-flex-wrapper">
-                    <div class="detail-top-bar">
+                    <div class="detail-top-bar" :class="{ 'hidden': !isDetailHeaderVisible || isPreviewOpen }">
                         <div class="detail-close-btn" @click="closeDetail">
                             <i class="ri-close-fill" style="font-size: 18px; color: rgba(255, 255, 255, 0.4)"></i>
                         </div>
                     </div>
-                    <div class="detail-scroll-container">
+                    <div class="detail-scroll-container" @scroll="handleDetailScroll">
                         <div class="swipe-area">
                             <van-swipe
                                 ref="imgSwipe"
@@ -1514,13 +1517,7 @@
                             <van-divider content-position="left" style="border-color: rgba(255, 255, 255, 0.1)"
                                 >Available Files ({{ versions.length }})</van-divider
                             >
-                            <div
-                                class="ver-item"
-                                v-for="ver in versions"
-                                :key="ver.id"
-                                :class="{ selected: currentVersionId === ver.id }"
-                                @click="switchVersion(ver)"
-                            >
+                            <div class="ver-item" v-for="ver in versions" :key="ver.id">
                                 <div class="v-file">{{ ver.filename }}</div>
                                 <div class="ver-btn-group">
                                     <button v-if="canPlay()" class="play-btn" @click.stop="startGame(ver)">
@@ -1755,6 +1752,30 @@
             const app = createApp({
                 directives: { lazy: vLazy },
                 setup() {
+                    const isDetailHeaderVisible = ref(true);
+                    let lastDetailScrollTop = 0;
+                    const handleDetailScroll = (e) => {
+                        const scrollTop = e.target.scrollTop;
+
+                        // 忽略负值的滚动（iOS回弹效果）
+                        if (scrollTop < 0) return;
+
+                        // 如果在顶部，总是显示
+                        if (scrollTop <= 0) {
+                            isDetailHeaderVisible.value = true;
+                        } else {
+                            // 向下滚动（内容上移） -> 隐藏头部
+                            if (scrollTop > lastDetailScrollTop && scrollTop > 60) {
+                                isDetailHeaderVisible.value = false;
+                            }
+                            // 向上滚动（内容下移） -> 显示头部
+                            else if (scrollTop < lastDetailScrollTop) {
+                                isDetailHeaderVisible.value = true;
+                            }
+                        }
+                        lastDetailScrollTop = scrollTop;
+                    };
+
                     const systems = ref([]);
                     const currentSystemObj = ref(null);
                     const allGames = ref([]);
@@ -1764,15 +1785,13 @@
                     const showDetail = ref(false);
                     const selectedGame = ref(null);
                     const versions = ref([]);
-                    const currentVersionId = ref(null);
                     const currentSwipeIndex = ref(0);
                     const imgSwipe = ref(null);
                     const isPreviewOpen = ref(false);
-                    // Preview State
                     const previewImages = ref([]);
                     const previewStartIndex = ref(0);
                     const activePreviewIndex = ref(0);
-                    const isRefreshing = ref(false); // 新增：刷新状态
+                    const isRefreshing = ref(false);
 
                     const globalStatus = ref({
                         runningSystem: null,
@@ -1785,7 +1804,7 @@
                     const logs = ref([]);
                     const progress = ref({ current: 0, total: 0 });
                     const showSyncDialog = ref(false);
-                    // 【修改】默认 syncVideo: false, syncBoxArt: false
+                    // 【修改】syncOps 默认增加 incremental: true
                     const syncOps = ref({
                         syncInfo: true,
                         syncImages: true,
@@ -1823,7 +1842,7 @@
                     const lastScrollTop = ref(0);
 
                     const showEmulator = ref(false);
-                    const showSingleSyncDialog = ref(false); // 新增：单游戏同步弹窗控制
+                    const showSingleSyncDialog = ref(false);
 
                     watch(keyword, (newVal) => {
                         if (newVal === '' && currentSystemObj.value) {
@@ -2208,17 +2227,18 @@
                         selectedGame.value = game;
                         currentSwipeIndex.value = 0;
                         showDetail.value = true;
+                        isDetailHeaderVisible.value = true;
+                        lastDetailScrollTop = 0;
+
                         nextTick(() => {
                             const detailContainer = document.querySelector('.detail-scroll-container');
                             if (detailContainer) detailContainer.scrollTop = 0;
                         });
                         versions.value = [];
-                        currentVersionId.value = null;
                         const res = await fetch(
                             `/api/game-versions?system=${currentSystemObj.value.name}&name=${encodeURIComponent(game.name)}`
                         );
                         versions.value = await res.json();
-                        if (versions.value.length > 0) currentVersionId.value = versions.value[0].id;
                         nextTick(() => {
                             if (imgSwipe.value) imgSwipe.value.swipeTo(0, { immediate: true });
                             checkAutoPlay(0);
@@ -2274,10 +2294,6 @@
                         if (val === false) window.history.back();
                     };
                     const handleLogClose = () => window.history.back();
-                    const switchVersion = (ver) => {
-                        currentVersionId.value = ver.id;
-                        if (imgSwipe.value) imgSwipe.value.swipeTo(0);
-                    };
                     const swipeTo = (idx) => {
                         if (imgSwipe.value) imgSwipe.value.swipeTo(idx);
                     };
@@ -2348,10 +2364,13 @@
                                   .map((p) => encodeURIComponent(p))
                                   .join('/')
                             : '';
+
+                    // 【修改】移除了 onImgLoad 中对 naturalHeight 的检测逻辑
                     const onImgLoad = (e, media) => {
                         e.target.classList.add('loaded');
                         loadedFlags.value[media.url] = true;
                     };
+
                     const download = (id) => (window.location.href = `/api/download/${id}`);
                     const getGamePoster = (game) => {
                         // 优先级：封面 -> 包装 -> Logo -> 截图 -> 视频
@@ -2451,15 +2470,14 @@
                         window.EJS_player = null;
                     };
 
-                    // === 新增：单游戏刷新逻辑 (弹出选项框) ===
                     const refreshGame = () => {
                         if (isRefreshing.value) return;
                         showSingleSyncDialog.value = true;
                     };
 
-                    // === 新增：执行刷新 (包含 options 和所有版本) ===
                     const doRefreshGame = async () => {
-                        if (isRefreshing.value || !currentVersionId.value) return;
+                        // 只要有 versions 就可以刷新
+                        if (isRefreshing.value || versions.value.length === 0) return;
 
                         try {
                             isRefreshing.value = true;
@@ -2490,7 +2508,6 @@
                             showSingleSyncDialog.value = false;
                         }
                     };
-                    // ===
 
                     const groupedSystems = computed(() => {
                         if (!systems.value.length) return {};
@@ -2512,8 +2529,8 @@
                     const systemIndexList = computed(() => Object.keys(groupedSystems.value));
 
                     const marqueeUrl = computed(() => {
-                        if (!currentVersionId.value) return '';
-                        const ver = versions.value.find((v) => v.id === currentVersionId.value);
+                        if (versions.value.length === 0) return '';
+                        const ver = versions.value[0];
                         if (ver && ver.gallery) {
                             const m = ver.gallery.find((img) => img.type === 'marquees');
                             return m ? m.url : '';
@@ -2521,35 +2538,41 @@
                         return '';
                     });
 
-                    // 【修改】重新编排轮播图顺序
+                    // 【修改】重新编排轮播图顺序，直接取第一个版本
                     const displayMedia = computed(() => {
                         const list = [];
+                        if (versions.value.length === 0) return list;
+
+                        // 直接取第一个版本作为代表
+                        const ver = versions.value[0];
+
                         // 1. Video (放最前面)
-                        if (selectedGame.value && selectedGame.value.video_path) {
-                            list.push({ type: 'video', url: selectedGame.value.video_path });
+                        // 注意：单文件模式下，Video 路径通常也在 gallery 里，但数据库字段也存了 video_path
+                        // 优先使用 selectedGame (列表数据) 或 ver (详情数据) 的 video_path
+                        const vPath = ver.video_path || selectedGame.value.video_path;
+                        if (vPath) {
+                            list.push({ type: 'video', url: vPath });
                         }
-                        if (currentVersionId.value) {
-                            const ver = versions.value.find((v) => v.id === currentVersionId.value);
-                            if (ver && ver.gallery && ver.gallery.length > 0) {
-                                // 分类提取
-                                const covers = ver.gallery.filter((g) => g.type === 'covers');
-                                const boxtextures = ver.gallery.filter((g) => g.type === 'boxtextures');
-                                const others = ver.gallery.filter(
-                                    (g) => g.type !== 'covers' && g.type !== 'boxtextures' && g.type !== 'marquees' // Logo 不放轮播图
-                                );
 
-                                // 2. Cover
-                                list.push(...covers);
+                        if (ver.gallery && ver.gallery.length > 0) {
+                            // 分类提取
+                            const covers = ver.gallery.filter((g) => g.type === 'covers');
+                            const boxtextures = ver.gallery.filter((g) => g.type === 'boxtextures');
+                            const others = ver.gallery.filter(
+                                (g) => g.type !== 'covers' && g.type !== 'boxtextures' && g.type !== 'marquees' // Logo 不放轮播图
+                            );
 
-                                // 3. Boxtextures (放第二个位置)
-                                list.push(...boxtextures);
+                            // 2. Cover
+                            list.push(...covers);
 
-                                // 4. Others (Screenshots, etc.)
-                                list.push(...others);
-                            } else if (selectedGame.value.image_path) {
-                                // 如果没有 gallery，回退使用单一封面
-                                list.push({ type: 'Cover', url: selectedGame.value.image_path });
-                            }
+                            // 3. Boxtextures (放第二个位置)
+                            list.push(...boxtextures);
+
+                            // 4. Others (Screenshots, etc.)
+                            list.push(...others);
+                        } else if (ver.image_path) {
+                            // 如果没有 gallery，回退使用单一封面
+                            list.push({ type: 'Cover', url: ver.image_path });
                         }
                         return list;
                     });
@@ -2573,7 +2596,6 @@
                         showDetail,
                         selectedGame,
                         versions,
-                        currentVersionId,
                         displayMedia,
                         marqueeUrl,
                         currentSwipeIndex,
@@ -2583,7 +2605,6 @@
                         handleUiBack,
                         openDetail,
                         closeDetail,
-                        switchVersion,
                         swipeTo,
                         onSwipeChange,
                         previewBig,
@@ -2641,11 +2662,12 @@
                         activePreviewIndex,
                         closePreview,
                         onPreviewChange,
-                        // New Export
                         refreshGame,
                         doRefreshGame,
                         isRefreshing,
-                        showSingleSyncDialog
+                        showSingleSyncDialog,
+                        isDetailHeaderVisible,
+                        handleDetailScroll
                     };
                 }
             });
