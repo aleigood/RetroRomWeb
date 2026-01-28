@@ -1383,8 +1383,22 @@
                                 <span class="tag" v-if="selectedGame.players"
                                     ><i class="ri-user-3-fill"></i> {{ selectedGame.players }}</span
                                 >
-                                <span class="tag" v-if="selectedGame.publisher">{{ selectedGame.publisher }}</span>
-                                <span class="tag" v-if="selectedGame.developer">{{ selectedGame.developer }}</span>
+
+                                <template
+                                    v-if="selectedGame.developer && selectedGame.publisher && selectedGame.developer === selectedGame.publisher"
+                                >
+                                    <span class="tag"
+                                        ><i class="ri-building-2-fill"></i> {{ selectedGame.developer }}</span
+                                    >
+                                </template>
+                                <template v-else>
+                                    <span class="tag" v-if="selectedGame.developer"
+                                        ><i class="ri-building-2-fill"></i> {{ selectedGame.developer }}</span
+                                    >
+                                    <span class="tag" v-if="selectedGame.publisher"
+                                        ><i class="ri-earth-fill"></i> {{ selectedGame.publisher }}</span
+                                    >
+                                </template>
                             </div>
                             <div class="d-desc">{{ selectedGame.desc || '暂无描述信息。' }}</div>
                             <van-divider content-position="left" style="border-color: rgba(255, 255, 255, 0.1)"
