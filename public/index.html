@@ -706,6 +706,34 @@
                 padding-top: 60px;
                 box-sizing: border-box;
             }
+            /* 【新增】空状态下的背景样式 */
+            .empty-state-bg {
+                /* 使用深色径向渐变，比纯黑更有质感 */
+                background: radial-gradient(circle at center, #1c1c22 0%, #08080a 100%);
+                color: #555;
+                flex-direction: column;
+
+                /* 关键：添加底部边框和阴影，形成视觉分割 */
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.8);
+
+                position: relative;
+            }
+
+            /* 【新增】添加淡淡的网格纹理，增加复古科技感，不再单调 */
+            .empty-state-bg::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-image:
+                    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+                background-size: 40px 40px; /* 网格大小 */
+                pointer-events: none;
+            }
             .swipe-bg {
                 position: absolute;
                 width: 100%;
@@ -848,7 +876,7 @@
                 width: 32px;
                 height: 32px;
                 /* 样式调整：类似关闭按钮的淡雅风格 */
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.03);
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
@@ -1405,11 +1433,9 @@
                                     </van-swipe-item>
                                 </template>
                                 <van-swipe-item v-else
-                                    ><div
-                                        class="swipe-inner"
-                                        style="background: #111; color: #555; flex-direction: column"
-                                    >
-                                        <i class="ri-image-line" style="font-size: 50px"></i><span>No Preview</span>
+                                    ><div class="swipe-inner empty-state-bg">
+                                        <i class="ri-image-line" style="font-size: 50px; opacity: 0.5"></i>
+                                        <span style="margin-top: 10px; font-size: 14px; opacity: 0.5">NO PREVIEW</span>
                                     </div></van-swipe-item
                                 >
                             </van-swipe>
@@ -1449,7 +1475,7 @@
                                 <img v-lazy="getImgUrl(marqueeUrl)" class="d-marquee-bg lazy-img" />
                                 <img v-lazy="getImgUrl(marqueeUrl)" class="d-marquee-img lazy-img" />
                             </div>
-                            <div v-else style="height: 60px; width: 100%;"></div>
+                            <div v-else style="height: 60px; width: 100%"></div>
                             <div class="d-title-row">
                                 <div class="d-title">{{ selectedGame.name }}</div>
                             </div>
@@ -1542,9 +1568,7 @@
                 @confirm="doRefreshGame"
             >
                 <div style="padding: 16px 24px">
-                    <div
-                        style="margin-bottom: 16px; color: #aaa; font-size: 13px; line-height: 1.5"
-                    >
+                    <div style="margin-bottom: 16px; color: #aaa; font-size: 13px; line-height: 1.5">
                         确定要重新扫描此游戏吗？这将覆盖所有关联版本文件的简介、评分和图片。
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 12px">
@@ -1611,7 +1635,7 @@
                 <template #cover>
                     <div class="preview-top-bar">
                         <div class="detail-close-btn" @click="closePreview">
-                            <i class="ri-close-fill" style="font-size: 18px; color: rgba(255, 255, 255, 0.3)"></i>
+                            <i class="ri-close-fill" style="font-size: 18px; color: rgba(255, 255, 255, 0.4)"></i>
                         </div>
                     </div>
 
