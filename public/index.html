@@ -56,7 +56,7 @@
                 /* 禁止长按选中文字 */
                 -webkit-user-select: none;
                 user-select: none;
-                /* 【新增】禁止长按弹出系统菜单 */
+                /* 禁止长按弹出系统菜单 */
                 -webkit-touch-callout: none;
             }
 
@@ -780,8 +780,10 @@
                 color: rgba(255, 255, 255, 0.8);
                 z-index: 10;
             }
+            /* 【修改】增加 position: relative 以作为定位基准 */
             .d-body {
                 padding: 24px;
+                position: relative;
             }
             .d-marquee-box {
                 position: relative;
@@ -836,21 +838,28 @@
                 word-wrap: break-word; /* 强制长单词换行 */
                 overflow-wrap: break-word;
             }
-            .d-refresh-btn {
+
+            /* 【修改】重写刷新按钮样式，使其悬浮在 d-body 右上角 */
+            .d-floating-refresh-btn {
+                position: absolute;
+                top: 16px; /* 稍微靠上一点，不占用内容空间 */
+                right: 16px; /* 靠右 */
+                z-index: 20;
                 width: 32px;
                 height: 32px;
-                background: rgba(255, 255, 255, 0.1);
+                /* 样式调整：类似关闭按钮的淡雅风格 */
+                background: rgba(255, 255, 255, 0.05);
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 cursor: pointer;
-                flex-shrink: 0; /* 禁止按钮被压缩 */
-                margin-top: 2px; /* 视觉微调，对齐首行文字 */
-                transition: background 0.2s;
+                border: 1px solid rgba(255, 255, 255, 0.1); /* 很淡的边框 */
+                transition: all 0.2s;
             }
-            .d-refresh-btn:active {
-                background: rgba(255, 255, 255, 0.25);
+            .d-floating-refresh-btn:active {
+                background: rgba(255, 255, 255, 0.2);
+                transform: scale(0.95);
             }
             /* === */
 
@@ -1345,7 +1354,7 @@
                 <div v-if="selectedGame" class="detail-flex-wrapper">
                     <div class="detail-top-bar">
                         <div class="detail-close-btn" @click="closeDetail">
-                            <i class="ri-close-fill" style="font-size: 18px; color: rgba(255, 255, 255, 0.3)"></i>
+                            <i class="ri-close-fill" style="font-size: 18px; color: rgba(255, 255, 255, 0.4)"></i>
                         </div>
                     </div>
                     <div class="detail-scroll-container">
@@ -1424,23 +1433,25 @@
                             </div>
                         </div>
                         <div class="d-body">
+                            <div
+                                class="d-floating-refresh-btn"
+                                @click.stop="refreshGame"
+                                :style="{ opacity: isRefreshing ? 0.7 : 1 }"
+                            >
+                                <i
+                                    class="ri-refresh-line"
+                                    :class="{ 'spin-anim': isRefreshing }"
+                                    style="color: rgba(255, 255, 255, 0.4); font-size: 16px"
+                                ></i>
+                            </div>
+
                             <div v-if="marqueeUrl" class="d-marquee-box">
                                 <img v-lazy="getImgUrl(marqueeUrl)" class="d-marquee-bg lazy-img" />
                                 <img v-lazy="getImgUrl(marqueeUrl)" class="d-marquee-img lazy-img" />
                             </div>
+                            <div v-else style="height: 60px; width: 100%;"></div>
                             <div class="d-title-row">
                                 <div class="d-title">{{ selectedGame.name }}</div>
-                                <div
-                                    class="d-refresh-btn"
-                                    @click.stop="refreshGame"
-                                    :style="{ opacity: isRefreshing ? 0.7 : 1 }"
-                                >
-                                    <i
-                                        class="ri-refresh-line"
-                                        :class="{ 'spin-anim': isRefreshing }"
-                                        style="color: #705df2"
-                                    ></i>
-                                </div>
                             </div>
                             <div class="d-tags">
                                 <span class="tag" v-if="selectedGame.rating > 0" style="color: #ffd21e"
@@ -1519,6 +1530,37 @@
                     <van-checkbox v-model="syncOps.syncVideo" shape="square" checked-color="#705df2"
                         >游戏视频 (Video)</van-checkbox
                     >
+                </div>
+            </van-dialog>
+
+            <van-dialog
+                v-model:show="showSingleSyncDialog"
+                title="重新抓取元数据"
+                show-cancel-button
+                confirm-button-text="开始刷新"
+                confirm-button-color="#705df2"
+                @confirm="doRefreshGame"
+            >
+                <div style="padding: 16px 24px">
+                    <div
+                        style="margin-bottom: 16px; color: #aaa; font-size: 13px; line-height: 1.5"
+                    >
+                        确定要重新扫描此游戏吗？这将覆盖所有关联版本文件的简介、评分和图片。
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 12px">
+                        <van-checkbox v-model="syncOps.syncInfo" shape="square" checked-color="#705df2"
+                            >游戏信息 (Info)</van-checkbox
+                        >
+                        <van-checkbox v-model="syncOps.syncImages" shape="square" checked-color="#705df2"
+                            >游戏图片 (封面/截图)</van-checkbox
+                        >
+                        <van-checkbox v-model="syncOps.syncMarquees" shape="square" checked-color="#705df2"
+                            >Marquees (Logo)</van-checkbox
+                        >
+                        <van-checkbox v-model="syncOps.syncVideo" shape="square" checked-color="#705df2"
+                            >游戏视频 (Video)</van-checkbox
+                        >
+                    </div>
                 </div>
             </van-dialog>
 
@@ -1724,6 +1766,7 @@
                     const lastScrollTop = ref(0);
 
                     const showEmulator = ref(false);
+                    const showSingleSyncDialog = ref(false); // 新增：单游戏同步弹窗控制
 
                     watch(keyword, (newVal) => {
                         if (newVal === '' && currentSystemObj.value) {
@@ -2349,30 +2392,30 @@
                         window.EJS_player = null;
                     };
 
-                    // === 新增：单游戏刷新逻辑 ===
-                    const refreshGame = async () => {
+                    // === 新增：单游戏刷新逻辑 (弹出选项框) ===
+                    const refreshGame = () => {
+                        if (isRefreshing.value) return;
+                        showSingleSyncDialog.value = true;
+                    };
+
+                    // === 新增：执行刷新 (包含 options 和所有版本) ===
+                    const doRefreshGame = async () => {
                         if (isRefreshing.value || !currentVersionId.value) return;
 
                         try {
-                            await vant.showConfirmDialog({
-                                title: '重新抓取元数据',
-                                message: '确定要重新扫描此游戏吗？这将覆盖当前的简介、评分和图片。',
-                                confirmButtonColor: '#705df2'
-                            });
-
                             isRefreshing.value = true;
-                            // 获取当前选中的文件名
-                            const ver = versions.value.find((v) => v.id === currentVersionId.value);
-                            if (!ver) return;
-
-                            await fetch('/api/scan-single', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    system: currentSystemObj.value.name,
-                                    filename: ver.filename
-                                })
-                            });
+                            // 遍历当前游戏的所有版本文件，逐一发送同步请求
+                            for (const ver of versions.value) {
+                                await fetch('/api/scan-single', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        system: currentSystemObj.value.name,
+                                        filename: ver.filename,
+                                        options: syncOps.value // 传递用户勾选的选项
+                                    })
+                                });
+                            }
 
                             vant.showToast({ message: '刷新成功，请重新打开详情页查看', icon: 'success' });
                             // 稍微延迟后关闭详情页，触发列表刷新
@@ -2381,12 +2424,11 @@
                                 loadGames(currentSystemObj.value); // 刷新列表数据
                             }, 1000);
                         } catch (e) {
-                            if (e !== 'cancel') {
-                                vant.showToast('刷新请求失败');
-                                console.error(e);
-                            }
+                            vant.showToast('刷新请求失败');
+                            console.error(e);
                         } finally {
                             isRefreshing.value = false;
+                            showSingleSyncDialog.value = false;
                         }
                     };
                     // ===
@@ -2526,7 +2568,9 @@
                         onPreviewChange,
                         // New Export
                         refreshGame,
-                        isRefreshing
+                        doRefreshGame,
+                        isRefreshing,
+                        showSingleSyncDialog
                     };
                 }
             });

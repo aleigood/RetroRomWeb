@@ -129,9 +129,9 @@ router.post('/api/scan/:system', async (ctx) => {
     }
 });
 
-// 【新增】单游戏强制刷新
+// 【修改】单游戏强制刷新 - 支持接收 options
 router.post('/api/scan-single', async (ctx) => {
-    const { system, filename } = ctx.request.body;
+    const { system, filename, options } = ctx.request.body;
     if (!system || !filename) {
         ctx.status = 400;
         ctx.body = { error: 'Missing system or filename' };
@@ -139,7 +139,8 @@ router.post('/api/scan-single', async (ctx) => {
     }
 
     try {
-        await scanner.syncSingleGame(system, filename);
+        // 将前端传来的 options 传递给 scanner
+        await scanner.syncSingleGame(system, filename, options);
         ctx.body = { status: 'ok' };
     } catch (e) {
         ctx.status = 500;

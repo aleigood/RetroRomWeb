@@ -115,7 +115,7 @@ async function addToSyncQueue (system, options = {}) {
 }
 
 // === 新增：强制同步单个游戏 (API入口) ===
-async function syncSingleGame (system, filename) {
+async function syncSingleGame (system, filename, options) {
     if (globalStatus.runningSystem) {
         throw new Error('Global sync is running, please wait.');
     }
@@ -130,6 +130,10 @@ async function syncSingleGame (system, filename) {
     // 2. 查找现有数据（为了路径或备份）
     const oldData = await new Promise((resolve) => {
         db.get('SELECT * FROM games WHERE system = ? AND filename = ?', [system, filename], (err, row) => {
+            // 【修改点】增加错误处理
+            if (err) {
+                console.error('[Scanner] Check old data error:', err);
+            }
             resolve(row || null);
         });
     });
@@ -140,11 +144,12 @@ async function syncSingleGame (system, filename) {
     });
 
     // 4. 强制执行抓取逻辑
-    // 注意：我们将 oldData 传进去，以便 processNewGame 能复用 image_path（如果刮削失败）
-    // 但是我们将 syncOps 全部设为 true，强迫它去尝试 scraper
-    const forceOps = { syncInfo: true, syncImages: true, syncVideo: true, syncMarquees: true };
+    // 【修改】使用传入的 options，如果没有传则默认全开
+    const defaultOps = { syncInfo: true, syncImages: true, syncVideo: true, syncMarquees: true };
+    const syncOps = options || defaultOps;
 
-    await processNewGame(system, filename, oldData, forceOps, scraperId);
+    // oldData 传进去是为了复用可能存在的图片路径，但我们会根据 options 决定是否重新下载
+    await processNewGame(system, filename, oldData, syncOps, scraperId);
 
     return true;
 }
