@@ -56,7 +56,7 @@
                 /* 禁止长按选中文字 */
                 -webkit-user-select: none;
                 user-select: none;
-                /* 【新增】禁止长按弹出系统菜单 (如保存图片等) */
+                /* 【新增】禁止长按弹出系统菜单 */
                 -webkit-touch-callout: none;
             }
 
@@ -66,17 +66,13 @@
                 position: relative;
                 overflow: hidden;
             }
-            /* 【新增】全局图片和链接禁止长按呼出菜单 */
             img,
-            a {
-                -webkit-touch-callout: none !important;
-                pointer-events: auto; /* 确保点击事件依然有效 */
-            }
-
-            /* 【新增】确保游戏卡片容器也禁止呼出菜单 */
+            a,
             .game-card {
                 -webkit-touch-callout: none !important;
+                pointer-events: auto;
             }
+
             /* === 基础组件样式 === */
             .navbar {
                 background: rgba(28, 28, 34, 0.5);
@@ -188,7 +184,6 @@
             .van-search__field .van-field__control {
                 color: #f2f2f2 !important;
                 font-weight: 500;
-                /* 确保输入框文字可选，否则无法移动光标 */
                 -webkit-user-select: text !important;
                 user-select: text !important;
             }
@@ -228,7 +223,6 @@
             .van-index-bar__sidebar {
                 display: none !important;
             }
-
             .index-hint {
                 position: fixed;
                 right: 4px;
@@ -263,14 +257,12 @@
                 background: rgba(0, 0, 0, 0.3);
                 border-radius: 2px;
             }
-
             .index-hint.active-scroll {
                 opacity: 0.8;
             }
             body.touching-sidebar .index-hint {
                 opacity: 0;
             }
-
             .custom-sidebar {
                 position: fixed !important;
                 right: 0 !important;
@@ -292,7 +284,6 @@
                 transition: opacity 0.2s;
                 pointer-events: none !important;
             }
-
             body.touching-sidebar .custom-sidebar {
                 background: rgba(0, 0, 0, 0.7) !important;
                 border-top-left-radius: 16px;
@@ -301,7 +292,6 @@
                 padding: 8px 0;
                 pointer-events: auto !important;
             }
-
             .custom-index-char {
                 padding: 2px 0 !important;
                 text-align: center;
@@ -317,7 +307,6 @@
                 color: #fff !important;
                 transform: scale(1.6);
             }
-
             .side-bubble {
                 position: fixed;
                 right: 45px;
@@ -348,7 +337,6 @@
                 transform: rotate(45deg);
                 display: block;
             }
-
             .van-index-anchor {
                 background: transparent !important;
                 color: var(--primary);
@@ -356,7 +344,6 @@
                 font-size: 18px;
                 padding: 10px 0 10px 4px !important;
             }
-
             .virtual-wrapper {
                 position: relative;
                 width: 100%;
@@ -376,7 +363,6 @@
                 font-size: 18px;
                 padding-left: 4px;
             }
-
             .slide-left-enter-active,
             .slide-left-leave-active,
             .slide-right-enter-active,
@@ -418,7 +404,6 @@
                 transform: translateX(100%);
                 z-index: 20;
             }
-
             .sys-group {
                 display: flex;
                 flex-direction: column;
@@ -513,7 +498,6 @@
                 overflow: hidden;
                 line-height: 1.5;
             }
-
             .intro-header {
                 margin: 0 0 20px 0;
                 padding: 24px;
@@ -549,7 +533,6 @@
                 z-index: 2;
                 font-weight: 500;
             }
-
             .game-card {
                 background: var(--bg-card);
                 border-radius: 14px;
@@ -607,7 +590,6 @@
                 background: #18181c;
                 color: #444;
             }
-
             .ver-badge {
                 position: absolute;
                 top: 8px;
@@ -659,7 +641,6 @@
                 justify-content: center;
                 margin-bottom: 2px;
             }
-
             .detail-popup {
                 background: #121212 !important;
                 display: block;
@@ -866,30 +847,25 @@
                 margin-bottom: 30px;
                 white-space: pre-wrap;
             }
-
-            /* === 修复布局问题 === */
             .ver-item {
                 background: #25252b;
                 border-radius: 16px;
                 padding: 16px;
                 margin-bottom: 12px;
                 border: 1px solid rgba(255, 255, 255, 0.05);
-                /* 关键修改：垂直排列 */
                 display: flex;
                 flex-direction: column;
-                align-items: stretch; /* 让子元素占满宽度 */
-                gap: 12px; /* 上下间距 */
+                align-items: stretch;
+                gap: 12px;
             }
             .v-file {
                 font-size: 14px;
                 color: #f2f2f2;
-                /* 允许长文件名换行，不再截断 */
                 white-space: normal;
                 word-break: break-all;
                 line-height: 1.4;
             }
             .ver-btn-group {
-                /* 按钮组容器：右对齐 */
                 display: flex;
                 justify-content: flex-end;
                 gap: 10px;
@@ -898,7 +874,6 @@
                 border-color: var(--primary);
                 background: #2d2d36;
             }
-
             .dl-btn {
                 background: linear-gradient(135deg, #705df2, #a29bfe);
                 color: white;
@@ -923,7 +898,6 @@
                 align-items: center;
                 gap: 6px;
             }
-
             .log-popup {
                 background: #1c1c22 !important;
                 color: #ccc;
@@ -952,8 +926,6 @@
                 padding: 6px 0;
                 font-size: 12px;
             }
-
-            /* === 模拟器覆盖层样式修正 (布局重构) === */
             #emulator-overlay {
                 position: fixed;
                 top: 0;
@@ -963,40 +935,32 @@
                 background: #000;
                 z-index: 9999;
                 display: flex;
-                flex-direction: column; /* 垂直排列：顶部栏 -> 游戏 -> 底部占位 */
+                flex-direction: column;
             }
-
-            /* 1. 顶部控制栏 */
             .emu-top-bar {
                 height: 60px;
                 width: 100%;
-                background: #101014; /* 略亮的背景色 */
+                background: #101014;
                 display: flex;
-                justify-content: center; /* 按钮居中 */
+                justify-content: center;
                 align-items: center;
                 gap: 30px;
                 z-index: 10002;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                flex-shrink: 0; /* 防止被压缩 */
+                flex-shrink: 0;
             }
-
-            /* 2. 游戏画面区域 */
             #game {
                 width: 100%;
-                flex: 1; /* 自动填满剩余高度 */
+                flex: 1;
                 background: #000;
             }
-
-            /* 3. 底部占位区块 (10%) */
             .emu-bottom-spacer {
-                height: 10vh; /* 占屏幕高度的 10% */
+                height: 10vh;
                 width: 100%;
                 background: #000;
-                flex-shrink: 0; /* 固定高度，不压缩 */
+                flex-shrink: 0;
                 z-index: 10000;
             }
-
-            /* 按钮样式 */
             .emu-btn {
                 background: rgba(255, 255, 255, 0.1);
                 border: 1px solid rgba(255, 255, 255, 0.15);
@@ -1024,6 +988,60 @@
             }
             .emu-btn.danger:active {
                 background: rgba(235, 77, 75, 0.4);
+            }
+
+            /* === Image Preview Customization - Fixed Positioning === */
+            .preview-top-bar {
+                position: fixed; /* 使用 fixed 定位，相对于视口，防止被组件内部容器影响 */
+                top: 0;
+                left: 0;
+                width: 100%; /* 强制占满全屏宽度 */
+                height: 60px;
+                display: flex;
+                align-items: center;
+                justify-content: center; /* 确保内容水平居中 */
+                z-index: 3500; /* 高于 Vant 默认层级 */
+                pointer-events: none; /* 让点击穿透，不阻挡下方图片操作 */
+            }
+            .preview-close-btn {
+                width: 32px;
+                height: 32px;
+                background: rgba(0, 0, 0, 0.4);
+                backdrop-filter: blur(10px);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                pointer-events: auto; /* 按钮自身恢复可点击 */
+                transition: background 0.2s;
+            }
+            .preview-close-btn:active {
+                background: rgba(255, 255, 255, 0.3);
+            }
+            .preview-dots {
+                position: fixed; /* 使用 fixed 定位 */
+                bottom: 40px; /* 稍微抬高 */
+                left: 0;
+                width: 100%; /* 强制占满全屏宽度 */
+                display: flex;
+                justify-content: center; /* 水平居中 */
+                gap: 8px;
+                z-index: 3500;
+                pointer-events: none;
+            }
+            .preview-dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.2);
+                transition: all 0.3s;
+            }
+            .preview-dot.active {
+                background: #fff;
+                transform: scale(1.4);
+                box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
             }
 
             @keyframes gradientMove {
@@ -1483,6 +1501,33 @@
                     <div v-for="(log, i) in logs" :key="i" class="log-item">{{ log }}</div>
                 </div>
             </van-popup>
+
+            <van-image-preview
+                v-model:show="isPreviewOpen"
+                :images="previewImages"
+                :start-position="previewStartIndex"
+                :show-index="false"
+                :close-on-click-overlay="false"
+                @click-overlay="closePreview"
+                @change="onPreviewChange"
+            >
+                <template #cover>
+                    <div class="preview-top-bar">
+                        <div class="detail-close-btn" @click="closePreview">
+                            <i class="ri-close-fill" style="font-size: 18px; color: rgba(255, 255, 255, 0.3)"></i>
+                        </div>
+                    </div>
+
+                    <div class="preview-dots" v-if="previewImages.length > 1">
+                        <div
+                            v-for="(img, idx) in previewImages"
+                            :key="idx"
+                            class="preview-dot"
+                            :class="{ active: activePreviewIndex === idx }"
+                        ></div>
+                    </div>
+                </template>
+            </van-image-preview>
         </div>
 
         <script src="https://fastly.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
@@ -1577,7 +1622,11 @@
                     const currentSwipeIndex = ref(0);
                     const imgSwipe = ref(null);
                     const isPreviewOpen = ref(false);
-                    let imagePreviewInstance = null;
+                    // Preview State
+                    const previewImages = ref([]);
+                    const previewStartIndex = ref(0);
+                    const activePreviewIndex = ref(0);
+
                     const globalStatus = ref({
                         runningSystem: null,
                         pendingQueue: [],
@@ -1925,10 +1974,6 @@
                         const state = event.state;
                         if (isPreviewOpen.value) {
                             isPreviewOpen.value = false;
-                            if (imagePreviewInstance) {
-                                imagePreviewInstance.close();
-                                imagePreviewInstance = null;
-                            }
                             return;
                         }
                         const targetPage = state && state.page ? state.page : 'home';
@@ -1977,11 +2022,9 @@
                             }
                         });
 
-                        // 【修改】全局禁止长按菜单，只允许输入框使用（如粘贴功能）
                         window.addEventListener(
                             'contextmenu',
                             (e) => {
-                                // 如果不是输入框或文本域，一律阻止菜单弹出
                                 if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
                                     e.preventDefault();
                                 }
@@ -2102,6 +2145,7 @@
                             });
                         }
                     };
+
                     const previewBig = (idx) => {
                         const imagesOnly = displayMedia.value.filter((m) => m.type !== 'video');
                         if (imagesOnly.length === 0) return;
@@ -2109,19 +2153,24 @@
                         if (currentMedia.type === 'video') return;
                         const imgIndex = imagesOnly.indexOf(currentMedia);
                         if (imgIndex === -1) return;
+
+                        previewImages.value = imagesOnly.map((i) => getImgUrl(i.url));
+                        previewStartIndex.value = imgIndex;
+                        activePreviewIndex.value = imgIndex;
+
                         window.history.pushState({ page: 'preview' }, '');
                         isPreviewOpen.value = true;
                         pauseAllVideos();
-                        imagePreviewInstance = vant.showImagePreview({
-                            images: imagesOnly.map((i) => getImgUrl(i.url)),
-                            startPosition: imgIndex,
-                            closeable: true,
-                            onClose: () => {
-                                if (isPreviewOpen.value) window.history.back();
-                                imagePreviewInstance = null;
-                            }
-                        });
                     };
+
+                    const onPreviewChange = (index) => {
+                        activePreviewIndex.value = index;
+                    };
+
+                    const closePreview = () => {
+                        window.history.back();
+                    };
+
                     const getSysColor = (sysName) => {
                         const colors = [
                             'linear-gradient(135deg, #ff5e57, #d63031)',
@@ -2159,13 +2208,10 @@
 
                     const canPlay = () => {
                         if (!currentSystemObj.value) return false;
-                        // 【修改】核心字段变更为 ejs_core
                         return !!currentSystemObj.value.ejs_core;
                     };
 
-                    // 【文件名修正版】startGame
                     const startGame = (ver) => {
-                        // 【修改】核心字段变更为 ejs_core
                         const coreName = currentSystemObj.value.ejs_core;
                         if (!coreName) {
                             vant.showToast('该主机暂不支持在线游玩 (No Core Defined)');
@@ -2187,18 +2233,12 @@
                         const biosFilename = currentSystemObj.value.bios;
                         const biosUrl = biosFilename ? `${window.location.origin}/bios/${biosFilename}` : '';
 
-                        // 【关键修改】在 URL 后面拼接真实文件名
-                        // 例如: /api/play-merged/123/kof97.zip
-                        // 这样 EmulatorJS 保存文件时就是 kof97.zip，FBNeo 就能认出来了
                         const safeFilename = encodeURIComponent(ver.filename);
                         const gameUrl = `${window.location.origin}/api/play-merged/${ver.id}/${safeFilename}`;
 
-                        // 【新增】动态生成额外参数 (如 EJS_threads 等)
                         let extraConfig = '';
                         for (const [key, val] of Object.entries(currentSystemObj.value)) {
-                            // 排除 ejs_core，只处理其他 ejs_ 开头的配置
                             if (key.startsWith('ejs_') && key !== 'ejs_core') {
-                                // 将 ejs_threads 转换为 EJS_threads
                                 const upperKey = key.replace('ejs_', 'EJS_');
                                 const safeVal = typeof val === 'string' ? `'${val}'` : val;
                                 extraConfig += `window.${upperKey} = ${safeVal};\n`;
@@ -2225,7 +2265,6 @@
                                 window.EJS_pathtodata = 'data/';
                                 window.EJS_startOnLoaded = true;
                                 
-                                // 注入动态参数
                                 ${extraConfig}
 
                                 window.EJS_defaultOptions = {
@@ -2249,7 +2288,6 @@
                         showEmulator.value = false;
                         const container = document.getElementById('game');
                         if (container) {
-                            // 直接移除 iframe，这是唯一能彻底杀死 WASM 进程和音频的方法
                             container.innerHTML = '';
                         }
                         window.EJS_player = null;
@@ -2378,11 +2416,16 @@
                         virtualColCount,
                         virtualIndexList,
                         searchRef,
-                        // Emulator Props
                         showEmulator,
                         startGame,
                         closeEmulator,
-                        canPlay
+                        canPlay,
+                        isPreviewOpen,
+                        previewImages,
+                        previewStartIndex,
+                        activePreviewIndex,
+                        closePreview,
+                        onPreviewChange
                     };
                 }
             });
