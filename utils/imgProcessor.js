@@ -53,12 +53,9 @@ async function processBoxTexture (texturePath, marqueePath) {
         return;
     }
 
-    // --- 调试日志 Start ---
     const filename = path.basename(texturePath);
-    console.log(`\n[ImgProc] === 开始处理: ${filename} ===`);
-    console.log(`[ImgProc] 画布尺寸: ${width}x${height}`);
-    console.log(`[ImgProc] 绿幕容器宽度 (BoundaryX): ${greenBoundaryX}`);
-    // --- 调试日志 End ---
+    // 只保留简单的开始提示
+    // console.log(`[ImgProc] 处理: ${filename}`);
 
     // 3. 准备背景
     const backgroundBuffer = Buffer.alloc(width * height * 4);
@@ -91,25 +88,17 @@ async function processBoxTexture (texturePath, marqueePath) {
 
     if (marqueePath && fs.existsSync(marqueePath)) {
         try {
-            // A. 读取原始 Logo
+            // A. 读取原始 Logo 并执行强力 Trim (阈值 30)
             const rawLogo = sharp(marqueePath);
-            const rawMeta = await rawLogo.metadata();
-
-            // B. 执行强力 Trim (阈值 30)
             const trimmedBuffer = await rawLogo.trim({ threshold: 30 }).toBuffer();
-            const trimmedMeta = await sharp(trimmedBuffer).metadata();
 
-            console.log(`[ImgProc] Logo 原始尺寸: ${rawMeta.width}x${rawMeta.height}`);
-            console.log(
-                `[ImgProc] Logo 裁切后尺寸: ${trimmedMeta.width}x${trimmedMeta.height} (减少了 ${rawMeta.width - trimmedMeta.width}px 宽度)`
-            );
-
-            // C. 计算目标尺寸 (FIXED: 宽度限制为容器的 70%)
+            // B. 计算目标尺寸
+            // 宽度限制为容器的 70%
             const maxLogoW = Math.floor(greenBoundaryX * 0.7);
-            // 高度也保留一定余地 (90%)，防止填满上下边缘
+            // 高度保留一定余地 (90%)
             const maxLogoH = Math.floor(height * 0.9);
 
-            // D. Resize
+            // C. Resize
             const resizedPipeline = sharp(trimmedBuffer).resize({
                 width: maxLogoW,
                 height: maxLogoH,
@@ -121,15 +110,9 @@ async function processBoxTexture (texturePath, marqueePath) {
             const finalLogoBuffer = await resizedPipeline.toBuffer();
             const finalLogoMeta = await sharp(finalLogoBuffer).metadata();
 
-            // E. 计算居中位置
+            // D. 计算居中位置
             const logoLeft = Math.floor((greenBoundaryX - finalLogoMeta.width) / 2);
             const logoTop = Math.floor((height - finalLogoMeta.height) / 2);
-
-            console.log(`[ImgProc] Logo 最终渲染尺寸: ${finalLogoMeta.width}x${finalLogoMeta.height}`);
-            console.log(`[ImgProc] Logo 坐标: Left=${logoLeft}, Top=${logoTop}`);
-            console.log(
-                `[ImgProc] (验证居中: ${logoLeft} + ${finalLogoMeta.width / 2} = ${logoLeft + finalLogoMeta.width / 2}, 容器中心: ${greenBoundaryX / 2})`
-            );
 
             compositeOps.push({
                 input: finalLogoBuffer,
@@ -137,10 +120,8 @@ async function processBoxTexture (texturePath, marqueePath) {
                 left: logoLeft
             });
         } catch (e) {
-            console.warn(`[ImgProc] Logo处理异常: ${e.message}`);
+            console.warn(`[ImgProc] Logo处理异常 (${filename}): ${e.message}`);
         }
-    } else {
-        console.log('[ImgProc] 未找到 Logo 文件，跳过合成');
     }
 
     compositeOps.push({
@@ -157,7 +138,9 @@ async function processBoxTexture (texturePath, marqueePath) {
         .toBuffer();
 
     await fs.writeFile(texturePath, finalBuffer);
-    console.log('[ImgProc] === 处理完成 ===\n');
+
+    // 简单的完成提示（如果不需要可注释掉）
+    console.log(`[ImgProc] 已处理: ${filename}`);
 }
 
 module.exports = { processBoxTexture };
