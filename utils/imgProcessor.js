@@ -1,36 +1,28 @@
 const sharp = require('sharp');
 const fs = require('fs-extra');
+const path = require('path');
 
 /**
  * 辅助函数：扫描每一行的像素，找到绿色区域的右边界
- * 逻辑：从图片宽度的 60% 处开始向左扫描，找到第一个绿色像素，即为绿色区域的“右边缘”。
- * 这样可以跳过书脊和阴影干扰，定位更准。
  */
 function findGreenBoundary (data, width, height) {
     const channels = 4;
-    // 扫描三行（25%, 50%, 75% 高度处），取样以提高准确度
+    // 扫描三行（25%, 50%, 75% 高度处）
     const scanRows = [Math.floor(height * 0.25), Math.floor(height * 0.5), Math.floor(height * 0.75)];
 
     const boundaries = [];
-    // 假设包装盒背面（绿色）在左侧，通常不会超过整体宽度的 60%
-    const startX = Math.floor(width * 0.6);
+    const startX = Math.floor(width * 0.6); // 从 60% 处向左扫
 
     for (const y of scanRows) {
         let foundX = 0;
-
-        // 从右向左扫描 (startX -> 0)
         for (let x = startX; x >= 0; x--) {
             const idx = (y * width + x) * channels;
-
             const r = data[idx];
             const g = data[idx + 1];
             const b = data[idx + 2];
 
-            // 绿色判定标准
-            const isGreen = g > 150 && g > r + 60 && g > b + 60;
-
-            // 一旦碰到绿色，说明跨过了书脊，到达了绿色区域的边缘
-            if (isGreen) {
+            // 绿色判定
+            if (g > 150 && g > r + 60 && g > b + 60) {
                 foundX = x;
                 break;
             }
@@ -38,11 +30,8 @@ function findGreenBoundary (data, width, height) {
         boundaries.push(foundX);
     }
 
-    // 排序并取中位数，剔除异常值
     boundaries.sort((a, b) => a - b);
     const medianBoundary = boundaries[1];
-
-    // 如果边界太小（小于 5%），认为不是有效的绿幕图
     return medianBoundary < width * 0.05 ? 0 : medianBoundary;
 }
 
@@ -52,95 +41,114 @@ function findGreenBoundary (data, width, height) {
 async function processBoxTexture (texturePath, marqueePath) {
     if (!fs.existsSync(texturePath)) return;
 
-    // 1. 读取原图像素数据
+    // 1. 读取数据
     const { data, info } = await sharp(texturePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-
     const width = info.width;
     const height = info.height;
-    const channels = 4;
 
-    // 2. 计算绿色区域的宽度 (即 Logo 的容器宽度)
+    // 2. 确定绿幕边界
     const greenBoundaryX = findGreenBoundary(data, width, height);
 
     if (greenBoundaryX === 0) {
-        return; // 未检测到绿幕，跳过
+        return;
     }
 
-    // 3. 准备渐变背景 Buffer (底色)
-    const backgroundBuffer = Buffer.alloc(width * height * 4);
+    // --- 调试日志 Start ---
+    const filename = path.basename(texturePath);
+    console.log(`\n[ImgProc] === 开始处理: ${filename} ===`);
+    console.log(`[ImgProc] 画布尺寸: ${width}x${height}`);
+    console.log(`[ImgProc] 绿幕容器宽度 (BoundaryX): ${greenBoundaryX}`);
+    // --- 调试日志 End ---
 
-    // 渐变配置: 左上角亮灰 -> 右下角深黑 (#050505)
+    // 3. 准备背景
+    const backgroundBuffer = Buffer.alloc(width * height * 4);
     const startColor = { r: 45, g: 45, b: 50 };
     const endColor = { r: 5, g: 5, b: 5 };
 
-    for (let i = 0; i < data.length; i += channels) {
-        // A. 生成渐变背景
-        const pIndex = i / channels;
+    for (let i = 0; i < data.length; i += 4) {
+        // 背景渐变
+        const pIndex = i / 4;
         const x = pIndex % width;
         const y = Math.floor(pIndex / width);
         const factor = (x / width + y / height) / 2;
 
-        backgroundBuffer[i] = startColor.r + (endColor.r - startColor.r) * factor; // R
-        backgroundBuffer[i + 1] = startColor.g + (endColor.g - startColor.g) * factor; // G
-        backgroundBuffer[i + 2] = startColor.b + (endColor.b - startColor.b) * factor; // B
-        backgroundBuffer[i + 3] = 255; // Alpha
+        backgroundBuffer[i] = startColor.r + (endColor.r - startColor.r) * factor;
+        backgroundBuffer[i + 1] = startColor.g + (endColor.g - startColor.g) * factor;
+        backgroundBuffer[i + 2] = startColor.b + (endColor.b - startColor.b) * factor;
+        backgroundBuffer[i + 3] = 255;
 
-        // B. 处理前景：将绿色变透明
+        // 前景去绿
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
         if (g > 150 && g > r + 60 && g > b + 60) {
-            data[i + 3] = 0; // Alpha = 0 (透明)
+            data[i + 3] = 0; // 透明
         }
     }
 
-    // 4. 准备合成层
+    // 4. 合成 Logo
     const compositeOps = [];
 
-    // 处理 Logo (如果有)
     if (marqueePath && fs.existsSync(marqueePath)) {
         try {
-            // === 核心逻辑：计算 Logo 尺寸和位置 ===
+            // A. 读取原始 Logo
+            const rawLogo = sharp(marqueePath);
+            const rawMeta = await rawLogo.metadata();
 
-            // 限制 Logo 最大尺寸：宽度不超过绿色区域的 80%，高度不超过整图的 80%
-            const maxLogoW = Math.round(greenBoundaryX * 0.8);
-            const maxLogoH = Math.round(height * 0.8);
+            // B. 执行强力 Trim (阈值 30)
+            const trimmedBuffer = await rawLogo.trim({ threshold: 30 }).toBuffer();
+            const trimmedMeta = await sharp(trimmedBuffer).metadata();
 
-            const logoSharp = sharp(marqueePath).resize({
+            console.log(`[ImgProc] Logo 原始尺寸: ${rawMeta.width}x${rawMeta.height}`);
+            console.log(
+                `[ImgProc] Logo 裁切后尺寸: ${trimmedMeta.width}x${trimmedMeta.height} (减少了 ${rawMeta.width - trimmedMeta.width}px 宽度)`
+            );
+
+            // C. 计算目标尺寸 (FIXED: 宽度限制为容器的 70%)
+            const maxLogoW = Math.floor(greenBoundaryX * 0.7);
+            // 高度也保留一定余地 (90%)，防止填满上下边缘
+            const maxLogoH = Math.floor(height * 0.9);
+
+            // D. Resize
+            const resizedPipeline = sharp(trimmedBuffer).resize({
                 width: maxLogoW,
                 height: maxLogoH,
-                fit: 'inside' // 保持长宽比缩放，直到放入框内
+                fit: 'inside',
+                withoutEnlargement: true
             });
 
-            // 获取缩放后的实际 Logo 尺寸
-            const logoMeta = await logoSharp.metadata();
-            const logoBuffer = await logoSharp.toBuffer();
+            // 先输出 Buffer 确保获取到的是缩放后的真实尺寸
+            const finalLogoBuffer = await resizedPipeline.toBuffer();
+            const finalLogoMeta = await sharp(finalLogoBuffer).metadata();
 
-            // 计算居中坐标
-            // 水平居中：(绿色区域宽度 - Logo实际宽度) / 2
-            const logoLeft = Math.floor((greenBoundaryX - logoMeta.width) / 2);
-            // 垂直居中：(整图高度 - Logo实际高度) / 2
-            const logoTop = Math.floor((height - logoMeta.height) / 2);
+            // E. 计算居中位置
+            const logoLeft = Math.floor((greenBoundaryX - finalLogoMeta.width) / 2);
+            const logoTop = Math.floor((height - finalLogoMeta.height) / 2);
 
-            // 将 Logo 添加到合成队列
+            console.log(`[ImgProc] Logo 最终渲染尺寸: ${finalLogoMeta.width}x${finalLogoMeta.height}`);
+            console.log(`[ImgProc] Logo 坐标: Left=${logoLeft}, Top=${logoTop}`);
+            console.log(
+                `[ImgProc] (验证居中: ${logoLeft} + ${finalLogoMeta.width / 2} = ${logoLeft + finalLogoMeta.width / 2}, 容器中心: ${greenBoundaryX / 2})`
+            );
+
             compositeOps.push({
-                input: logoBuffer,
+                input: finalLogoBuffer,
                 top: logoTop,
                 left: logoLeft
             });
         } catch (e) {
             console.warn(`[ImgProc] Logo处理异常: ${e.message}`);
         }
+    } else {
+        console.log('[ImgProc] 未找到 Logo 文件，跳过合成');
     }
 
-    // 将去除了绿色的前景图放在最上层
     compositeOps.push({
         input: data,
         raw: { width, height, channels: 4 }
     });
 
-    // 5. 执行最终合成
-    // 层级顺序：渐变底色 -> Logo -> 前景框(透明部分透出Logo和底色)
+    // 5. 输出
     const finalBuffer = await sharp(backgroundBuffer, {
         raw: { width, height, channels: 4 }
     })
@@ -148,8 +156,8 @@ async function processBoxTexture (texturePath, marqueePath) {
         .png()
         .toBuffer();
 
-    // 6. 写入文件
     await fs.writeFile(texturePath, finalBuffer);
+    console.log('[ImgProc] === 处理完成 ===\n');
 }
 
 module.exports = { processBoxTexture };
