@@ -1840,12 +1840,19 @@
                     const processGreenScreen = (img) => {
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
-                        canvas.width = img.naturalWidth;
-                        canvas.height = img.naturalHeight;
+                        const width = img.naturalWidth;
+                        const height = img.naturalHeight;
+                        canvas.width = width;
+                        canvas.height = height;
                         ctx.drawImage(img, 0, 0);
 
-                        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const imgData = ctx.getImageData(0, 0, width, height);
                         const data = imgData.data;
+
+                        // 定义渐变配置 (RGB)
+                        // 模拟光照：左上角较亮 (Highlight)，右下角较暗 (Base #050505)
+                        const startColor = { r: 45, g: 45, b: 50 }; // 亮部：深灰色略带一点点冷色调，模拟反光
+                        const endColor = { r: 5, g: 5, b: 5 }; // 暗部：用户指定的 #050505
 
                         for (let i = 0; i < data.length; i += 4) {
                             const r = data[i];
@@ -1854,10 +1861,18 @@
 
                             // 检测绿色 (Green Key)
                             if (g > 150 && g > r + 60 && g > b + 60) {
-                                // 替换为纯色 #18181c
-                                data[i] = 24; // R
-                                data[i + 1] = 24; // G
-                                data[i + 2] = 28; // B
+                                // 计算当前像素的坐标
+                                const pIndex = i / 4;
+                                const x = pIndex % width;
+                                const y = Math.floor(pIndex / width);
+
+                                // 计算对角线渐变因子 (0.0 ~ 1.0)
+                                const factor = (x / width + y / height) / 2;
+
+                                // 线性插值计算颜色
+                                data[i] = startColor.r + (endColor.r - startColor.r) * factor; // R
+                                data[i + 1] = startColor.g + (endColor.g - startColor.g) * factor; // G
+                                data[i + 2] = startColor.b + (endColor.b - startColor.b) * factor; // B
                                 data[i + 3] = 255; // Alpha
                             }
                         }
@@ -2345,10 +2360,8 @@
                         const imgIndex = imagesOnly.indexOf(currentMedia);
                         if (imgIndex === -1) return;
 
-                        // 【修改】映射预览图片数组：优先使用去绿后的缓存
-                        previewImages.value = imagesOnly.map((i) => {
-                            return processedCache.value[i.url] || getImgUrl(i.url);
-                        });
+                        // 直接使用原始 URL
+                        previewImages.value = imagesOnly.map((i) => getImgUrl(i.url));
 
                         previewStartIndex.value = imgIndex;
                         activePreviewIndex.value = imgIndex;
@@ -2391,36 +2404,6 @@
                     // 【核心修改】引入缓存池，防止重复计算
                     const onImgLoad = (e, media) => {
                         const imgEl = e.target;
-
-                        // 1. 防止死循环：如果已经是处理过的 Base64 图片，直接标记显示并退出
-                        if (imgEl.src.startsWith('data:image')) {
-                            imgEl.classList.add('loaded');
-                            loadedFlags.value[media.url] = true;
-                            return;
-                        }
-
-                        // 2. 针对包装盒材质 (boxtextures) 进行去绿处理
-                        if (media.type === 'boxtextures') {
-                            // A. 查缓存
-                            if (processedCache.value[media.url]) {
-                                imgEl.src = processedCache.value[media.url];
-                                return;
-                            }
-
-                            // B. 没缓存：执行绿幕抠图
-                            try {
-                                if (imgEl.naturalWidth > 0) {
-                                    const newSrc = processGreenScreen(imgEl);
-                                    processedCache.value[media.url] = newSrc; // 存入缓存
-                                    imgEl.src = newSrc; // 替换当前图片
-                                    return; // 等待 src 变更后的下一次 onload
-                                }
-                            } catch (err) {
-                                console.warn('Green screen processing warning:', err);
-                            }
-                        }
-
-                        // 3. 普通图片直接显示
                         imgEl.classList.add('loaded');
                         loadedFlags.value[media.url] = true;
                     };

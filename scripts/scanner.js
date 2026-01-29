@@ -13,6 +13,7 @@ const config = require('../config');
 const db = require('../db/database');
 const scraper = require('../utils/scraper');
 const fileQueue = require('../utils/queue');
+const imgProcessor = require('../utils/imgProcessor'); // 【新增】引入图片处理器
 
 const IMG_EXTS = ['.png', '.jpg', '.jpeg', '.gif'];
 const VIDEO_EXTS = ['.mp4', '.webm', '.mkv', '.avi'];
@@ -227,13 +228,17 @@ async function processSystemSync (system, options) {
             let missingMarquee = false;
             if (syncOps.syncMarquees) {
                 const targetPath = g.marquee_path ? path.join(config.mediaDir, g.marquee_path) : '';
-                if (!targetPath || !fs.existsSync(targetPath) || fs.statSync(targetPath).size === 0) { missingMarquee = true; }
+                if (!targetPath || !fs.existsSync(targetPath) || fs.statSync(targetPath).size === 0) {
+                    missingMarquee = true;
+                }
             }
 
             let missingBoxArt = false;
             if (syncOps.syncBoxArt) {
                 const targetPath = g.box_texture_path ? path.join(config.mediaDir, g.box_texture_path) : '';
-                if (!targetPath || !fs.existsSync(targetPath) || fs.statSync(targetPath).size === 0) { missingBoxArt = true; }
+                if (!targetPath || !fs.existsSync(targetPath) || fs.statSync(targetPath).size === 0) {
+                    missingBoxArt = true;
+                }
             }
 
             return missingInfo || missingImg || missingVid || missingMarquee || missingBoxArt;
@@ -312,7 +317,8 @@ function checkFinish (current, total) {
 }
 
 async function cleanOrphanedMedia (system) {
-    const sql = 'SELECT image_path, video_path, marquee_path, box_texture_path, screenshot_path FROM games WHERE system = ?';
+    const sql =
+        'SELECT image_path, video_path, marquee_path, box_texture_path, screenshot_path FROM games WHERE system = ?';
     const rows = await new Promise((resolve) => {
         db.all(sql, [system], (err, r) => {
             if (err) console.error('Clean query error:', err);
@@ -483,44 +489,68 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                 if (options.syncInfo) Object.assign(gameInfo, scraperData);
 
                 const safeName = scraperData.name.replace(/[\\/:*?"<>|]/g, '-').trim();
-
-                // 【核心修改】支持 overwrite 参数，强制覆盖现有图片
                 const overwrite = options.overwrite === true;
 
+                // 定义 handleDownload
                 const handleDownload = async (url, folder, type) => {
+                    // ... 保持原有逻辑不变 ...
                     if (!url) return null;
-
                     const cleanUrl = url.split('?')[0];
                     let ext = path.extname(cleanUrl).toLowerCase();
-
                     if (!ext || ext === '.php' || ext === '.html') {
                         if (type === 'videos') ext = '.mp4';
                         else ext = '.png';
                     }
-
                     const fileName = safeName + ext;
                     const dbPath = path.join(system, folder, fileName).replace(/\\/g, '/');
 
-                    // 传递 overwrite 参数给 downloadMedia
+                    // 返回一个对象包含 dbPath 和 fullPath，方便后续处理
+                    // 但由于原有逻辑需要返回 dbPath 字符串给 imagePath 赋值，
+                    // 我们这里还是只返回 dbPath，但在 downloadMedia 内部处理或通过路径推算
                     await downloadMedia(url, system, type, fileName, overwrite);
                     return dbPath;
                 };
 
+                // 【核心修改】调整下载顺序：先下载 Logo (Marquee)，以便后续合成
+
+                // 1. 先处理 Marquee
+                if (options.syncMarquees) {
+                    if (scraperData.marqueeUrl) {
+                        marqueePath = await handleDownload(scraperData.marqueeUrl, 'marquees', 'marquees');
+                    }
+                }
+
+                // 2. 处理其他媒体
                 if (options.syncImages) {
-                    if (scraperData.boxArtUrl) { imagePath = await handleDownload(scraperData.boxArtUrl, 'covers', 'covers'); }
-                    if (scraperData.screenUrl) { screenshotPath = await handleDownload(scraperData.screenUrl, 'screenshots', 'screenshots'); }
+                    if (scraperData.boxArtUrl) {
+                        imagePath = await handleDownload(scraperData.boxArtUrl, 'covers', 'covers');
+                    }
+                    if (scraperData.screenUrl) {
+                        screenshotPath = await handleDownload(scraperData.screenUrl, 'screenshots', 'screenshots');
+                    }
                 }
 
                 if (options.syncVideo) {
-                    if (scraperData.videoUrl) { videoPath = await handleDownload(scraperData.videoUrl, 'videos', 'videos'); }
+                    if (scraperData.videoUrl) {
+                        videoPath = await handleDownload(scraperData.videoUrl, 'videos', 'videos');
+                    }
                 }
 
-                if (options.syncMarquees) {
-                    if (scraperData.marqueeUrl) { marqueePath = await handleDownload(scraperData.marqueeUrl, 'marquees', 'marquees'); }
-                }
-
+                // 3. 最后处理 Box Texture (依赖 Marquee)
                 if (options.syncBoxArt) {
-                    if (scraperData.boxTextureUrl) { boxTexturePath = await handleDownload(scraperData.boxTextureUrl, 'boxtextures', 'boxtextures'); }
+                    if (scraperData.boxTextureUrl) {
+                        boxTexturePath = await handleDownload(scraperData.boxTextureUrl, 'boxtextures', 'boxtextures');
+
+                        // 【新增】如果下载成功（即 boxTexturePath 有值），执行图像处理
+                        if (boxTexturePath) {
+                            const fullBoxPath = path.join(config.mediaDir, boxTexturePath);
+                            // 如果 marqueePath 存在，计算其绝对路径，否则传 null
+                            const fullMarqueePath = marqueePath ? path.join(config.mediaDir, marqueePath) : null;
+
+                            // 调用处理函数
+                            await imgProcessor.processBoxTexture(fullBoxPath, fullMarqueePath);
+                        }
+                    }
                 }
             }
         } catch (e) {

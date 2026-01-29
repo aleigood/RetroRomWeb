@@ -277,7 +277,11 @@ async function searchByText (systemId, filename, ssConfig) {
 
 function getLocalizedText (arr) {
     if (!Array.isArray(arr)) return arr ? arr.text : '';
-    const regions = ['us', 'jp', 'cn', 'zh', 'tw', 'hk', 'en', 'eu', 'ss'];
+    // 【修改】优先级调整：
+    // 1. 英语组: 'en' (通用英语), 'us' (美版), 'eu' (欧版), 'wor' (世界版)
+    // 2. 日语: 'jp'
+    // 3. 兜底: 'ss' (ScreenScraper通用), 'cn'/'zh' (中文) 等
+    const regions = ['en', 'us', 'eu', 'wor', 'jp', 'ss', 'cn', 'zh', 'tw', 'hk'];
     for (const r of regions) {
         const found = arr.find((n) => n.region && n.region.toLowerCase() === r);
         if (found) return found.text;
@@ -318,7 +322,7 @@ function parseGameData (gameData, originalFilename) {
 
         // 【核心修改】策略 A：类型优先 + 指定地区顺序
         // 地区顺序：US (美) -> JP (日) -> EU (欧) -> WOR (世界) -> EN (英)
-        const findMedia = (types, regionOrder = ['us', 'jp', 'eu', 'wor', 'en']) => {
+        const findMedia = (types, regionOrder = ['en', 'us', 'eu', 'wor', 'jp', 'ss']) => {
             // 第一层：优先遍历要求的媒体类型 (如先找 box-2d，必须找完所有地区确认没有，才去找 box-3d)
             for (const type of types) {
                 // 第二层：按地区优先级查找当前类型
