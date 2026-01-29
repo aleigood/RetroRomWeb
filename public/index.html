@@ -53,10 +53,8 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 margin: 0;
                 -webkit-tap-highlight-color: transparent;
-                /* 禁止长按选中文字 */
                 -webkit-user-select: none;
                 user-select: none;
-                /* 禁止长按弹出系统菜单 */
                 -webkit-touch-callout: none;
             }
 
@@ -651,7 +649,7 @@
                 flex-direction: column;
                 overflow: hidden;
             }
-            /* 【修改】顶部栏增加过渡效果 */
+            /* 【交互】详情页头部样式，包含过渡动画和隐藏状态 */
             .detail-top-bar {
                 position: absolute;
                 top: 0;
@@ -665,10 +663,8 @@
                 z-index: 20;
                 border-bottom: none;
                 pointer-events: none;
-                transition: transform 0.3s ease-in-out; /* 新增过渡动画 */
+                transition: transform 0.3s ease-in-out;
             }
-
-            /* 【新增】隐藏状态：向上平移出视野 */
             .detail-top-bar.hidden {
                 transform: translateY(-100%);
             }
@@ -712,23 +708,16 @@
                 overflow: hidden;
                 padding-top: 60px;
                 box-sizing: border-box;
-                background: #000;
+                background: #050505;
             }
-            /* 【新增】空状态下的背景样式 */
             .empty-state-bg {
-                /* 使用深色径向渐变，比纯黑更有质感 */
                 background: radial-gradient(circle at center, #1c1c22 0%, #08080a 100%);
                 color: #555;
                 flex-direction: column;
-
-                /* 关键：添加底部边框和阴影，形成视觉分割 */
                 border-bottom: 1px solid rgba(255, 255, 255, 0.1);
                 box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.8);
-
                 position: relative;
             }
-
-            /* 【新增】添加淡淡的网格纹理，增加复古科技感，不再单调 */
             .empty-state-bg::before {
                 content: '';
                 position: absolute;
@@ -739,7 +728,7 @@
                 background-image:
                     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
                     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-                background-size: 40px 40px; /* 网格大小 */
+                background-size: 40px 40px;
                 pointer-events: none;
             }
             .swipe-bg {
@@ -750,10 +739,7 @@
                 left: 0;
                 transform: scale(1.2);
                 object-fit: cover;
-
-                /* 【修改】同样压暗，防止绿色或纹理过于抢眼 */
                 filter: blur(40px) brightness(0.4);
-
                 z-index: 1;
             }
             .swipe-img {
@@ -761,13 +747,13 @@
                 height: 100%;
                 position: relative;
                 z-index: 2;
-                object-fit: contain; /* 关键：这会保证图片保持比例并尽可能撑满容器（顶边） */
+                object-fit: contain;
             }
             .swipe-img:not(.loaded) {
                 opacity: 0;
             }
             .pixelated {
-                image-rendering: pixelated; /* 关键：放大时不模糊，保持像素颗粒 */
+                image-rendering: pixelated;
                 image-rendering: crisp-edges;
             }
             .crt-lines {
@@ -823,7 +809,6 @@
                 color: rgba(255, 255, 255, 0.8);
                 z-index: 10;
             }
-            /* 【修改】增加 position: relative 以作为定位基准 */
             .d-body {
                 padding: 24px;
                 position: relative;
@@ -838,10 +823,6 @@
                 border: none;
                 box-shadow: none;
                 min-height: 100px;
-                background: transparent;
-            }
-            .d-marquee-box,
-            .swipe-inner {
                 background: #050505;
             }
             .d-marquee-bg {
@@ -852,12 +833,8 @@
                 height: 120vw;
                 transform: translate(-50%, -50%);
                 object-fit: cover;
-
-                /* 【修改】增加 brightness(0.6) 压暗背景，让前面的文字更清晰 */
                 filter: blur(40px) opacity(0.6) brightness(0.6);
-
                 z-index: -1;
-                /* ...保持原有 mask ... */
                 mask-image: radial-gradient(circle, black 20%, transparent 70%);
                 -webkit-mask-image: radial-gradient(circle, black 20%, transparent 70%);
                 pointer-events: none;
@@ -871,49 +848,43 @@
                 z-index: 1;
                 filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
             }
-            /* === 修改：标题行 Flex 布局，处理长标题和按钮位置 === */
             .d-title-row {
                 display: flex;
-                align-items: flex-start; /* 关键：顶部对齐，防止长标题导致按钮下沉 */
+                align-items: flex-start;
                 justify-content: space-between;
-                gap: 16px; /* 文字和按钮的间距 */
+                gap: 16px;
                 margin-bottom: 16px;
             }
             .d-title {
                 font-size: 26px;
                 font-weight: 800;
                 color: #fff;
-                flex: 1; /* 占据剩余空间 */
+                flex: 1;
                 margin-bottom: 0;
                 line-height: 1.2;
-                word-wrap: break-word; /* 强制长单词换行 */
+                word-wrap: break-word;
                 overflow-wrap: break-word;
             }
-
-            /* 【修改】重写刷新按钮样式，使其悬浮在 d-body 右上角 */
             .d-floating-refresh-btn {
                 position: absolute;
-                top: 16px; /* 稍微靠上一点，不占用内容空间 */
-                right: 16px; /* 靠右 */
+                top: 16px;
+                right: 16px;
                 z-index: 20;
                 width: 32px;
                 height: 32px;
-                /* 样式调整：类似关闭按钮的淡雅风格 */
                 background: rgba(255, 255, 255, 0.03);
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 cursor: pointer;
-                border: 1px solid rgba(255, 255, 255, 0.1); /* 很淡的边框 */
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 transition: all 0.2s;
             }
             .d-floating-refresh-btn:active {
                 background: rgba(255, 255, 255, 0.2);
                 transform: scale(0.95);
             }
-            /* === */
-
             .d-tags {
                 display: flex;
                 gap: 8px;
@@ -1075,19 +1046,17 @@
             .emu-btn.danger:active {
                 background: rgba(235, 77, 75, 0.4);
             }
-
-            /* === Image Preview Customization - Fixed Positioning === */
             .preview-top-bar {
-                position: fixed; /* 使用 fixed 定位，相对于视口，防止被组件内部容器影响 */
+                position: fixed;
                 top: 0;
                 left: 0;
-                width: 100%; /* 强制占满全屏宽度 */
+                width: 100%;
                 height: 60px;
                 display: flex;
                 align-items: center;
-                justify-content: center; /* 确保内容水平居中 */
-                z-index: 3500; /* 高于 Vant 默认层级 */
-                pointer-events: none; /* 让点击穿透，不阻挡下方图片操作 */
+                justify-content: center;
+                z-index: 3500;
+                pointer-events: none;
             }
             .preview-close-btn {
                 width: 32px;
@@ -1100,19 +1069,19 @@
                 justify-content: center;
                 cursor: pointer;
                 border: 1px solid rgba(255, 255, 255, 0.1);
-                pointer-events: auto; /* 按钮自身恢复可点击 */
+                pointer-events: auto;
                 transition: background 0.2s;
             }
             .preview-close-btn:active {
                 background: rgba(255, 255, 255, 0.3);
             }
             .preview-dots {
-                position: fixed; /* 使用 fixed 定位 */
-                bottom: 40px; /* 稍微抬高 */
+                position: fixed;
+                bottom: 40px;
                 left: 0;
-                width: 100%; /* 强制占满全屏宽度 */
+                width: 100%;
                 display: flex;
-                justify-content: center; /* 水平居中 */
+                justify-content: center;
                 gap: 8px;
                 z-index: 3500;
                 pointer-events: none;
@@ -1129,7 +1098,6 @@
                 transform: scale(1.4);
                 box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
             }
-
             @keyframes gradientMove {
                 0% {
                     background-position: 0% 50%;
@@ -1167,12 +1135,8 @@
                 animation: spin 1s linear infinite;
                 opacity: 1;
             }
-
-            /* === 修复移动端图片预览闪烁问题 (GPU 加速) === */
             .van-image-preview__image {
-                /* 移除了强制 transform !important，恢复手势缩放功能 */
                 will-change: transform;
-                /* 隐藏背面 */
                 backface-visibility: hidden;
                 -webkit-backface-visibility: hidden;
                 z-index: 1;
@@ -1187,9 +1151,7 @@
                         <i class="ri-close-circle-line" style="font-size: 18px"></i> 退出游戏
                     </div>
                 </div>
-
                 <div id="game"></div>
-
                 <div class="emu-bottom-spacer"></div>
             </div>
 
@@ -1404,6 +1366,7 @@
                             <i class="ri-close-fill" style="font-size: 18px; color: rgba(255, 255, 255, 0.4)"></i>
                         </div>
                     </div>
+
                     <div class="detail-scroll-container" @scroll="handleDetailScroll">
                         <div class="swipe-area">
                             <van-swipe
@@ -1777,24 +1740,21 @@
             const app = createApp({
                 directives: { lazy: vLazy },
                 setup() {
+                    // 1. 定义详情页头部显示状态变量
                     const isDetailHeaderVisible = ref(true);
                     let lastDetailScrollTop = 0;
+
+                    // 2. 定义滚动监听函数
                     const handleDetailScroll = (e) => {
                         const scrollTop = e.target.scrollTop;
-
-                        // 忽略负值的滚动（iOS回弹效果）
                         if (scrollTop < 0) return;
 
-                        // 如果在顶部，总是显示
                         if (scrollTop <= 0) {
                             isDetailHeaderVisible.value = true;
                         } else {
-                            // 向下滚动（内容上移） -> 隐藏头部
                             if (scrollTop > lastDetailScrollTop && scrollTop > 60) {
                                 isDetailHeaderVisible.value = false;
-                            }
-                            // 向上滚动（内容下移） -> 显示头部
-                            else if (scrollTop < lastDetailScrollTop) {
+                            } else if (scrollTop < lastDetailScrollTop) {
                                 isDetailHeaderVisible.value = true;
                             }
                         }
@@ -1817,7 +1777,7 @@
                     const previewStartIndex = ref(0);
                     const activePreviewIndex = ref(0);
                     const isRefreshing = ref(false);
-                    const processedCache = ref({}); // 用于缓存处理过的图片 URL (Data URI)
+                    const processedCache = ref({});
 
                     const globalStatus = ref({
                         runningSystem: null,
@@ -1830,7 +1790,6 @@
                     const logs = ref([]);
                     const progress = ref({ current: 0, total: 0 });
                     const showSyncDialog = ref(false);
-                    // 【修改】syncOps 默认增加 incremental: true
                     const syncOps = ref({
                         syncInfo: true,
                         syncImages: true,
@@ -1875,6 +1834,37 @@
                             onClearSearch();
                         }
                     });
+
+                    // 3. 【核心修改】processGreenScreen 移到 onImgLoad 之前，防止报错
+                    //    【修改】使用纯色填充 #18181c (RGB: 24, 24, 28)
+                    const processGreenScreen = (img) => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = img.naturalWidth;
+                        canvas.height = img.naturalHeight;
+                        ctx.drawImage(img, 0, 0);
+
+                        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = imgData.data;
+
+                        for (let i = 0; i < data.length; i += 4) {
+                            const r = data[i];
+                            const g = data[i + 1];
+                            const b = data[i + 2];
+
+                            // 检测绿色 (Green Key)
+                            if (g > 150 && g > r + 60 && g > b + 60) {
+                                // 替换为纯色 #18181c
+                                data[i] = 24; // R
+                                data[i + 1] = 24; // G
+                                data[i + 2] = 28; // B
+                                data[i + 3] = 255; // Alpha
+                            }
+                        }
+
+                        ctx.putImageData(imgData, 0, 0);
+                        return canvas.toDataURL();
+                    };
 
                     const fetchSystems = async () => {
                         try {
@@ -2253,6 +2243,8 @@
                         selectedGame.value = game;
                         currentSwipeIndex.value = 0;
                         showDetail.value = true;
+
+                        // 重置头部显示状态
                         isDetailHeaderVisible.value = true;
                         lastDetailScrollTop = 0;
 
@@ -2320,6 +2312,7 @@
                         if (val === false) window.history.back();
                     };
                     const handleLogClose = () => window.history.back();
+
                     const swipeTo = (idx) => {
                         if (imgSwipe.value) imgSwipe.value.swipeTo(idx);
                     };
@@ -2352,7 +2345,11 @@
                         const imgIndex = imagesOnly.indexOf(currentMedia);
                         if (imgIndex === -1) return;
 
-                        previewImages.value = imagesOnly.map((i) => getImgUrl(i.url));
+                        // 【修改】映射预览图片数组：优先使用去绿后的缓存
+                        previewImages.value = imagesOnly.map((i) => {
+                            return processedCache.value[i.url] || getImgUrl(i.url);
+                        });
+
                         previewStartIndex.value = imgIndex;
                         activePreviewIndex.value = imgIndex;
 
@@ -2391,7 +2388,7 @@
                                   .join('/')
                             : '';
 
-                    // 【修改】移除了 onImgLoad 中对 naturalHeight 的检测逻辑
+                    // 【核心修改】引入缓存池，防止重复计算
                     const onImgLoad = (e, media) => {
                         const imgEl = e.target;
 
@@ -2404,15 +2401,14 @@
 
                         // 2. 针对包装盒材质 (boxtextures) 进行去绿处理
                         if (media.type === 'boxtextures') {
-                            // A. 查缓存：如果这张图之前已经抠过图了，直接用缓存
+                            // A. 查缓存
                             if (processedCache.value[media.url]) {
                                 imgEl.src = processedCache.value[media.url];
-                                return; // 修改 src 会再次触发 onload，交由第1步处理
+                                return;
                             }
 
                             // B. 没缓存：执行绿幕抠图
                             try {
-                                // 确保图片有宽高
                                 if (imgEl.naturalWidth > 0) {
                                     const newSrc = processGreenScreen(imgEl);
                                     processedCache.value[media.url] = newSrc; // 存入缓存
@@ -2424,7 +2420,7 @@
                             }
                         }
 
-                        // 3. 普通图片（或处理失败的图片）直接淡入显示
+                        // 3. 普通图片直接显示
                         imgEl.classList.add('loaded');
                         loadedFlags.value[media.url] = true;
                     };
@@ -2534,12 +2530,10 @@
                     };
 
                     const doRefreshGame = async () => {
-                        // 只要有 versions 就可以刷新
                         if (isRefreshing.value || versions.value.length === 0) return;
 
                         try {
                             isRefreshing.value = true;
-                            // 遍历当前游戏的所有版本文件，逐一发送同步请求
                             for (const ver of versions.value) {
                                 await fetch('/api/scan-single', {
                                     method: 'POST',
@@ -2547,16 +2541,15 @@
                                     body: JSON.stringify({
                                         system: currentSystemObj.value.name,
                                         filename: ver.filename,
-                                        options: syncOps.value // 传递用户勾选的选项
+                                        options: syncOps.value
                                     })
                                 });
                             }
 
                             vant.showToast({ message: '刷新成功，请重新打开详情页查看', icon: 'success' });
-                            // 稍微延迟后关闭详情页，触发列表刷新
                             setTimeout(() => {
                                 window.history.back();
-                                loadGames(currentSystemObj.value); // 刷新列表数据
+                                loadGames(currentSystemObj.value);
                             }, 1000);
                         } catch (e) {
                             vant.showToast('刷新请求失败');
@@ -2596,40 +2589,26 @@
                         return '';
                     });
 
-                    // 【修改】重新编排轮播图顺序，直接取第一个版本
                     const displayMedia = computed(() => {
                         const list = [];
                         if (versions.value.length === 0) return list;
 
-                        // 直接取第一个版本作为代表
                         const ver = versions.value[0];
-
-                        // 1. Video (放最前面)
-                        // 注意：单文件模式下，Video 路径通常也在 gallery 里，但数据库字段也存了 video_path
-                        // 优先使用 selectedGame (列表数据) 或 ver (详情数据) 的 video_path
                         const vPath = ver.video_path || selectedGame.value.video_path;
                         if (vPath) {
                             list.push({ type: 'video', url: vPath });
                         }
 
                         if (ver.gallery && ver.gallery.length > 0) {
-                            // 分类提取
                             const covers = ver.gallery.filter((g) => g.type === 'covers');
                             const boxtextures = ver.gallery.filter((g) => g.type === 'boxtextures');
                             const others = ver.gallery.filter(
-                                (g) => g.type !== 'covers' && g.type !== 'boxtextures' && g.type !== 'marquees' // Logo 不放轮播图
+                                (g) => g.type !== 'covers' && g.type !== 'boxtextures' && g.type !== 'marquees'
                             );
-
-                            // 2. Cover
                             list.push(...covers);
-
-                            // 3. Boxtextures (放第二个位置)
                             list.push(...boxtextures);
-
-                            // 4. Others (Screenshots, etc.)
                             list.push(...others);
                         } else if (ver.image_path) {
-                            // 如果没有 gallery，回退使用单一封面
                             list.push({ type: 'Cover', url: ver.image_path });
                         }
                         return list;
@@ -2644,40 +2623,7 @@
                         keyword.value = '';
                         onSearch();
                     };
-                    const processGreenScreen = (img) => {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        canvas.width = img.naturalWidth;
-                        canvas.height = img.naturalHeight;
-                        ctx.drawImage(img, 0, 0);
 
-                        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        const data = imgData.data;
-
-                        for (let i = 0; i < data.length; i += 4) {
-                            const r = data[i];
-                            const g = data[i + 1];
-                            const b = data[i + 2];
-
-                            // 检测绿色 (Green Key)
-                            if (g > 150 && g > r + 60 && g > b + 60) {
-                                // 【新逻辑】生成深色磨砂纹理 (模拟黑色塑料盒/纸板)
-                                // 基础色值 35 (深灰)
-                                const baseColor = 35;
-                                // 加入 -10 到 +10 的随机噪点
-                                const noise = (Math.random() - 0.5) * 20;
-                                const finalVal = Math.max(0, Math.min(255, baseColor + noise));
-
-                                data[i] = finalVal; // R
-                                data[i + 1] = finalVal; // G
-                                data[i + 2] = finalVal; // B
-                                data[i + 3] = 255; // Alpha (保持不透明)
-                            }
-                        }
-
-                        ctx.putImageData(imgData, 0, 0);
-                        return canvas.toDataURL();
-                    };
                     return {
                         systems,
                         currentSystemObj,
