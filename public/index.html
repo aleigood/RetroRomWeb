@@ -712,6 +712,7 @@
                 overflow: hidden;
                 padding-top: 60px;
                 box-sizing: border-box;
+                background: #000;
             }
             /* 【新增】空状态下的背景样式 */
             .empty-state-bg {
@@ -749,7 +750,10 @@
                 left: 0;
                 transform: scale(1.2);
                 object-fit: cover;
-                filter: blur(40px) brightness(0.3);
+
+                /* 【修改】同样压暗，防止绿色或纹理过于抢眼 */
+                filter: blur(40px) brightness(0.4);
+
                 z-index: 1;
             }
             .swipe-img {
@@ -758,6 +762,9 @@
                 position: relative;
                 z-index: 2;
                 object-fit: contain; /* 关键：这会保证图片保持比例并尽可能撑满容器（顶边） */
+            }
+            .swipe-img:not(.loaded) {
+                opacity: 0;
             }
             .pixelated {
                 image-rendering: pixelated; /* 关键：放大时不模糊，保持像素颗粒 */
@@ -794,6 +801,7 @@
                 border: 2px solid transparent;
                 opacity: 0.5;
                 transition: all 0.2s;
+                background: #111;
             }
             .ts-item.active {
                 border-color: var(--primary);
@@ -832,6 +840,10 @@
                 min-height: 100px;
                 background: transparent;
             }
+            .d-marquee-box,
+            .swipe-inner {
+                background: #050505;
+            }
             .d-marquee-bg {
                 position: absolute;
                 top: 50%;
@@ -840,8 +852,12 @@
                 height: 120vw;
                 transform: translate(-50%, -50%);
                 object-fit: cover;
-                filter: blur(40px) opacity(0.6);
+
+                /* 【修改】增加 brightness(0.6) 压暗背景，让前面的文字更清晰 */
+                filter: blur(40px) opacity(0.6) brightness(0.6);
+
                 z-index: -1;
+                /* ...保持原有 mask ... */
                 mask-image: radial-gradient(circle, black 20%, transparent 70%);
                 -webkit-mask-image: radial-gradient(circle, black 20%, transparent 70%);
                 pointer-events: none;
@@ -1422,7 +1438,11 @@
                                                 ></video>
                                             </div>
                                             <template v-else>
-                                                <img class="swipe-bg lazy-img" v-lazy="getImgUrl(media.url)" />
+                                                <img
+                                                    class="swipe-bg lazy-img"
+                                                    v-lazy="getImgUrl(media.url)"
+                                                    @load="onImgLoad($event, media)"
+                                                />
 
                                                 <div class="crt-lines" v-if="media.type === 'screenshots'"></div>
 
@@ -1460,7 +1480,12 @@
                                         style="opacity: 0.5"
                                     /><i class="ri-play-circle-line ts-video-icon"></i>
                                 </template>
-                                <img v-else class="ts-img lazy-img" v-lazy="getImgUrl(media.url)" />
+                                <img
+                                    v-else
+                                    class="ts-img lazy-img"
+                                    v-lazy="getImgUrl(media.url)"
+                                    @load="onImgLoad($event, media)"
+                                />
                             </div>
                         </div>
                         <div class="d-body">
@@ -1792,6 +1817,7 @@
                     const previewStartIndex = ref(0);
                     const activePreviewIndex = ref(0);
                     const isRefreshing = ref(false);
+                    const processedCache = ref({}); // 用于缓存处理过的图片 URL (Data URI)
 
                     const globalStatus = ref({
                         runningSystem: null,
@@ -2367,7 +2393,39 @@
 
                     // 【修改】移除了 onImgLoad 中对 naturalHeight 的检测逻辑
                     const onImgLoad = (e, media) => {
-                        e.target.classList.add('loaded');
+                        const imgEl = e.target;
+
+                        // 1. 防止死循环：如果已经是处理过的 Base64 图片，直接标记显示并退出
+                        if (imgEl.src.startsWith('data:image')) {
+                            imgEl.classList.add('loaded');
+                            loadedFlags.value[media.url] = true;
+                            return;
+                        }
+
+                        // 2. 针对包装盒材质 (boxtextures) 进行去绿处理
+                        if (media.type === 'boxtextures') {
+                            // A. 查缓存：如果这张图之前已经抠过图了，直接用缓存
+                            if (processedCache.value[media.url]) {
+                                imgEl.src = processedCache.value[media.url];
+                                return; // 修改 src 会再次触发 onload，交由第1步处理
+                            }
+
+                            // B. 没缓存：执行绿幕抠图
+                            try {
+                                // 确保图片有宽高
+                                if (imgEl.naturalWidth > 0) {
+                                    const newSrc = processGreenScreen(imgEl);
+                                    processedCache.value[media.url] = newSrc; // 存入缓存
+                                    imgEl.src = newSrc; // 替换当前图片
+                                    return; // 等待 src 变更后的下一次 onload
+                                }
+                            } catch (err) {
+                                console.warn('Green screen processing warning:', err);
+                            }
+                        }
+
+                        // 3. 普通图片（或处理失败的图片）直接淡入显示
+                        imgEl.classList.add('loaded');
                         loadedFlags.value[media.url] = true;
                     };
 
@@ -2586,7 +2644,40 @@
                         keyword.value = '';
                         onSearch();
                     };
+                    const processGreenScreen = (img) => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = img.naturalWidth;
+                        canvas.height = img.naturalHeight;
+                        ctx.drawImage(img, 0, 0);
 
+                        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = imgData.data;
+
+                        for (let i = 0; i < data.length; i += 4) {
+                            const r = data[i];
+                            const g = data[i + 1];
+                            const b = data[i + 2];
+
+                            // 检测绿色 (Green Key)
+                            if (g > 150 && g > r + 60 && g > b + 60) {
+                                // 【新逻辑】生成深色磨砂纹理 (模拟黑色塑料盒/纸板)
+                                // 基础色值 35 (深灰)
+                                const baseColor = 35;
+                                // 加入 -10 到 +10 的随机噪点
+                                const noise = (Math.random() - 0.5) * 20;
+                                const finalVal = Math.max(0, Math.min(255, baseColor + noise));
+
+                                data[i] = finalVal; // R
+                                data[i + 1] = finalVal; // G
+                                data[i + 2] = finalVal; // B
+                                data[i + 3] = 255; // Alpha (保持不透明)
+                            }
+                        }
+
+                        ctx.putImageData(imgData, 0, 0);
+                        return canvas.toDataURL();
+                    };
                     return {
                         systems,
                         currentSystemObj,

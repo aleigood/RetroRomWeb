@@ -5,6 +5,7 @@
  * 1. [Fix] 修复下载链接包含敏感参数导致文件名错误和隐私泄露的问题
  * 2. [Feat] 增加 cleanOrphanedMedia 的操作日志
  * 3. [Feat] 支持增量刷新 (incremental) 选项
+ * 4. [Feat] 单游戏刷新支持强制覆盖图片 (Overwrite Mode)
  */
 const fs = require('fs-extra');
 const path = require('path');
@@ -135,10 +136,13 @@ async function syncSingleGame (system, filename, options) {
     const defaultOps = { syncInfo: true, syncImages: true, syncVideo: false, syncMarquees: true, syncBoxArt: false };
     const syncOps = options || defaultOps;
 
+    // 【核心修改】单游戏刷新时，强制关闭增量模式，并开启 overwrite (覆盖资源) 模式
+    syncOps.incremental = false;
+    syncOps.overwrite = true;
+
     await processNewGame(system, filename, oldData, syncOps, scraperId);
 
     console.log(`[Manual Sync] Cleaning orphaned media for ${system}...`);
-    // 单游戏刷新后，立即执行垃圾回收，清理旧图片
     await cleanOrphanedMedia(system);
 
     return true;
@@ -165,7 +169,8 @@ async function processSystemSync (system, options) {
         syncVideo: false,
         syncMarquees: true,
         syncBoxArt: false,
-        incremental: true
+        incremental: true,
+        overwrite: false // 批量扫描默认不覆盖现有图片，节省流量
     };
     const syncOps = options ? { ...defaultOps, ...options } : defaultOps;
 
@@ -255,7 +260,6 @@ async function processSystemSync (system, options) {
     const taskList = Array.from(new Set([...toAdd, ...toUpdate]));
 
     if (taskList.length === 0) {
-        // 即使没有文件变更，也要执行一次清理，处理手动删除的情况
         addLog('文件无变化，检查冗余资源...', system);
         await cleanOrphanedMedia(system);
         finishCurrentSystem();
@@ -274,7 +278,6 @@ async function processSystemSync (system, options) {
             }
             try {
                 const oldData = dbFilenameMap[filename] || null;
-                // 先删除旧数据以确保数据干净（尤其是强制刷新时）
                 if (oldData) {
                     await new Promise((resolve) =>
                         db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], resolve)
@@ -308,9 +311,7 @@ function checkFinish (current, total) {
     }
 }
 
-// 【新增功能】清理未被数据库引用的孤儿文件 (Garbage Collection)
 async function cleanOrphanedMedia (system) {
-    // 1. 获取该平台数据库中所有有效的引用路径
     const sql = 'SELECT image_path, video_path, marquee_path, box_texture_path, screenshot_path FROM games WHERE system = ?';
     const rows = await new Promise((resolve) => {
         db.all(sql, [system], (err, r) => {
@@ -319,7 +320,6 @@ async function cleanOrphanedMedia (system) {
         });
     });
 
-    // 建立白名单
     const validPaths = new Set();
     rows.forEach((row) => {
         if (row.image_path) validPaths.add(path.normalize(row.image_path));
@@ -329,7 +329,6 @@ async function cleanOrphanedMedia (system) {
         if (row.screenshot_path) validPaths.add(path.normalize(row.screenshot_path));
     });
 
-    // 2. 遍历媒体目录进行清理
     const folders = ['covers', 'videos', 'marquees', 'boxtextures', 'screenshots'];
 
     for (const folder of folders) {
@@ -338,17 +337,14 @@ async function cleanOrphanedMedia (system) {
 
         const files = fs.readdirSync(dirPath);
         for (const file of files) {
-            if (file.startsWith('.')) continue; // 忽略 .DS_Store 等
+            if (file.startsWith('.')) continue;
 
             const fullPath = path.join(dirPath, file);
-            // 构造相对路径 (e.g. nes/covers/mario.png) 用于对比
             const dbStylePath = path.join(system, folder, file);
 
-            // 如果文件不在白名单中，则删除
             if (!validPaths.has(path.normalize(dbStylePath))) {
                 try {
                     fs.unlinkSync(fullPath);
-                    // 【新增日志】显示已删除的文件
                     addLog(`🗑️ 清理冗余资源: ${folder}/${file}`, system);
                 } catch (e) {
                     console.error(`删除失败: ${file}`, e.message);
@@ -488,30 +484,25 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
 
                 const safeName = scraperData.name.replace(/[\\/:*?"<>|]/g, '-').trim();
 
-                // 【修复】处理 URL 包含查询参数的情况，避免暴露密码和文件名错误
+                // 【核心修改】支持 overwrite 参数，强制覆盖现有图片
+                const overwrite = options.overwrite === true;
+
                 const handleDownload = async (url, folder, type) => {
                     if (!url) return null;
 
-                    // 1. 移除 ?devid=... 等鉴权参数
                     const cleanUrl = url.split('?')[0];
-
-                    // 2. 获取纯净后缀名
                     let ext = path.extname(cleanUrl).toLowerCase();
 
-                    // 3. 防御无效后缀 (如 .php, .html 或空)
                     if (!ext || ext === '.php' || ext === '.html') {
-                        if (type === 'videos') {
-                            ext = '.mp4';
-                        } else {
-                            ext = '.png'; // 图片默认给 png
-                        }
+                        if (type === 'videos') ext = '.mp4';
+                        else ext = '.png';
                     }
 
                     const fileName = safeName + ext;
                     const dbPath = path.join(system, folder, fileName).replace(/\\/g, '/');
 
-                    // 下载时依然使用原始带参 URL 才能通过鉴权
-                    await downloadMedia(url, system, type, fileName);
+                    // 传递 overwrite 参数给 downloadMedia
+                    await downloadMedia(url, system, type, fileName, overwrite);
                     return dbPath;
                 };
 
@@ -566,9 +557,19 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
     });
 }
 
-async function downloadMedia (url, system, type, filename) {
+// 【核心修改】增加 overwrite 参数
+async function downloadMedia (url, system, type, filename, overwrite = false) {
     const target = path.join(config.mediaDir, system, type, filename);
 
+    // 如果开启了覆盖模式，且文件存在，则先删除它
+    if (overwrite && fs.existsSync(target)) {
+        try {
+            fs.unlinkSync(target);
+            // 此时不用 delete media_library，因为下面硬链接检查如果失败会自动 insert/update
+        } catch (e) {}
+    }
+
+    // 常规检查：如果文件依然存在（且非空），则跳过下载
     if (fs.existsSync(target)) {
         const stats = fs.statSync(target);
         if (stats.size > 0) return;
@@ -584,6 +585,8 @@ async function downloadMedia (url, system, type, filename) {
 
     if (existing) {
         const sourcePath = path.join(config.mediaDir, existing.local_path);
+        // 如果我们刚刚删除了 target，且 target 正好是 sourcePath，那么这里 sourcePath 就不存在了
+        // 这种情况下硬链接会失败，自然会走到下面的下载逻辑，这是符合预期的
         if (fs.existsSync(sourcePath)) {
             try {
                 fs.ensureDirSync(path.dirname(target));
@@ -594,7 +597,6 @@ async function downloadMedia (url, system, type, filename) {
         }
     }
 
-    // 下载时记录精简的文件名，不再记录完整 URL
     addLog(`⬇️ 下载 ${type}: ${filename}`, system);
     await scraper.downloadFile(url, target);
 
