@@ -147,8 +147,14 @@ router.get('/api/games', async (ctx) => {
     const params = [];
     let where = 'WHERE 1=1';
 
-    if (system) { where += ' AND system = ?'; params.push(system); }
-    if (keyword) { where += ' AND (name LIKE ? OR filename LIKE ?)'; params.push(`%${keyword}%`, `%${keyword}%`); }
+    if (system) {
+        where += ' AND system = ?';
+        params.push(system);
+    }
+    if (keyword) {
+        where += ' AND (name LIKE ? OR filename LIKE ?)';
+        params.push(`%${keyword}%`, `%${keyword}%`);
+    }
 
     // 【核心修改】增加了 marquee_path, box_texture_path, screenshot_path 的查询
     const fields = `
@@ -181,7 +187,10 @@ router.get('/api/games', async (ctx) => {
             const offset = (parseInt(page) - 1) * limit;
 
             db.get(`SELECT count(DISTINCT name) as total FROM games ${where}`, params, (err, row) => {
-                if (err) { ctx.status = 500; return resolve(); }
+                if (err) {
+                    ctx.status = 500;
+                    return resolve();
+                }
                 const total = row.total;
 
                 const sql = `SELECT ${fields} FROM games ${where} GROUP BY name ORDER BY name COLLATE NOCASE ASC LIMIT ? OFFSET ?`;
@@ -222,8 +231,12 @@ router.get('/api/game-versions', async (ctx) => {
                         // 按照优先级和类型推入 gallery
                         // 注意：index.html 前端会根据 type 来决定显示逻辑
                         if (row.image_path) gallery.push({ type: 'covers', url: fixPath(row.image_path) });
-                        if (row.box_texture_path) { gallery.push({ type: 'boxtextures', url: fixPath(row.box_texture_path) }); }
-                        if (row.screenshot_path) { gallery.push({ type: 'screenshots', url: fixPath(row.screenshot_path) }); }
+                        if (row.box_texture_path) {
+                            gallery.push({ type: 'boxtextures', url: fixPath(row.box_texture_path) });
+                        }
+                        if (row.screenshot_path) {
+                            gallery.push({ type: 'screenshots', url: fixPath(row.screenshot_path) });
+                        }
                         if (row.marquee_path) gallery.push({ type: 'marquees', url: fixPath(row.marquee_path) });
 
                         // 视频如果需要放轮播图也可以加，但前端通常单独读 video_path
@@ -256,7 +269,6 @@ router.get('/api/download/:id', async (ctx) => {
     const id = ctx.params.id;
     const game = await new Promise((resolve) => {
         db.get('SELECT path, filename FROM games WHERE id = ?', [id], (err, row) => {
-            // 【Fix】ESLint handle-callback-err
             if (err) console.error(err);
             resolve(row || null);
         });
@@ -273,11 +285,28 @@ router.get('/api/download/:id', async (ctx) => {
         return;
     }
 
+    // 【关键修改开始】
+    // 1. 获取文件状态，拿到文件大小
+    const stats = fs.statSync(fullPath);
+
+    // 2. 明确设置 Content-Length，浏览器才能显示进度条
+    ctx.set('Content-Length', stats.size);
+
+    // 3. 设置 Last-Modified，有助于下载工具判断文件是否更新
+    ctx.set('Last-Modified', stats.mtime.toUTCString());
+    // 【关键修改结束】
+
     const filename = path.basename(game.filename);
     const encoded = encodeURIComponent(filename);
+
+    // 如果不是在线播放模式，则强制下载
     if (ctx.query.play !== '1') {
         ctx.set('Content-Disposition', `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
     }
+
+    // 传递流给 body
+    // 由于你已经配置了 app.use(range) 且上面设置了 Content-Length，
+    // koa-range 中间件会自动处理 HTTP 206 断点续传请求
     ctx.body = fs.createReadStream(fullPath);
 });
 
@@ -302,6 +331,17 @@ router.get('/api/play/:id/:filename', async (ctx) => {
         return;
     }
 
+    // 【新增】获取文件状态
+    const stats = fs.statSync(fullPath);
+
+    // 【新增】设置关键头信息
+    // 1. 告诉浏览器文件有多大，这允许视频播放器计算进度百分比
+    ctx.set('Content-Length', stats.size);
+    // 2. 明确告知支持断点续传（配合 koa-range 中间件）
+    ctx.set('Accept-Ranges', 'bytes');
+    // 3. 设置最后修改时间，有助于浏览器缓存策略
+    ctx.set('Last-Modified', stats.mtime.toUTCString());
+
     ctx.type = path.extname(game.filename);
     ctx.body = fs.createReadStream(fullPath);
 });
@@ -313,7 +353,8 @@ router.get('/api/find-parent', async (ctx) => {
         return;
     }
     return new Promise((resolve) => {
-        const sql = 'SELECT id, filename FROM games WHERE system = ? AND name = ? ORDER BY length(filename) ASC LIMIT 1';
+        const sql =
+            'SELECT id, filename FROM games WHERE system = ? AND name = ? ORDER BY length(filename) ASC LIMIT 1';
         db.get(sql, [system, name], (err, row) => {
             if (err) {
                 ctx.status = 500;
