@@ -11,8 +11,8 @@
         <link rel="icon" href="data:," />
 
         <title>RetroRom Hub</title>
-        <link rel="stylesheet" href="https://fastly.jsdelivr.net/npm/vant@4/lib/index.css" />
-        <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet" />
+        <link rel="stylesheet" href="/index.css" />
+        <link rel="stylesheet" href="/remixicon.css" />
         <style>
             :root {
                 --bg-body: #101014;
@@ -99,6 +99,10 @@
                 color: var(--text-main);
                 cursor: pointer;
                 transition: opacity 0.2s;
+                /* 新增：确保内部图标垂直水平居中，并让子元素变为 flex-item 以支持 transform 动画 */
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
             .nav-btn:active {
                 opacity: 0.6;
@@ -471,6 +475,13 @@
                 justify-content: center;
                 min-width: 0;
             }
+            /* 修改系统卡片头部的布局以容纳状态图标 */
+            .sys-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 6px;
+            }
             .sys-name {
                 font-size: 19px;
                 font-weight: 800;
@@ -478,7 +489,7 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
-                margin-bottom: 6px;
+                margin-bottom: 0;
             }
             .sys-meta {
                 font-size: 12px;
@@ -649,7 +660,6 @@
                 flex-direction: column;
                 overflow: hidden;
             }
-            /* 【交互】详情页头部样式，包含过渡动画和隐藏状态 */
             .detail-top-bar {
                 position: absolute;
                 top: 0;
@@ -1132,6 +1142,7 @@
                 }
             }
             .spin-anim {
+                display: inline-block;
                 animation: spin 1s linear infinite;
                 opacity: 1;
             }
@@ -1156,11 +1167,18 @@
             </div>
 
             <div class="navbar">
-                <div class="nav-btn" v-if="currentSystemObj" @click="handleUiBack">
+                <div
+                    class="nav-btn"
+                    :style="{ visibility: currentSystemObj ? 'visible' : 'hidden' }"
+                    @click="currentSystemObj ? handleUiBack() : null"
+                >
                     <i class="ri-arrow-left-line"></i>
                 </div>
                 <div class="nav-title">{{ currentSystemObj ? currentSystemObj.fullname : 'RetroHub' }}</div>
-                <div class="nav-btn" v-if="currentSystemObj" style="opacity: 0; pointer-events: none">
+                <div class="nav-btn" v-if="globalStatus.runningSystem && !currentSystemObj" @click="viewLogs">
+                    <i class="ri-loader-4-line spin-anim" style="color: var(--primary)"></i>
+                </div>
+                <div class="nav-btn" v-else style="visibility: hidden; pointer-events: none">
                     <i class="ri-search-2-line"></i>
                 </div>
             </div>
