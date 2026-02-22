@@ -98,45 +98,59 @@ router.post('/api/stop-scan', async (ctx) => {
 });
 
 router.get('/api/systems', async (ctx) => {
-    return new Promise((resolve) => {
-        let metadata = {};
-        try {
-            metadata = fs.readJsonSync(path.join(__dirname, 'systems.json'));
-        } catch (e) {}
+    // 改为 async/await 模式，移除 Promise 包装
+    let metadata = {};
+    try {
+        // 【修改】使用 await fs.readJson 替代 fs.readJsonSync
+        // 这样读取文件时不会阻塞下载流
+        metadata = await fs.readJson(path.join(__dirname, 'systems.json'));
+    } catch (e) {
+        // 文件不存在或读取错误时忽略
+    }
 
+    // 将原来的回调风格改为 await 风格 (更稳定)
+    return new Promise((resolve, reject) => {
         const sql = 'SELECT system, COUNT(*) as count FROM games GROUP BY system';
         db.all(sql, (err, rows) => {
             if (err) {
                 ctx.status = 500;
                 ctx.body = { error: err.message };
-            } else {
-                const systems = rows.map((row) => {
-                    const key = (row.system || '').toLowerCase();
-                    const info = metadata[key] || {};
-                    const sysObj = {
-                        name: row.system,
-                        count: row.count,
-                        fullname: info.fullname || row.system.toUpperCase(),
-                        abbr: info.abbr || row.system.substring(0, 4).toUpperCase(),
-                        maker: info.maker || 'Unknown',
-                        year: info.release_year || '0000',
-                        desc: info.desc || 'Detected local directory.',
-                        history: info.history || info.desc || 'No details available.',
-                        ejs_core: info.ejs_core || '',
-                        bios: info.bios || ''
-                    };
-                    Object.keys(info).forEach((k) => {
-                        if (k.startsWith('ejs_') && k !== 'ejs_core') sysObj[k] = info[k];
-                    });
-                    return sysObj;
-                });
-                systems.sort((a, b) => {
-                    const makerCompare = a.maker.localeCompare(b.maker, undefined, { sensitivity: 'base' });
-                    if (makerCompare !== 0) return makerCompare;
-                    return (parseInt(a.year) || 9999) - (parseInt(b.year) || 9999);
-                });
-                ctx.body = systems;
+                resolve();
+                return;
             }
+            // ... 后面的 map 和 sort 逻辑保持不变 ...
+            const systems = rows.map((row) => {
+                // ... 原有的 map 逻辑 ...
+                const key = (row.system || '').toLowerCase();
+                const info = metadata[key] || {};
+                // ... 保持你原有的对象组装代码 ...
+                // 只需要把里面的代码复制过来即可
+                const sysObj = {
+                    name: row.system,
+                    count: row.count,
+                    fullname: info.fullname || row.system.toUpperCase(),
+                    abbr: info.abbr || row.system.substring(0, 4).toUpperCase(),
+                    maker: info.maker || 'Unknown',
+                    year: info.release_year || '0000',
+                    desc: info.desc || 'Detected local directory.',
+                    history: info.history || info.desc || 'No details available.',
+                    ejs_core: info.ejs_core || '',
+                    bios: info.bios || ''
+                };
+                Object.keys(info).forEach((k) => {
+                    if (k.startsWith('ejs_') && k !== 'ejs_core') sysObj[k] = info[k];
+                });
+                return sysObj;
+            });
+
+            // ... 原有的排序逻辑 ...
+            systems.sort((a, b) => {
+                const makerCompare = a.maker.localeCompare(b.maker, undefined, { sensitivity: 'base' });
+                if (makerCompare !== 0) return makerCompare;
+                return (parseInt(a.year) || 9999) - (parseInt(b.year) || 9999);
+            });
+
+            ctx.body = systems;
             resolve();
         });
     });
@@ -468,6 +482,14 @@ router.get('/api/play-merged/:id/:filename', async (ctx) => {
 });
 
 app.use(router.routes()).use(router.allowedMethods());
-app.listen(config.port, () => {
+const server = app.listen(config.port, () => {
     console.log(`RetroRomWeb V15 (Fixed DB Mode) started on http://localhost:${config.port}`);
 });
+// 【核心修复】设置服务器超时时间
+// 默认通常是 2分钟 (120000ms)，下载大文件容易断开
+// 设置为 0 表示永不超时，或者设置一个很大的值（例如 1小时 = 3600000ms）
+server.setTimeout(0);
+
+// 保持连接活跃的时间
+server.keepAliveTimeout = 60000 * 60; // 60分钟
+server.headersTimeout = 60000 * 65; // 必须大于 keepAliveTimeout
