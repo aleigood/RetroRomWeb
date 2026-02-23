@@ -102,8 +102,7 @@ router.get('/api/systems', async (ctx) => {
     // 改为 async/await 模式，移除 Promise 包装
     let metadata = {};
     try {
-        // 【修改】使用 await fs.readJson 替代 fs.readJsonSync
-        // 这样读取文件时不会阻塞下载流
+        // 使用 await fs.readJson 替代 fs.readJsonSync，这样读取文件时不会阻塞下载流
         metadata = await fs.readJson(path.join(__dirname, 'systems.json'));
     } catch (e) {
         // 文件不存在或读取错误时忽略
@@ -171,13 +170,9 @@ router.get('/api/systems', async (ctx) => {
                 }
             });
 
-            // ... 后面的 map 和 sort 逻辑保持不变 ...
             const systems = rows.map((row) => {
-                // ... 原有的 map 逻辑 ...
                 const key = (row.system || '').toLowerCase();
                 const info = metadata[key] || {};
-                // ... 保持你原有的对象组装代码 ...
-                // 只需要把里面的代码复制过来即可
                 const sysObj = {
                     name: row.system,
                     count: row.count,
@@ -196,7 +191,6 @@ router.get('/api/systems', async (ctx) => {
                 return sysObj;
             });
 
-            // ... 原有的排序逻辑 ...
             systems.sort((a, b) => {
                 const makerCompare = a.maker.localeCompare(b.maker, undefined, { sensitivity: 'base' });
                 if (makerCompare !== 0) return makerCompare;
@@ -223,14 +217,14 @@ router.get('/api/games', async (ctx) => {
         params.push(`%${keyword}%`, `%${keyword}%`);
     }
 
-    // 【核心修改】增加了 marquee_path, box_texture_path, screenshot_path 的查询
+    // 增加了 marquee_path, box_texture_path, screenshot_path 的查询
     const fields = `
         name, 
         MAX(image_path) as image_path, 
         MAX(video_path) as video_path,
-        MAX(marquee_path) as marquee_path,          -- 新增
-        MAX(box_texture_path) as box_texture_path,  -- 新增
-        MAX(screenshot_path) as screenshot_path,    -- 新增
+        MAX(marquee_path) as marquee_path,
+        MAX(box_texture_path) as box_texture_path,
+        MAX(screenshot_path) as screenshot_path,
         MAX(releasedate) as releasedate, 
         MAX(developer) as developer, 
         MAX(publisher) as publisher, 
@@ -271,8 +265,7 @@ router.get('/api/games', async (ctx) => {
     });
 });
 
-// 【核心修正】详情页数据接口：不再扫描硬盘，改为读取数据库字段
-// 这部分是之前遗漏的，现在补上，并适配了 box_texture_path 等新字段
+// 详情页数据接口：不再扫描硬盘，改为读取数据库字段
 router.get('/api/game-versions', async (ctx) => {
     const { system, name } = ctx.query;
     if (!system || !name) {
@@ -290,13 +283,9 @@ router.get('/api/game-versions', async (ctx) => {
                     ctx.body = { error: err.message };
                 } else {
                     const result = rows.map((row) => {
-                        // 【修正】这里不再调用 getImageCollection
-                        // 直接根据数据库字段组装 gallery
                         const gallery = [];
                         const fixPath = (p) => (p ? p.replace(/\\/g, '/') : null);
 
-                        // 按照优先级和类型推入 gallery
-                        // 注意：index.html 前端会根据 type 来决定显示逻辑
                         if (row.image_path) gallery.push({ type: 'covers', url: fixPath(row.image_path) });
                         if (row.box_texture_path) {
                             gallery.push({ type: 'boxtextures', url: fixPath(row.box_texture_path) });
@@ -305,9 +294,6 @@ router.get('/api/game-versions', async (ctx) => {
                             gallery.push({ type: 'screenshots', url: fixPath(row.screenshot_path) });
                         }
                         if (row.marquee_path) gallery.push({ type: 'marquees', url: fixPath(row.marquee_path) });
-
-                        // 视频如果需要放轮播图也可以加，但前端通常单独读 video_path
-                        // if (row.video_path) gallery.push({ type: 'video', url: fixPath(row.video_path) });
 
                         return { ...row, gallery };
                     });
@@ -352,32 +338,20 @@ router.get('/api/download/:id', async (ctx) => {
         return;
     }
 
-    // 【关键修改开始】
-    // 1. 获取文件状态，拿到文件大小
     const stats = fs.statSync(fullPath);
-
-    // 2. 明确设置 Content-Length，浏览器才能显示进度条
     ctx.set('Content-Length', stats.size);
-
-    // 3. 设置 Last-Modified，有助于下载工具判断文件是否更新
     ctx.set('Last-Modified', stats.mtime.toUTCString());
-    // 【关键修改结束】
 
     const filename = path.basename(game.filename);
     const encoded = encodeURIComponent(filename);
 
-    // 如果不是在线播放模式，则强制下载
     if (ctx.query.play !== '1') {
         ctx.set('Content-Disposition', `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
     }
 
-    // 传递流给 body
-    // 由于你已经配置了 app.use(range) 且上面设置了 Content-Length，
-    // koa-range 中间件会自动处理 HTTP 206 断点续传请求
     ctx.body = fs.createReadStream(fullPath);
 });
 
-// 保持原有的 play 接口
 router.get('/api/play/:id/:filename', async (ctx) => {
     const id = ctx.params.id;
     const game = await new Promise((resolve) => {
@@ -398,15 +372,9 @@ router.get('/api/play/:id/:filename', async (ctx) => {
         return;
     }
 
-    // 【新增】获取文件状态
     const stats = fs.statSync(fullPath);
-
-    // 【新增】设置关键头信息
-    // 1. 告诉浏览器文件有多大，这允许视频播放器计算进度百分比
     ctx.set('Content-Length', stats.size);
-    // 2. 明确告知支持断点续传（配合 koa-range 中间件）
     ctx.set('Accept-Ranges', 'bytes');
-    // 3. 设置最后修改时间，有助于浏览器缓存策略
     ctx.set('Last-Modified', stats.mtime.toUTCString());
 
     ctx.type = path.extname(game.filename);
@@ -432,7 +400,6 @@ router.get('/api/find-parent', async (ctx) => {
     });
 });
 
-// 【保留】服务端动态合并接口
 router.get('/api/play-merged/:id/:filename', async (ctx) => {
     const id = ctx.params.id;
     const game = await new Promise((resolve, reject) => {
@@ -464,14 +431,11 @@ router.get('/api/play-merged/:id/:filename', async (ctx) => {
         return;
     }
 
-    // --- 街机合并逻辑 ---
-    // 查找父游戏
-    const parentGame = await new Promise((resolve, reject) => {
+    const parentGame = await new Promise((resolve) => {
         db.get(
             'SELECT * FROM games WHERE system = ? AND name = ? ORDER BY length(filename) ASC LIMIT 1',
             [game.system, game.name],
             (err, row) => {
-                // 【Fix】ESLint handle-callback-err
                 if (err) {
                     console.error('Find parent game error:', err);
                     return resolve(null);
@@ -538,6 +502,7 @@ app.use(router.routes()).use(router.allowedMethods());
 const server = app.listen(config.port, () => {
     console.log(`RetroRomWeb V15 (Fixed DB Mode) started on http://localhost:${config.port}`);
 });
+
 // 【核心修复】设置服务器超时时间
 // 默认通常是 2分钟 (120000ms)，下载大文件容易断开
 // 设置为 0 表示永不超时，或者设置一个很大的值（例如 1小时 = 3600000ms）

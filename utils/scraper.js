@@ -59,7 +59,7 @@ function cleanRomName (filename) {
     return name;
 }
 
-// 【修改】将全局绝对超时改为“空闲断流超时”(Idle Timeout)，兼容慢速网络
+// 【修改】将全局绝对超时改为“空闲断流超时”(Idle Timeout)，兼容慢速网络，并抛出错误以便上层捕获
 async function downloadFile (url, savePath) {
     if (!url) return;
     try {

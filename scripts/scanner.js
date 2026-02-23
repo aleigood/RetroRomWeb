@@ -9,6 +9,8 @@
  * 5. [Fix] 增加媒体文件下载异常的捕获与前端日志推送，防止队列卡死
  * 6. [Feat] 采用 VIP 快车道机制执行单游戏刷新，并增加防误删文件保护
  * 7. [Fix] 修复 ESLint 检查错误：Promise 参数命名规范问题
+ * 8. [Feat] 增加 media_library 数据库死链精准清理机制，并解决跨平台路径大小写比对问题
+ * 9. [Fix] 彻底修复 ESLint promise/param-names 与 n/handle-callback-err 规范问题
  */
 const fs = require('fs-extra');
 const path = require('path');
@@ -120,7 +122,7 @@ async function addToSyncQueue (system, options = {}) {
 
 // === 单游戏强制刷新 (VIP 队列版) ===
 async function syncSingleGame (system, filename, options) {
-    // 【核心修改】返回一个 Promise，并将具体的执行逻辑包装成一个任务推入 fileQueue 的 VIP 快车道
+    // 包装成一个任务推入 fileQueue 的 VIP 快车道
     return new Promise((resolve, reject) => {
         // 第二个参数 true 代表推入 expressQueue
         fileQueue.add(async () => {
@@ -132,7 +134,7 @@ async function syncSingleGame (system, filename, options) {
                 const sysInfo = sysConfig[system.toLowerCase()] || {};
                 const scraperId = sysInfo.scraper_id;
 
-                // 【修复】ESLint: Promise 参数命名必须为 resolve
+                // 【修复】ESLint promise/param-names，使用 resolve 不会冲突，因为作用域不同
                 const oldData = await new Promise((resolve) => {
                     db.get('SELECT * FROM games WHERE system = ? AND filename = ?', [system, filename], (err, row) => {
                         if (err) console.error('[Scanner] DB Check Error:', err);
@@ -140,9 +142,12 @@ async function syncSingleGame (system, filename, options) {
                     });
                 });
 
-                // 【修复】ESLint: Promise 参数命名必须为 resolve
+                // 【修复】规范处理回调错误，确保不用 err 解析 Promise
                 await new Promise((resolve) => {
-                    db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], resolve);
+                    db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], (err) => {
+                        if (err) console.error('[Scanner] Delete Error:', err);
+                        resolve();
+                    });
                 });
 
                 const defaultOps = {
@@ -160,7 +165,7 @@ async function syncSingleGame (system, filename, options) {
 
                 await processNewGame(system, filename, oldData, syncOps, scraperId);
 
-                // 【安全补丁】如果在 VIP 任务执行时，全局刚好也在同步同一个主机，
+                // 如果在 VIP 任务执行时，全局刚好也在同步同一个主机，
                 // 我们不能立刻执行清理，否则会误删全局正在下载但还没入库的图片！
                 if (globalStatus.runningSystem !== system) {
                     console.log(`[Manual Sync] Cleaning orphaned media for ${system}...`);
@@ -314,9 +319,13 @@ async function processSystemSync (system, options) {
             try {
                 const oldData = dbFilenameMap[filename] || null;
                 if (oldData) {
-                    await new Promise((resolve) =>
-                        db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], resolve)
-                    );
+                    // 【修复】正确处理回调 err
+                    await new Promise((resolve) => {
+                        db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], (err) => {
+                            if (err) console.error(err);
+                            resolve();
+                        });
+                    });
                 }
                 await processNewGame(system, filename, oldData, syncOps, scraperId);
                 completedCount++;
@@ -358,11 +367,12 @@ async function cleanOrphanedMedia (system) {
 
     const validPaths = new Set();
     rows.forEach((row) => {
-        if (row.image_path) validPaths.add(path.normalize(row.image_path));
-        if (row.video_path) validPaths.add(path.normalize(row.video_path));
-        if (row.marquee_path) validPaths.add(path.normalize(row.marquee_path));
-        if (row.box_texture_path) validPaths.add(path.normalize(row.box_texture_path));
-        if (row.screenshot_path) validPaths.add(path.normalize(row.screenshot_path));
+        // 统一转化为小写存入 Set，解决跨平台大小写“误杀”问题
+        if (row.image_path) validPaths.add(path.normalize(row.image_path).toLowerCase());
+        if (row.video_path) validPaths.add(path.normalize(row.video_path).toLowerCase());
+        if (row.marquee_path) validPaths.add(path.normalize(row.marquee_path).toLowerCase());
+        if (row.box_texture_path) validPaths.add(path.normalize(row.box_texture_path).toLowerCase());
+        if (row.screenshot_path) validPaths.add(path.normalize(row.screenshot_path).toLowerCase());
     });
 
     const folders = ['covers', 'videos', 'marquees', 'boxtextures', 'screenshots'];
@@ -376,7 +386,8 @@ async function cleanOrphanedMedia (system) {
             if (file.startsWith('.')) continue;
 
             const fullPath = path.join(dirPath, file);
-            const dbStylePath = path.join(system, folder, file);
+            // 比对时也将路径转为小写
+            const dbStylePath = path.join(system, folder, file).toLowerCase();
 
             if (!validPaths.has(path.normalize(dbStylePath))) {
                 try {
@@ -387,6 +398,43 @@ async function cleanOrphanedMedia (system) {
                 }
             }
         }
+    }
+
+    // 物理文件清理完毕后，执行数据库精确死链清理
+    await cleanDeadMediaLinks(system);
+}
+
+// === 精准清理死链的函数 ===
+async function cleanDeadMediaLinks (system) {
+    const prefixMatch = `${system.toLowerCase()}%`;
+    const sql = 'SELECT url, local_path FROM media_library WHERE LOWER(local_path) LIKE ?';
+
+    // 【修复】n/handle-callback-err: 加入了对 err 的处理
+    const rows = await new Promise((resolve) => {
+        db.all(sql, [prefixMatch], (err, r) => {
+            if (err) console.error('[Cleanup] Query dead links error:', err);
+            resolve(r || []);
+        });
+    });
+
+    let deadCount = 0;
+    for (const row of rows) {
+        const fullPath = path.join(config.mediaDir, row.local_path);
+        if (!fs.existsSync(fullPath)) {
+            try {
+                // 【修复】正确处理回调 err
+                await new Promise((resolve) => {
+                    db.run('DELETE FROM media_library WHERE url = ?', [row.url], (err) => {
+                        if (err) console.error('[Cleanup] Delete dead link error:', err);
+                        resolve();
+                    });
+                });
+                deadCount++;
+            } catch (e) {}
+        }
+    }
+    if (deadCount > 0) {
+        console.log(`[Cleanup] 系统 ${system} 成功清理了 ${deadCount} 条 media_library 失效记录`);
     }
 }
 
@@ -523,7 +571,6 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
 
                 // 定义 handleDownload
                 const handleDownload = async (url, folder, type) => {
-                    // ... 保持原有逻辑不变 ...
                     if (!url) return null;
                     const cleanUrl = url.split('?')[0];
                     let ext = path.extname(cleanUrl).toLowerCase();
@@ -542,8 +589,6 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                         return null; // 返回 null 使得数据库该字段为空，跳过此媒体
                     }
                 };
-
-                // 【核心修改】调整下载顺序：先下载 Logo (Marquee)，以便后续合成
 
                 // 1. 先处理 Marquee
                 if (options.syncMarquees) {
@@ -573,13 +618,9 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                     if (scraperData.boxTextureUrl) {
                         boxTexturePath = await handleDownload(scraperData.boxTextureUrl, 'boxtextures', 'boxtextures');
 
-                        // 如果下载成功（即 boxTexturePath 有值），执行图像处理
                         if (boxTexturePath) {
                             const fullBoxPath = path.join(config.mediaDir, boxTexturePath);
-                            // 如果 marqueePath 存在，计算其绝对路径，否则传 null
                             const fullMarqueePath = marqueePath ? path.join(config.mediaDir, marqueePath) : null;
-
-                            // 调用处理函数
                             await imgProcessor.processBoxTexture(fullBoxPath, fullMarqueePath);
                         }
                     }
@@ -590,6 +631,7 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
         }
     }
 
+    // 【修复】正确处理回调 err
     return new Promise((resolve) => {
         db.run(
             `INSERT INTO games (
@@ -614,7 +656,10 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                 gameInfo.genre,
                 gameInfo.players
             ],
-            resolve
+            (err) => {
+                if (err) console.error('[Scanner] Insert Game Error:', err);
+                resolve();
+            }
         );
     });
 }
@@ -623,15 +668,12 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
 async function downloadMedia (url, system, type, filename, overwrite = false) {
     const target = path.join(config.mediaDir, system, type, filename);
 
-    // 如果开启了覆盖模式，且文件存在，则先删除它
     if (overwrite && fs.existsSync(target)) {
         try {
             fs.unlinkSync(target);
-            // 此时不用 delete media_library，因为下面硬链接检查如果失败会自动 insert/update
         } catch (e) {}
     }
 
-    // 常规检查：如果文件依然存在（且非空），则跳过下载
     if (fs.existsSync(target)) {
         const stats = fs.statSync(target);
         if (stats.size > 0) return;
@@ -647,8 +689,6 @@ async function downloadMedia (url, system, type, filename, overwrite = false) {
 
     if (existing) {
         const sourcePath = path.join(config.mediaDir, existing.local_path);
-        // 如果我们刚刚删除了 target，且 target 正好是 sourcePath，那么这里 sourcePath 就不存在了
-        // 这种情况下硬链接会失败，自然会走到下面的下载逻辑，这是符合预期的
         if (fs.existsSync(sourcePath)) {
             try {
                 fs.ensureDirSync(path.dirname(target));
