@@ -59,6 +59,7 @@ function cleanRomName (filename) {
     return name;
 }
 
+// 【修改】修复数据流静默挂死导致队列永久停止的问题，并抛出错误以便上层捕获
 async function downloadFile (url, savePath) {
     if (!url) return;
     try {
@@ -70,16 +71,40 @@ async function downloadFile (url, savePath) {
         });
         fs.ensureDirSync(path.dirname(savePath));
         const writer = fs.createWriteStream(savePath);
-        response.data.pipe(writer);
+
         return new Promise((resolve, reject) => {
-            writer.on('finish', resolve);
+            // 【新增】设置下载过程硬超时时间（例如 60 秒），超过此时间强制中断流
+            // 以防止 ScreenScraper 服务器只连接不发数据造成的队列静默卡死
+            const downloadTimeout = setTimeout(() => {
+                writer.destroy(); // 强制销毁写入流释放描述符
+                reject(new Error('数据传输严重超时或无声挂起，已强制中断'));
+            }, 60000);
+
+            response.data.pipe(writer);
+
+            writer.on('finish', () => {
+                clearTimeout(downloadTimeout); // 下载完成，清除超时器
+                resolve();
+            });
+
             writer.on('error', (err) => {
+                clearTimeout(downloadTimeout); // 写入发生错误，清除超时器
+                fs.unlink(savePath, () => {});
+                reject(err);
+            });
+
+            // 【新增】监听原始读取流 (response.data) 的异常断开
+            response.data.on('error', (err) => {
+                clearTimeout(downloadTimeout);
+                writer.destroy();
                 fs.unlink(savePath, () => {});
                 reject(err);
             });
         });
     } catch (e) {
         console.error(`[Scraper] 下载失败: ${url} - ${e.message}`);
+        // 【新增】将错误抛出，让 scanner.js 能够捕获并在前端日志显示
+        throw e;
     }
 }
 

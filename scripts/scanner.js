@@ -6,6 +6,7 @@
  * 2. [Feat] 增加 cleanOrphanedMedia 的操作日志
  * 3. [Feat] 支持增量刷新 (incremental) 选项
  * 4. [Feat] 单游戏刷新支持强制覆盖图片 (Overwrite Mode)
+ * 5. [Fix] 增加媒体文件下载异常的捕获与前端日志推送，防止队列卡死
  */
 const fs = require('fs-extra');
 const path = require('path');
@@ -41,6 +42,8 @@ const ROM_EXTS = [
     '.nsp',
     '.xci',
     '.wbfs',
+    '.wua',
+    '.cci',
     '.rvz'
 ];
 
@@ -504,11 +507,15 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                     const fileName = safeName + ext;
                     const dbPath = path.join(system, folder, fileName).replace(/\\/g, '/');
 
-                    // 返回一个对象包含 dbPath 和 fullPath，方便后续处理
-                    // 但由于原有逻辑需要返回 dbPath 字符串给 imagePath 赋值，
-                    // 我们这里还是只返回 dbPath，但在 downloadMedia 内部处理或通过路径推算
-                    await downloadMedia(url, system, type, fileName, overwrite);
-                    return dbPath;
+                    // 【新增】增加 try...catch 捕获超时或断流异常，防止中断整个游戏的入库流程
+                    try {
+                        await downloadMedia(url, system, type, fileName, overwrite);
+                        return dbPath;
+                    } catch (e) {
+                        // 在前端日志输出错误信息
+                        addLog(`❌ 下载 ${type} 失败: ${e.message}`, system);
+                        return null; // 返回 null 使得数据库该字段为空，跳过此媒体
+                    }
                 };
 
                 // 【核心修改】调整下载顺序：先下载 Logo (Marquee)，以便后续合成

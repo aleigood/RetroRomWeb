@@ -5,6 +5,7 @@
  * 1. [Fix] 移除 getImageCollection，改为直接读取数据库新字段 (适配 cleanup.js)
  * 2. [Fix] 修复 ESLint handle-callback-err 报错
  * 3. [Feat] 保留街机 ROM 自动合并逻辑
+ * 4. [Feat] 接口 /api/systems 支持合并显示本地存在但尚未扫描入库的空主机目录
  */
 const Koa = require('koa');
 const Router = require('koa-router');
@@ -108,6 +109,49 @@ router.get('/api/systems', async (ctx) => {
         // 文件不存在或读取错误时忽略
     }
 
+    // 【新增】读取本地实际存在的 ROM 目录，解决新目录无法在前端显示的问题
+    const localDirs = [];
+    try {
+        if (fs.existsSync(config.romsDir)) {
+            const dirs = await fs.readdir(config.romsDir);
+            // 需要忽略的非游戏系统目录
+            const IGNORE_DIRS = [
+                'media',
+                'images',
+                'covers',
+                'screenshots',
+                'titles',
+                'wheel',
+                'marquees',
+                'boxart',
+                'boxtextures',
+                'marquee',
+                'video',
+                'videos',
+                'bios',
+                'cheats',
+                'saves',
+                'states',
+                'downloaded_images',
+                'manuals',
+                'system',
+                'tmp',
+                'temp',
+                'logs'
+            ];
+
+            for (const d of dirs) {
+                const fullPath = path.join(config.romsDir, d);
+                const stat = await fs.stat(fullPath);
+                if (stat.isDirectory() && !d.startsWith('.') && !IGNORE_DIRS.includes(d.toLowerCase())) {
+                    localDirs.push(d);
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[API] 读取本地 ROM 目录失败:', e.message);
+    }
+
     // 将原来的回调风格改为 await 风格 (更稳定)
     return new Promise((resolve, reject) => {
         const sql = 'SELECT system, COUNT(*) as count FROM games GROUP BY system';
@@ -118,6 +162,15 @@ router.get('/api/systems', async (ctx) => {
                 resolve();
                 return;
             }
+
+            // 【新增】将本地有文件夹但数据库还没有记录的主机，以 count = 0 的形式合并到列表中
+            const existingSystems = rows.map((r) => r.system);
+            localDirs.forEach((dir) => {
+                if (!existingSystems.includes(dir)) {
+                    rows.push({ system: dir, count: 0 });
+                }
+            });
+
             // ... 后面的 map 和 sort 逻辑保持不变 ...
             const systems = rows.map((row) => {
                 // ... 原有的 map 逻辑 ...
