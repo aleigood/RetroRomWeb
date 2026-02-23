@@ -59,7 +59,7 @@ function cleanRomName (filename) {
     return name;
 }
 
-// 【修改】修复数据流静默挂死导致队列永久停止的问题，并抛出错误以便上层捕获
+// 【修改】将全局绝对超时改为“空闲断流超时”(Idle Timeout)，兼容慢速网络
 async function downloadFile (url, savePath) {
     if (!url) return;
     try {
@@ -67,18 +67,31 @@ async function downloadFile (url, savePath) {
             url,
             method: 'GET',
             responseType: 'stream',
-            timeout: 30000
+            timeout: 30000 // 这里的 timeout 仅限于建立连接和响应头的时间
         });
         fs.ensureDirSync(path.dirname(savePath));
         const writer = fs.createWriteStream(savePath);
 
         return new Promise((resolve, reject) => {
-            // 【新增】设置下载过程硬超时时间（例如 60 秒），超过此时间强制中断流
-            // 以防止 ScreenScraper 服务器只连接不发数据造成的队列静默卡死
-            const downloadTimeout = setTimeout(() => {
-                writer.destroy(); // 强制销毁写入流释放描述符
-                reject(new Error('数据传输严重超时或无声挂起，已强制中断'));
-            }, 60000);
+            let downloadTimeout;
+
+            // 【新增】重置超时器的函数。只要有数据流动，就重置倒计时。
+            // 只有连续 60 秒毫无数据流入，才会被判定为彻底断流。
+            const resetTimeout = () => {
+                if (downloadTimeout) clearTimeout(downloadTimeout);
+                downloadTimeout = setTimeout(() => {
+                    writer.destroy(); // 强制销毁写入流释放描述符
+                    reject(new Error('网络传输静默超过 60 秒，判定为断流并强制中断'));
+                }, 60000); // 空闲忍耐时间：60秒
+            };
+
+            // 开启初始监控
+            resetTimeout();
+
+            // 【新增】监听数据块的流入，每次有数据过来就续命
+            response.data.on('data', () => {
+                resetTimeout();
+            });
 
             response.data.pipe(writer);
 
@@ -93,7 +106,7 @@ async function downloadFile (url, savePath) {
                 reject(err);
             });
 
-            // 【新增】监听原始读取流 (response.data) 的异常断开
+            // 监听原始读取流 (response.data) 的异常断开
             response.data.on('error', (err) => {
                 clearTimeout(downloadTimeout);
                 writer.destroy();
@@ -103,7 +116,7 @@ async function downloadFile (url, savePath) {
         });
     } catch (e) {
         console.error(`[Scraper] 下载失败: ${url} - ${e.message}`);
-        // 【新增】将错误抛出，让 scanner.js 能够捕获并在前端日志显示
+        // 将错误抛出，让 scanner.js 能够捕获并在前端日志显示
         throw e;
     }
 }
@@ -302,7 +315,7 @@ async function searchByText (systemId, filename, ssConfig) {
 
 function getLocalizedText (arr) {
     if (!Array.isArray(arr)) return arr ? arr.text : '';
-    // 【修改】优先级调整：
+    // 优先级调整：
     // 1. 英语组: 'en' (通用英语), 'us' (美版), 'eu' (欧版), 'wor' (世界版)
     // 2. 日语: 'jp'
     // 3. 兜底: 'ss' (ScreenScraper通用), 'cn'/'zh' (中文) 等
@@ -345,7 +358,7 @@ function parseGameData (gameData, originalFilename) {
         const availableTypes = gameData.medias.map((m) => `${m.type}(${m.region})`).join(', ');
         console.log(`[Scraper Debug] 游戏 "${name}" 可用媒体: ${availableTypes}`);
 
-        // 【核心修改】策略 A：类型优先 + 指定地区顺序
+        // 策略 A：类型优先 + 指定地区顺序
         // 地区顺序：US (美) -> JP (日) -> EU (欧) -> WOR (世界) -> EN (英)
         const findMedia = (types, regionOrder = ['en', 'us', 'eu', 'wor', 'jp', 'ss']) => {
             // 第一层：优先遍历要求的媒体类型 (如先找 box-2d，必须找完所有地区确认没有，才去找 box-3d)
