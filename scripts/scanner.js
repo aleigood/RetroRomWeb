@@ -7,6 +7,8 @@
  * 3. [Feat] 支持增量刷新 (incremental) 选项
  * 4. [Feat] 单游戏刷新支持强制覆盖图片 (Overwrite Mode)
  * 5. [Fix] 增加媒体文件下载异常的捕获与前端日志推送，防止队列卡死
+ * 6. [Feat] 采用 VIP 快车道机制执行单游戏刷新，并增加防误删文件保护
+ * 7. [Fix] 修复 ESLint 检查错误：Promise 参数命名规范问题
  */
 const fs = require('fs-extra');
 const path = require('path');
@@ -14,7 +16,7 @@ const config = require('../config');
 const db = require('../db/database');
 const scraper = require('../utils/scraper');
 const fileQueue = require('../utils/queue');
-const imgProcessor = require('../utils/imgProcessor'); // 【新增】引入图片处理器
+const imgProcessor = require('../utils/imgProcessor'); // 引入图片处理器
 
 const IMG_EXTS = ['.png', '.jpg', '.jpeg', '.gif'];
 const VIDEO_EXTS = ['.mp4', '.webm', '.mkv', '.avi'];
@@ -116,40 +118,64 @@ async function addToSyncQueue (system, options = {}) {
     return { success: true };
 }
 
-// === 单游戏强制刷新 ===
+// === 单游戏强制刷新 (VIP 队列版) ===
 async function syncSingleGame (system, filename, options) {
-    if (globalStatus.runningSystem) throw new Error('Global sync is running, please wait.');
-    ensureMediaTable();
-    console.log(`[Manual Sync] ${system} -> ${filename}`);
+    // 【核心修改】返回一个 Promise，并将具体的执行逻辑包装成一个任务推入 fileQueue 的 VIP 快车道
+    return new Promise((resolve, reject) => {
+        // 第二个参数 true 代表推入 expressQueue
+        fileQueue.add(async () => {
+            try {
+                ensureMediaTable();
+                console.log(`[Manual Sync] ${system} -> ${filename} (VIP Queue)`);
 
-    const sysConfig = loadSystemConfig();
-    const sysInfo = sysConfig[system.toLowerCase()] || {};
-    const scraperId = sysInfo.scraper_id;
+                const sysConfig = loadSystemConfig();
+                const sysInfo = sysConfig[system.toLowerCase()] || {};
+                const scraperId = sysInfo.scraper_id;
 
-    const oldData = await new Promise((resolve) => {
-        db.get('SELECT * FROM games WHERE system = ? AND filename = ?', [system, filename], (err, row) => {
-            if (err) console.error('[Scanner] DB Check Error:', err);
-            resolve(row || null);
-        });
+                // 【修复】ESLint: Promise 参数命名必须为 resolve
+                const oldData = await new Promise((resolve) => {
+                    db.get('SELECT * FROM games WHERE system = ? AND filename = ?', [system, filename], (err, row) => {
+                        if (err) console.error('[Scanner] DB Check Error:', err);
+                        resolve(row || null);
+                    });
+                });
+
+                // 【修复】ESLint: Promise 参数命名必须为 resolve
+                await new Promise((resolve) => {
+                    db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], resolve);
+                });
+
+                const defaultOps = {
+                    syncInfo: true,
+                    syncImages: true,
+                    syncVideo: false,
+                    syncMarquees: true,
+                    syncBoxArt: false
+                };
+                const syncOps = options || defaultOps;
+
+                // 单游戏刷新时，强制关闭增量模式，并开启 overwrite (覆盖资源) 模式
+                syncOps.incremental = false;
+                syncOps.overwrite = true;
+
+                await processNewGame(system, filename, oldData, syncOps, scraperId);
+
+                // 【安全补丁】如果在 VIP 任务执行时，全局刚好也在同步同一个主机，
+                // 我们不能立刻执行清理，否则会误删全局正在下载但还没入库的图片！
+                if (globalStatus.runningSystem !== system) {
+                    console.log(`[Manual Sync] Cleaning orphaned media for ${system}...`);
+                    await cleanOrphanedMedia(system);
+                } else {
+                    console.log(`[Manual Sync] ⚠️ 跳过清理冗余文件，因为全局正在同步 ${system}`);
+                }
+
+                resolve(true);
+            } catch (e) {
+                console.error(`[Manual Sync Error] ${e.message}`);
+                reject(e);
+            }
+        }, true);
     });
-
-    await new Promise((resolve) => {
-        db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], resolve);
-    });
-
-    const defaultOps = { syncInfo: true, syncImages: true, syncVideo: false, syncMarquees: true, syncBoxArt: false };
-    const syncOps = options || defaultOps;
-
-    // 【核心修改】单游戏刷新时，强制关闭增量模式，并开启 overwrite (覆盖资源) 模式
-    syncOps.incremental = false;
-    syncOps.overwrite = true;
-
-    await processNewGame(system, filename, oldData, syncOps, scraperId);
-
-    console.log(`[Manual Sync] Cleaning orphaned media for ${system}...`);
-    await cleanOrphanedMedia(system);
-
-    return true;
 }
 
 // === 核心：执行系统同步 ===
@@ -278,6 +304,7 @@ async function processSystemSync (system, options) {
     let completedCount = 0;
 
     taskList.forEach((filename) => {
+        // 全局任务默认推入普通队列 (isExpress 默认为 false)
         fileQueue.add(async () => {
             if (globalStatus.isStopping) {
                 completedCount++;
@@ -507,12 +534,10 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                     const fileName = safeName + ext;
                     const dbPath = path.join(system, folder, fileName).replace(/\\/g, '/');
 
-                    // 【新增】增加 try...catch 捕获超时或断流异常，防止中断整个游戏的入库流程
                     try {
                         await downloadMedia(url, system, type, fileName, overwrite);
                         return dbPath;
                     } catch (e) {
-                        // 在前端日志输出错误信息
                         addLog(`❌ 下载 ${type} 失败: ${e.message}`, system);
                         return null; // 返回 null 使得数据库该字段为空，跳过此媒体
                     }
@@ -548,7 +573,7 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                     if (scraperData.boxTextureUrl) {
                         boxTexturePath = await handleDownload(scraperData.boxTextureUrl, 'boxtextures', 'boxtextures');
 
-                        // 【新增】如果下载成功（即 boxTexturePath 有值），执行图像处理
+                        // 如果下载成功（即 boxTexturePath 有值），执行图像处理
                         if (boxTexturePath) {
                             const fullBoxPath = path.join(config.mediaDir, boxTexturePath);
                             // 如果 marqueePath 存在，计算其绝对路径，否则传 null
@@ -594,7 +619,7 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
     });
 }
 
-// 【核心修改】增加 overwrite 参数
+// 增加 overwrite 参数
 async function downloadMedia (url, system, type, filename, overwrite = false) {
     const target = path.join(config.mediaDir, system, type, filename);
 
