@@ -632,7 +632,7 @@
             }
             .g-title {
                 font-size: 12px;
-                color: #fff;
+                color: rgba(255, 255, 255, 0.9);
                 text-align: center;
                 font-weight: 700;
                 width: 100%;
@@ -645,12 +645,6 @@
                 text-overflow: ellipsis;
                 white-space: normal;
                 word-break: break-word;
-            }
-            .g-year {
-                font-size: 10px;
-                color: #bbb;
-                text-align: center;
-                margin-bottom: 2px;
             }
             .g-rating {
                 height: 12px;
@@ -1348,9 +1342,6 @@
                                                     void-icon="star"
                                                     void-color="#555"
                                                 />
-                                            </div>
-                                            <div class="g-year">
-                                                {{ game.releasedate ? game.releasedate.substring(0,4) : '' }}
                                             </div>
                                             <div class="g-title">{{ game.name }}</div>
                                         </div>

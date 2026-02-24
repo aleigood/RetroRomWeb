@@ -50,12 +50,8 @@ function cleanRomName (filename) {
     name = name.replace(/\(.*?\)/g, '');
     name = name.replace(/v\d+(\.\d+)?/gi, '');
 
-    // Inspiration #3: 尝试移除开头的 "The "，有时能帮助匹配
-    // 但为了保险起见，我们只在 Level 3 模糊搜索中使用这个 clean 后的名字
-    // 如果名字本身就是 "The King of Fighters"，移除 The 可能变 "King of Fighters" 也挺好
-    // 这里保持原有的替换逻辑，但要注意 ScreenScraper 对特殊符号敏感
-    // 扩大了特殊字符清洗范围，增加了对 #、@、™、…、+ 等符号的支持，统一替换为空格以提高命中率
-    name = name.replace(/[&:\-_!.,;'#@™…+]/g, ' ');
+    // 将 ® 符号加入到特殊字符清洗规则中
+    name = name.replace(/[&:\-_!.,;'#@™…+®]/g, ' ');
     name = name.replace(/\s+/g, ' ').trim();
     return name;
 }
