@@ -6,6 +6,7 @@
  * 2. [Fix] 修复 ESLint handle-callback-err 报错
  * 3. [Feat] 保留街机 ROM 自动合并逻辑
  * 4. [Feat] 接口 /api/systems 支持合并显示本地存在但尚未扫描入库的空主机目录
+ * 5. [Feat] 详情页接口增加动态获取物理文件大小功能
  */
 const Koa = require('koa');
 const Router = require('koa-router');
@@ -99,21 +100,15 @@ router.post('/api/stop-scan', async (ctx) => {
 });
 
 router.get('/api/systems', async (ctx) => {
-    // 改为 async/await 模式，移除 Promise 包装
     let metadata = {};
     try {
-        // 使用 await fs.readJson 替代 fs.readJsonSync，这样读取文件时不会阻塞下载流
         metadata = await fs.readJson(path.join(__dirname, 'systems.json'));
-    } catch (e) {
-        // 文件不存在或读取错误时忽略
-    }
+    } catch (e) {}
 
-    // 【新增】读取本地实际存在的 ROM 目录，解决新目录无法在前端显示的问题
     const localDirs = [];
     try {
         if (fs.existsSync(config.romsDir)) {
             const dirs = await fs.readdir(config.romsDir);
-            // 需要忽略的非游戏系统目录
             const IGNORE_DIRS = [
                 'media',
                 'images',
@@ -151,7 +146,6 @@ router.get('/api/systems', async (ctx) => {
         console.error('[API] 读取本地 ROM 目录失败:', e.message);
     }
 
-    // 将原来的回调风格改为 await 风格 (更稳定)
     return new Promise((resolve, reject) => {
         const sql = 'SELECT system, COUNT(*) as count FROM games GROUP BY system';
         db.all(sql, (err, rows) => {
@@ -162,7 +156,6 @@ router.get('/api/systems', async (ctx) => {
                 return;
             }
 
-            // 【新增】将本地有文件夹但数据库还没有记录的主机，以 count = 0 的形式合并到列表中
             const existingSystems = rows.map((r) => r.system);
             localDirs.forEach((dir) => {
                 if (!existingSystems.includes(dir)) {
@@ -217,7 +210,6 @@ router.get('/api/games', async (ctx) => {
         params.push(`%${keyword}%`, `%${keyword}%`);
     }
 
-    // 增加了 marquee_path, box_texture_path, screenshot_path 的查询
     const fields = `
         name, 
         MAX(image_path) as image_path, 
@@ -265,7 +257,6 @@ router.get('/api/games', async (ctx) => {
     });
 });
 
-// 详情页数据接口：不再扫描硬盘，改为读取数据库字段
 router.get('/api/game-versions', async (ctx) => {
     const { system, name } = ctx.query;
     if (!system || !name) {
@@ -295,7 +286,24 @@ router.get('/api/game-versions', async (ctx) => {
                         }
                         if (row.marquee_path) gallery.push({ type: 'marquees', url: fixPath(row.marquee_path) });
 
-                        return { ...row, gallery };
+                        // 【新增】实时获取硬盘中的文件大小
+                        let sizeStr = '';
+                        if (row.path) {
+                            const fullPath = path.join(config.romsDir, row.path);
+                            try {
+                                if (fs.existsSync(fullPath)) {
+                                    const size = fs.statSync(fullPath).size;
+                                    if (size > 1073741824) sizeStr = (size / 1073741824).toFixed(2) + ' GB';
+                                    else if (size > 1048576) sizeStr = (size / 1048576).toFixed(2) + ' MB';
+                                    else if (size > 1024) sizeStr = (size / 1024).toFixed(2) + ' KB';
+                                    else sizeStr = size + ' B';
+                                }
+                            } catch (e) {
+                                console.error('[API] 获取文件大小失败:', e.message);
+                            }
+                        }
+
+                        return { ...row, gallery, fileSizeStr: sizeStr };
                     });
                     ctx.body = result;
                 }
@@ -503,11 +511,6 @@ const server = app.listen(config.port, () => {
     console.log(`RetroRomWeb V15 (Fixed DB Mode) started on http://localhost:${config.port}`);
 });
 
-// 【核心修复】设置服务器超时时间
-// 默认通常是 2分钟 (120000ms)，下载大文件容易断开
-// 设置为 0 表示永不超时，或者设置一个很大的值（例如 1小时 = 3600000ms）
 server.setTimeout(0);
-
-// 保持连接活跃的时间
-server.keepAliveTimeout = 60000 * 60; // 60分钟
-server.headersTimeout = 60000 * 65; // 必须大于 keepAliveTimeout
+server.keepAliveTimeout = 60000 * 60;
+server.headersTimeout = 60000 * 65;

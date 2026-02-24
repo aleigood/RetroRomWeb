@@ -54,13 +54,13 @@ function cleanRomName (filename) {
     // 但为了保险起见，我们只在 Level 3 模糊搜索中使用这个 clean 后的名字
     // 如果名字本身就是 "The King of Fighters"，移除 The 可能变 "King of Fighters" 也挺好
     // 这里保持原有的替换逻辑，但要注意 ScreenScraper 对特殊符号敏感
-    // 【修改】扩大了特殊字符清洗范围，增加了对 #、@、™、…、+ 等符号的支持，统一替换为空格以提高命中率
+    // 扩大了特殊字符清洗范围，增加了对 #、@、™、…、+ 等符号的支持，统一替换为空格以提高命中率
     name = name.replace(/[&:\-_!.,;'#@™…+]/g, ' ');
     name = name.replace(/\s+/g, ' ').trim();
     return name;
 }
 
-// 【修改】将全局绝对超时改为“空闲断流超时”(Idle Timeout)，兼容慢速网络，并抛出错误以便上层捕获
+// 将全局绝对超时改为“空闲断流超时”(Idle Timeout)，兼容慢速网络，并抛出错误以便上层捕获
 async function downloadFile (url, savePath) {
     if (!url) return;
     try {
@@ -76,7 +76,7 @@ async function downloadFile (url, savePath) {
         return new Promise((resolve, reject) => {
             let downloadTimeout;
 
-            // 【新增】重置超时器的函数。只要有数据流动，就重置倒计时。
+            // 重置超时器的函数。只要有数据流动，就重置倒计时。
             // 只有连续 60 秒毫无数据流入，才会被判定为彻底断流。
             const resetTimeout = () => {
                 if (downloadTimeout) clearTimeout(downloadTimeout);
@@ -89,7 +89,7 @@ async function downloadFile (url, savePath) {
             // 开启初始监控
             resetTimeout();
 
-            // 【新增】监听数据块的流入，每次有数据过来就续命
+            // 监听数据块的流入，每次有数据过来就续命
             response.data.on('data', () => {
                 resetTimeout();
             });
@@ -122,16 +122,22 @@ async function downloadFile (url, savePath) {
     }
 }
 
-async function fetchGameInfo (system, filename, fullPath, explicitSystemId = null) {
+// 【核心修改】增加了 logger 回调参数，用于推送未命中时的搜索词到前端日志
+async function fetchGameInfo (system, filename, fullPath, explicitSystemId = null, logger = null) {
     const ssConfig = config.screenScraper;
     if (!ssConfig || !ssConfig.devId || !ssConfig.devPassword) return null;
 
     const systemId = explicitSystemId;
+    const cleanName = cleanRomName(filename);
 
     // 如果未配置 ID，直接尝试全局模糊搜索
     if (!systemId) {
         console.log(`[Scraper] 目录 ${system} 未配置 Scraper ID，跳过精准匹配，仅尝试全局搜索...`);
-        return await searchWithFallback(null, filename, ssConfig);
+        const fallbackResult = await searchWithFallback(null, filename, ssConfig);
+        if (!fallbackResult && logger) {
+            logger(`❌ 未匹配到游戏，全局搜索词: "${cleanName}"`);
+        }
+        return fallbackResult;
     }
 
     let romSize = 0;
@@ -142,7 +148,6 @@ async function fetchGameInfo (system, filename, fullPath, explicitSystemId = nul
     }
 
     const romStem = getRomStem(filename);
-    const cleanName = cleanRomName(filename);
 
     // Inspiration #1: 判断是否为街机系统或短文件名
     const isArcade =
@@ -184,16 +189,25 @@ async function fetchGameInfo (system, filename, fullPath, explicitSystemId = nul
     // 因为模糊搜索对于 "kof97" 这种短词或街机文件名效果极差，容易匹配错
     if (isArcade) {
         console.log('[Scraper] ⚠️ 街机平台/MAME 不进行模糊搜索，以避免错误匹配。');
+        if (logger) logger(`⚠️ 街机跳过模糊搜索: "${cleanName}"`);
         return null;
     }
     if (isShortName) {
         console.log('[Scraper] ⚠️ 文件名过短 (<4 chars)，不进行模糊搜索。');
+        if (logger) logger(`⚠️ 名字过短跳过模糊搜索: "${cleanName}"`);
         return null;
     }
 
     // === Level 3: 文本搜索 (fallback) ===
     console.log('[Scraper] 文件名匹配失败，尝试文本模糊搜索...');
-    return await searchWithFallback(systemId, filename, ssConfig);
+    const fallbackResult = await searchWithFallback(systemId, filename, ssConfig);
+
+    // 【核心修改】只有所有层级都匹配失败后，才会向前端吐出实际被检索的词，提示用户修正
+    if (!fallbackResult && logger) {
+        logger(`❌ 未匹配到游戏，搜索词: "${cleanName}"`);
+    }
+
+    return fallbackResult;
 }
 
 async function tryJeuInfosMD5 (systemId, filename, romSize, romMD5, ssConfig) {

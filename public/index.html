@@ -1525,7 +1525,12 @@
                                 >Available Files ({{ versions.length }})</van-divider
                             >
                             <div class="ver-item" v-for="ver in versions" :key="ver.id">
-                                <div class="v-file">{{ ver.filename }}</div>
+                                <div class="v-file">
+                                    {{ ver.filename }}
+                                    <span v-if="ver.fileSizeStr" style="color: #888; font-size: 12px; margin-left: 8px"
+                                        >({{ ver.fileSizeStr }})</span
+                                    >
+                                </div>
                                 <div class="ver-btn-group">
                                     <button v-if="canPlay()" class="play-btn" @click.stop="startGame(ver)">
                                         <i class="ri-gamepad-fill"></i> PLAY
@@ -2531,43 +2536,38 @@
                         showSingleSyncDialog.value = true;
                     };
 
-                    const doRefreshGame = async () => {
-                        if (isRefreshing.value || versions.value.length === 0) return;
+                    const doRefreshGame = () => {
+                        if (versions.value.length === 0) return;
 
-                        isRefreshing.value = true;
-                        try {
-                            for (const ver of versions.value) {
-                                const res = await fetch('/api/scan-single', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        system: currentSystemObj.value.name,
-                                        filename: ver.filename,
-                                        options: syncOps.value
-                                    })
+                        // 立刻关闭弹窗，并仅仅给出一个入队提示，不做任何阻塞或动画
+                        showSingleSyncDialog.value = false;
+                        vant.showToast({ message: '已加入后台同步队列', icon: 'success' });
+
+                        // 静默发送同步请求，不再 await 等待结果，也不修改界面的刷新状态
+                        versions.value.forEach((ver) => {
+                            fetch('/api/scan-single', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    system: currentSystemObj.value.name,
+                                    filename: ver.filename,
+                                    options: syncOps.value
+                                })
+                            })
+                                .then(async (res) => {
+                                    if (!res.ok) {
+                                        let errorMsg = `状态码: ${res.status}`;
+                                        try {
+                                            const errData = await res.json();
+                                            if (errData && errData.error) errorMsg = errData.error;
+                                        } catch (e) {}
+                                        console.error(`后台同步请求异常 [${ver.filename}]: ${errorMsg}`);
+                                    }
+                                })
+                                .catch((e) => {
+                                    console.error(`后台同步网络失败 [${ver.filename}]: ${e.message}`);
                                 });
-
-                                if (!res.ok) {
-                                    let errorMsg = `请求失败，状态码: ${res.status}`;
-                                    try {
-                                        const errData = await res.json();
-                                        if (errData && errData.error) errorMsg = errData.error;
-                                    } catch (parseErr) {}
-                                    throw new Error(errorMsg);
-                                }
-                            }
-                            vant.showToast({ message: '已加入VIP队列优先处理，请稍后刷新查看', icon: 'success' });
-                            setTimeout(() => {
-                                window.history.back();
-                                loadGames(currentSystemObj.value);
-                            }, 1000);
-                        } catch (e) {
-                            console.error('Refresh Error:', e);
-                            vant.showToast({ message: `刷新失败: ${e.message}`, icon: 'cross' });
-                        } finally {
-                            isRefreshing.value = false;
-                            showSingleSyncDialog.value = false;
-                        }
+                        });
                     };
 
                     const groupedSystems = computed(() => {

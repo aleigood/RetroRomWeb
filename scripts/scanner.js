@@ -11,6 +11,7 @@
  * 7. [Fix] 修复 ESLint 检查错误：Promise 参数命名规范问题
  * 8. [Feat] 增加 media_library 数据库死链精准清理机制，并解决跨平台路径大小写比对问题
  * 9. [Fix] 彻底修复 ESLint promise/param-names 与 n/handle-callback-err 规范问题
+ * 10.[Feat] 向抓取器传递日志回调，用于记录未命中时的实际搜索词
  */
 const fs = require('fs-extra');
 const path = require('path');
@@ -134,7 +135,6 @@ async function syncSingleGame (system, filename, options) {
                 const sysInfo = sysConfig[system.toLowerCase()] || {};
                 const scraperId = sysInfo.scraper_id;
 
-                // 【修复】ESLint promise/param-names，使用 resolve 不会冲突，因为作用域不同
                 const oldData = await new Promise((resolve) => {
                     db.get('SELECT * FROM games WHERE system = ? AND filename = ?', [system, filename], (err, row) => {
                         if (err) console.error('[Scanner] DB Check Error:', err);
@@ -142,7 +142,6 @@ async function syncSingleGame (system, filename, options) {
                     });
                 });
 
-                // 【修复】规范处理回调错误，确保不用 err 解析 Promise
                 await new Promise((resolve) => {
                     db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], (err) => {
                         if (err) console.error('[Scanner] Delete Error:', err);
@@ -319,7 +318,6 @@ async function processSystemSync (system, options) {
             try {
                 const oldData = dbFilenameMap[filename] || null;
                 if (oldData) {
-                    // 【修复】正确处理回调 err
                     await new Promise((resolve) => {
                         db.run('DELETE FROM games WHERE system = ? AND filename = ?', [system, filename], (err) => {
                             if (err) console.error(err);
@@ -409,7 +407,6 @@ async function cleanDeadMediaLinks (system) {
     const prefixMatch = `${system.toLowerCase()}%`;
     const sql = 'SELECT url, local_path FROM media_library WHERE LOWER(local_path) LIKE ?';
 
-    // 【修复】n/handle-callback-err: 加入了对 err 的处理
     const rows = await new Promise((resolve) => {
         db.all(sql, [prefixMatch], (err, r) => {
             if (err) console.error('[Cleanup] Query dead links error:', err);
@@ -422,7 +419,6 @@ async function cleanDeadMediaLinks (system) {
         const fullPath = path.join(config.mediaDir, row.local_path);
         if (!fs.existsSync(fullPath)) {
             try {
-                // 【修复】正确处理回调 err
                 await new Promise((resolve) => {
                     db.run('DELETE FROM media_library WHERE url = ?', [row.url], (err) => {
                         if (err) console.error('[Cleanup] Delete dead link error:', err);
@@ -561,7 +557,10 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
     if (shouldScrape) {
         addLog(`处理: ${filename}`, system);
         try {
-            const scraperData = await scraper.fetchGameInfo(system, filename, fullPath, scraperId);
+            // 【核心修改】将 addLog 包装为回调函数传递给 fetchGameInfo，用于接收搜索词未命中的日志推送
+            const scraperData = await scraper.fetchGameInfo(system, filename, fullPath, scraperId, (msg) =>
+                addLog(msg, system)
+            );
             if (scraperData) {
                 addLog(`匹配成功: ${scraperData.name}`, system);
                 if (options.syncInfo) Object.assign(gameInfo, scraperData);
@@ -569,7 +568,6 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                 const safeName = scraperData.name.replace(/[\\/:*?"<>|]/g, '-').trim();
                 const overwrite = options.overwrite === true;
 
-                // 定义 handleDownload
                 const handleDownload = async (url, folder, type) => {
                     if (!url) return null;
                     const cleanUrl = url.split('?')[0];
@@ -586,18 +584,16 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                         return dbPath;
                     } catch (e) {
                         addLog(`❌ 下载 ${type} 失败: ${e.message}`, system);
-                        return null; // 返回 null 使得数据库该字段为空，跳过此媒体
+                        return null;
                     }
                 };
 
-                // 1. 先处理 Marquee
                 if (options.syncMarquees) {
                     if (scraperData.marqueeUrl) {
                         marqueePath = await handleDownload(scraperData.marqueeUrl, 'marquees', 'marquees');
                     }
                 }
 
-                // 2. 处理其他媒体
                 if (options.syncImages) {
                     if (scraperData.boxArtUrl) {
                         imagePath = await handleDownload(scraperData.boxArtUrl, 'covers', 'covers');
@@ -613,7 +609,6 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                     }
                 }
 
-                // 3. 最后处理 Box Texture (依赖 Marquee)
                 if (options.syncBoxArt) {
                     if (scraperData.boxTextureUrl) {
                         boxTexturePath = await handleDownload(scraperData.boxTextureUrl, 'boxtextures', 'boxtextures');
@@ -631,7 +626,6 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
         }
     }
 
-    // 【修复】正确处理回调 err
     return new Promise((resolve) => {
         db.run(
             `INSERT INTO games (
