@@ -428,7 +428,7 @@
                 transform: scale(0.96);
             }
             .sys-visual {
-                width: 120px;
+                width: 130px;
                 height: 100%;
                 display: flex;
                 align-items: center;
@@ -486,10 +486,15 @@
                 font-size: 19px;
                 font-weight: 800;
                 color: #fff;
+                margin-bottom: 0;
+                display: -webkit-box;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                line-clamp: 2; /* 👈 增加这一行标准属性消除警告 */
                 overflow: hidden;
                 text-overflow: ellipsis;
-                white-space: nowrap;
-                margin-bottom: 0;
+                white-space: normal;
+                word-break: break-word;
             }
             .sys-meta {
                 font-size: 12px;
@@ -629,12 +634,17 @@
                 font-size: 12px;
                 color: #fff;
                 text-align: center;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
                 font-weight: 700;
                 width: 100%;
                 margin-top: 0;
+                display: -webkit-box;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                line-clamp: 2; /* 👈 同样增加这一行 */
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: normal;
+                word-break: break-word;
             }
             .g-year {
                 font-size: 10px;
@@ -1184,7 +1194,13 @@
             </div>
 
             <transition :name="transitionName">
-                <div class="page-container" v-if="!currentSystemObj" key="home" @scroll="handleScroll">
+                <div
+                    class="page-container"
+                    v-show="!currentSystemObj"
+                    key="home"
+                    ref="homeContainerRef"
+                    @scroll="handleScroll"
+                >
                     <van-index-bar
                         :index-list="systemIndexList"
                         :sticky="false"
@@ -1221,8 +1237,16 @@
                     </van-index-bar>
                     <van-empty v-if="systems.length===0" description="Library Empty" image="search" />
                 </div>
+            </transition>
 
-                <div v-else class="page-container" key="gamelist" ref="gameListContainerRef" @scroll="handleGameScroll">
+            <transition :name="transitionName">
+                <div
+                    class="page-container"
+                    v-if="currentSystemObj"
+                    key="gamelist"
+                    ref="gameListContainerRef"
+                    @scroll="handleGameScroll"
+                >
                     <div class="intro-header" :style="{ background: getSysColor(currentSystemObj.name) }">
                         <i class="ri-gamepad-fill intro-bg-icon"></i>
                         <div class="intro-title">{{ currentSystemObj.fullname }}</div>
@@ -1829,6 +1853,7 @@
                     const isScrollingPage = ref(false);
                     let scrollTimeout = null;
                     const systemIndexBarRef = ref(null);
+                    const homeContainerRef = ref(null);
                     const gameListContainerRef = ref(null);
                     const customSidebarRef = ref(null);
                     const swipeVideoRef = ref(null);
@@ -2063,7 +2088,7 @@
                                     transitionName.value = 'slide-right';
                                     currentSystemObj.value = null;
                                     window.history.replaceState({ page: 'home' }, '');
-                                    indicatorTop.value = 70;
+                                    nextTick(() => updateLayoutFromScroll());
                                     return;
                                 }
                             }
@@ -2078,9 +2103,7 @@
                         const viewHeight = window.innerHeight;
                         const trackLength = viewHeight - safeTop - safeBottomPadding - indicatorHeight;
 
-                        const container = currentSystemObj.value
-                            ? gameListContainerRef.value
-                            : document.querySelector('.page-container');
+                        const container = currentSystemObj.value ? gameListContainerRef.value : homeContainerRef.value;
                         if (!container) return;
 
                         const scrollRange = container.scrollHeight - container.clientHeight;
@@ -2228,7 +2251,7 @@
                             currentSystemObj.value = null;
                             showSearch.value = false;
                             allGames.value = [];
-                            indicatorTop.value = 70;
+                            nextTick(() => updateLayoutFromScroll());
                         } else if (targetPage === 'detail') {
                             showDetail.value = true;
                             showLogPopup.value = false;
@@ -2684,6 +2707,7 @@
                         handleGameScroll,
                         isScrollingPage,
                         systemIndexBarRef,
+                        homeContainerRef,
                         gameListContainerRef,
                         customSidebarRef,
                         indicatorTop,
