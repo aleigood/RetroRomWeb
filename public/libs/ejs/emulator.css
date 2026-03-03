@@ -1,0 +1,256 @@
+/* ==========================================
+   [全新] 高品质仿真风格控制器样式
+   ========================================== */
+
+/* --- 定义全局变量：材质与颜色 --- */
+:root {
+    /* 主体磨砂黑塑料 */
+    --sim-body-bg: #222428;
+    /* 按键基础色 */
+    --sim-btn-bg: #33353a;
+    /* 高光色 (模拟光源在上方) */
+    --sim-highlight: rgba(255, 255, 255, 0.15);
+    /* 阴影色 */
+    --sim-shadow: rgba(0, 0, 0, 0.6);
+    /* 激活/按下状态的强调色 (比如红色指示灯) */
+    --sim-active-color: #ff3333;
+    /* 文本/图标颜色 */
+    --sim-text-color: #ccc;
+    /* 边框倒角纹理 */
+    --sim-bevel: 
+        inset 1px 1px 2px var(--sim-highlight),
+        inset -1px -1px 3px var(--sim-shadow);
+}
+
+/* --- 1. 虚拟手柄区域容器 --- */
+.ejs_virtualGamepad_parent {
+    /* 给整个下半部分加一个微妙的控制器底壳纹理背景(可选) */
+    /* background: linear-gradient(to bottom, transparent, rgba(20, 20, 20, 0.8)); */
+    z-index: 2000;
+}
+
+/* --- 2. 通用仿真按钮样式基础 --- */
+.ejs_virtualGamepad_button,
+.ejs_sim_menu_btn,
+.ejs_sim_popup_btn {
+    border: none;
+    color: var(--sim-text-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+    /* 核心仿真效果：多重背景和阴影模拟立体感 */
+    background-color: var(--sim-btn-bg);
+    /* 模拟表面微磨砂纹理 */
+    background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.02) 0px, rgba(0,0,0,0.02) 2px, transparent 2px, transparent 4px);
+    /* 复杂的立体边框和投影 */
+    box-shadow: 
+        /* 外部投影，使按钮浮起来 */
+        0 4px 6px rgba(0,0,0,0.5),
+        /* 内部高光倒角 (左上亮) */
+        inset 2px 2px 3px rgba(255,255,255,0.2),
+        /* 内部阴影倒角 (右下暗) */
+        inset -2px -2px 4px rgba(0,0,0,0.7);
+    
+    transition: all 0.1s ease-out;
+    text-shadow: 0 -1px 1px rgba(0,0,0,0.8); /* 文字凹陷感 */
+}
+
+/* 按下状态：模拟真实的物理下沉 */
+.ejs_virtualGamepad_button:active, 
+.ejs_virtualGamepad_button_down,
+.ejs_sim_menu_btn:active,
+.ejs_sim_popup_btn:active {
+    transform: translateY(2px) scale(0.98); /* 物理位移 */
+    background-color: #2a2c30; /* 颜色变暗 */
+    box-shadow: 
+        /* 外部投影消失 */
+        0 1px 2px rgba(0,0,0,0.4),
+        /* 内部阴影加深，模拟凹陷 */
+        inset 3px 3px 8px rgba(0,0,0,0.9),
+        inset -1px -1px 2px rgba(255,255,255,0.1);
+    color: #aaa;
+}
+
+/* --- 3. 主游戏按键特殊样式 (A/B/X/Y) --- */
+.ejs_virtualGamepad_button {
+    border-radius: 50%; /* 圆形 */
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    /* 增加一个外部环形凹槽，更像真实手柄 */
+    border: 3px solid #1a1a1a;
+}
+
+/* AB键：经典的暗红色调 */
+.ejs_virtualGamepad_button.b_a, 
+.ejs_virtualGamepad_button.b_b {
+    background-color: #8a2a2a;
+    color: #ffcccc;
+}
+/* XY键：经典的暗蓝色调 */
+.ejs_virtualGamepad_button.b_x, 
+.ejs_virtualGamepad_button.b_y {
+    background-color: #2a3a8a;
+    color: #ccccff;
+}
+
+
+/* --- 4. 十字键 (D-Pad) 深度仿真 --- */
+.ejs_dpad_main {
+    /* 十字键底座凹槽 */
+    background: radial-gradient(circle, #111 30%, #222 70%);
+    border-radius: 50%;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
+}
+
+/* 十字键本体 */
+.ejs_dpad_horizontal, .ejs_dpad_vertical {
+    background-color: var(--sim-btn-bg);
+    background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 2px, transparent 2px, transparent 4px);
+    box-shadow: 
+        0 3px 5px rgba(0,0,0,0.6),
+        inset 1px 1px 2px rgba(255,255,255,0.2),
+        inset -1px -1px 3px rgba(0,0,0,0.8);
+    border-radius: 4px; /*稍微圆润一点 */
+}
+
+/* 去掉默认的三角形箭头，我们要纯粹的十字架 */
+.ejs_dpad_horizontal:before, .ejs_dpad_horizontal:after,
+.ejs_dpad_vertical:before, .ejs_dpad_vertical:after {
+    display: none;
+}
+/* 十字键中心连接处处理 */
+.ejs_dpad_horizontal { z-index: 2; }
+.ejs_dpad_vertical { z-index: 1; }
+
+/* 十字键按下状态 - 利用 CSS 选择器模拟方向倾斜 */
+.ejs_dpad_up_pressed .ejs_dpad_vertical {
+    box-shadow: inset 0 5px 5px rgba(0,0,0,0.8), inset 0 -2px 2px rgba(255,255,255,0.1) !important;
+    background: linear-gradient(to top, var(--sim-btn-bg), #222) !important;
+}
+.ejs_dpad_down_pressed .ejs_dpad_vertical {
+    box-shadow: inset 0 -5px 5px rgba(0,0,0,0.8), inset 0 2px 2px rgba(255,255,255,0.1) !important;
+    background: linear-gradient(to bottom, var(--sim-btn-bg), #222) !important;
+}
+.ejs_dpad_left_pressed .ejs_dpad_horizontal {
+    box-shadow: inset 5px 0 5px rgba(0,0,0,0.8), inset -2px 0 2px rgba(255,255,255,0.1) !important;
+    background: linear-gradient(to left, var(--sim-btn-bg), #222) !important;
+}
+.ejs_dpad_right_pressed .ejs_dpad_horizontal {
+    box-shadow: inset -5px 0 5px rgba(0,0,0,0.8), inset 2px 0 2px rgba(255,255,255,0.1) !important;
+    background: linear-gradient(to right, var(--sim-btn-bg), #222) !important;
+}
+
+
+/* ==========================================
+   [新增] 顶部菜单与弹出面板样式
+   ========================================== */
+
+/* --- 汉堡菜单按钮 --- */
+.ejs_sim_menu_btn {
+    /* 方形圆角硬朗风格 */
+    border-radius: 6px;
+    border: 2px solid #1a1a1a;
+    z-index: 2001;
+}
+
+/* --- 弹出面板容器 (模拟一个独立的控制器模块) --- */
+.ejs_sim_popup_panel {
+    position: absolute;
+    top: 60px; /* 在汉堡菜单下方 */
+    right: 10px;
+    
+    /* 面板材质：深色磨砂塑料壳 */
+    background-color: var(--sim-body-bg);
+    /* 复杂的边框和光影，使其看起来像一个实体盒子 */
+    border: 3px solid #111;
+    border-top-color: #333; /* 顶部高光 */
+    border-bottom-color: #000; /* 底部深影 */
+    border-radius: 12px;
+    
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    
+    box-shadow: 
+        0 15px 30px rgba(0,0,0,0.8), /* 深远投影 */
+        inset 0 0 20px rgba(0,0,0,0.5); /* 内部暗角 */
+    
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 弹性弹出动画 */
+    transform-origin: top right;
+    z-index: 2000;
+}
+
+/* 隐藏状态 */
+.ejs_sim_popup_hidden {
+    opacity: 0;
+    transform: scale(0.8) translateY(-20px);
+    pointer-events: none;
+}
+
+/* 面板内部的分组框 (模拟凹槽区域) */
+.ejs_sim_group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0,0,0,0.3);
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.6), inset -1px -1px 2px rgba(255,255,255,0.1);
+}
+
+/* --- 弹出面板内的小按钮 --- */
+.ejs_sim_popup_btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px; /* 方形小按钮 */
+    border: 2px solid #1a1a1a;
+    font-size: 18px;
+}
+/* 按钮内的 SVG 图标样式 */
+.ejs_sim_popup_btn svg {
+    width: 20px;
+    height: 20px;
+    fill: var(--sim-text-color);
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5));
+}
+.ejs_sim_popup_btn:active svg {
+    fill: #fff;
+}
+
+/* 槽位显示屏幕 (模拟老式液晶屏) */
+.ejs_sim_screen {
+    background: #000;
+    color: var(--sim-active-color); /* 红色数码管风格 */
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    font-size: 18px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    border: 2px solid #333;
+    box-shadow: inset 0 0 5px rgba(255, 50, 50, 0.5);
+    text-shadow: 0 0 5px var(--sim-active-color);
+}
+
+/* 分隔线 (模拟散热槽) */
+.ejs_sim_divider {
+    height: 4px;
+    background: repeating-linear-gradient(to right, #111, #111 2px, #333 2px, #333 4px);
+    border-radius: 2px;
+    opacity: 0.5;
+}
+
+/* --- 暂停按钮激活状态 (模拟自锁按钮按下) --- */
+.ejs_sim_popup_btn.is-paused {
+    background-color: #2a2c30;
+    box-shadow: inset 3px 3px 8px rgba(0,0,0,0.9), inset -1px -1px 2px rgba(255,255,255,0.1);
+    transform: translateY(1px);
+}
+.ejs_sim_popup_btn.is-paused svg path {
+    fill: var(--sim-active-color); /* 暂停时图标变红 */
+}

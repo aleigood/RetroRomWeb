@@ -11,8 +11,8 @@
         <link rel="icon" href="data:," />
 
         <title>RetroRom Hub</title>
-        <link rel="stylesheet" href="/index.css" />
-        <link rel="stylesheet" href="/remixicon.css" />
+<link rel="stylesheet" href="/libs/vant/index.css" />
+<link rel="stylesheet" href="/libs/remixicon/remixicon.css" />
         <style>
             :root {
                 --bg-body: #101014;
@@ -28,7 +28,24 @@
                 --van-empty-description-padding: 0 !important;
                 --van-empty-image-size: auto !important;
             }
+            [v-cloak] > * {
+                display: none !important;
+            }
 
+            [v-cloak]::before {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 36px;
+                height: 36px;
+                margin: -18px 0 0 -18px;
+                border: 3px solid rgba(255, 255, 255, 0.1);
+                border-top-color: var(--primary); /* 使用你定义的主题紫颜色 */
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                z-index: 9999;
+            }
             * {
                 scrollbar-width: none !important;
                 -ms-overflow-style: none !important;
@@ -1209,8 +1226,8 @@
         </style>
     </head>
     <body>
-        <div id="app">
-            <div id="emulator-overlay" v-show="showEmulator">
+        <div id="app" v-cloak>
+            <div id="emulator-overlay" v-show="showEmulator" style="display: none">
                 <div class="emu-top-bar">
                     <div class="emu-btn danger" @click="closeEmulator">
                         <i class="ri-close-circle-line" style="font-size: 18px"></i> 退出游戏
@@ -1752,8 +1769,8 @@
             </van-image-preview>
         </div>
 
-        <script src="https://fastly.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-        <script src="https://fastly.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
+<script src="/libs/vue/vue.global.prod.js"></script>
+<script src="/libs/vant/vant.min.js"></script>
 
         <script>
             const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
@@ -2621,7 +2638,7 @@
                                 window.EJS_gameName = '${safeName}';
                                 window.EJS_biosUrl = '${biosUrl}';
                                 window.EJS_gameUrl = '${gameUrl}';
-                                window.EJS_pathtodata = 'data/';
+                                window.EJS_pathtodata = 'libs/ejs/';
                                 window.EJS_startOnLoaded = true;
                                 
                                 ${extraConfig}
@@ -2631,7 +2648,7 @@
                                     'save-sram-location': 'browser'
                                 };
                             <\/script>
-                            <script src="data/loader.js"><\/script>
+                            <script src="libs/ejs/loader.js"><\/script>
                         </body>
                         </html>
                         `;
