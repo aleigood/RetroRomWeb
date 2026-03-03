@@ -1223,6 +1223,137 @@
                 -webkit-backface-visibility: hidden;
                 z-index: 1;
             }
+
+            /* === 定制 Speed Dial 悬浮展开菜单 (赛博暗色主题) === */
+            .fab-wrapper {
+                position: fixed;
+                bottom: 40px;
+                right: 20px;
+                z-index: 1000;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                transition:
+                    transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
+                    opacity 0.3s;
+            }
+            .fab-wrapper.hidden {
+                transform: translateY(100px);
+                opacity: 0;
+                pointer-events: none;
+            }
+            .fab-options {
+                position: absolute;
+                bottom: calc(100% + 15px);
+                right: 6px; /* (56-44)/2 = 6px 保证小按钮和主按钮中心对齐 */
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 15px;
+                pointer-events: none;
+            }
+            .fab-options.is-open {
+                pointer-events: auto;
+            }
+            .fab-option-wrapper {
+                display: flex;
+                align-items: center;
+                opacity: 0;
+                transform: translateY(10px);
+                transition:
+                    opacity 0.2s,
+                    transform 0.2s;
+                transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            .fab-options.is-open .fab-option-wrapper {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            .option-label {
+                background-color: var(--bg-card);
+                color: var(--text-main);
+                padding: 6px 14px;
+                border-radius: 8px;
+                margin-right: 12px;
+                font-size: 13px;
+                font-weight: bold;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+                white-space: nowrap;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+            }
+            .option-button {
+                width: 44px;
+                height: 44px;
+                background-color: var(--bg-card);
+                color: var(--text-main);
+                border-radius: 50%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-size: 20px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+                cursor: pointer;
+                transition: background-color 0.2s;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+            }
+            .option-button:active {
+                background-color: #333;
+            }
+            .fab-main {
+                width: 56px;
+                height: 56px;
+                /* 主题色渐变 */
+                background: linear-gradient(135deg, #705df2, #a29bfe);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 6px 16px rgba(112, 93, 242, 0.5);
+                color: #fff;
+                font-size: 24px;
+                cursor: pointer;
+                transition: transform 0.2s ease-out;
+            }
+            .fab-main:active {
+                transform: scale(0.95);
+            }
+            .fab-main .fab-icon {
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            /* 展开时图标旋转 135 度，+ 号变成 x 号 */
+            .fab-main .fab-icon.is-open {
+                transform: rotate(135deg);
+            }
+            .fab-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                backdrop-filter: blur(2px);
+                z-index: 999;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s;
+            }
+            .fab-overlay.visible {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            /* 修复 Vant Popover 中文字换行的问题 */
+            .van-popover__action {
+                width: max-content !important;
+                padding: 0 16px !important;
+            }
+            .van-popover__action-text {
+                white-space: nowrap !important;
+            }
+            /* 修改气泡菜单项背景以适配暗色主题 */
+            .van-popover--dark .van-popover__action {
+                color: #fff;
+            }
         </style>
     </head>
     <body>
@@ -1246,10 +1377,7 @@
                     <i class="ri-arrow-left-line"></i>
                 </div>
                 <div class="nav-title">{{ currentSystemObj ? currentSystemObj.fullname : 'RetroHub' }}</div>
-                <div class="nav-btn" v-if="globalStatus.runningSystem && !currentSystemObj" @click="viewLogs">
-                    <i class="ri-loader-4-line spin-anim" style="color: var(--primary)"></i>
-                </div>
-                <div class="nav-btn" v-else style="visibility: hidden; pointer-events: none">
+                <div class="nav-btn" style="visibility: hidden; pointer-events: none">
                     <i class="ri-search-2-line"></i>
                 </div>
             </div>
@@ -1319,12 +1447,11 @@
                     <div style="display: flex; align-items: center; margin-bottom: 10px; gap: 10px">
                         <van-search
                             v-model="keyword"
-                            placeholder="Find your memory..."
+                            placeholder="搜索游戏或文件名..."
                             shape="round"
                             background="transparent"
                             :clearable="false"
                             style="flex: 1; padding: 0"
-                            @search="onSearch"
                             ref="searchRef"
                         >
                             <template #right-icon>
@@ -1334,28 +1461,31 @@
                             </template>
                         </van-search>
 
-                        <div
-                            @click="triggerSync"
-                            style="
-                                background: rgba(255, 255, 255, 0.1);
-                                padding: 8px;
-                                border-radius: 50%;
-                                cursor: pointer;
-                                display: flex;
-                            "
+                        <van-popover
+                            v-model:show="showSortPopover"
+                            :actions="sortActions"
+                            theme="dark"
+                            placement="bottom-end"
+                            @select="onSortSelect"
                         >
-                            <i
-                                v-if="globalStatus.runningSystem === currentSystemObj.name"
-                                class="ri-loader-4-line spin-anim"
-                                style="color: var(--primary); font-size: 20px"
-                            ></i>
-                            <i
-                                v-else-if="globalStatus.pendingQueue.includes(currentSystemObj.name)"
-                                class="ri-hourglass-line"
-                                style="color: #aaa; font-size: 20px"
-                            ></i>
-                            <i v-else class="ri-refresh-line" style="color: var(--primary); font-size: 20px"></i>
-                        </div>
+                            <template #reference>
+                                <div
+                                    style="
+                                        width: 36px;
+                                        height: 36px;
+                                        background: rgba(255, 255, 255, 0.1);
+                                        border-radius: 50%;
+                                        cursor: pointer;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        flex-shrink: 0;
+                                    "
+                                >
+                                    <i class="ri-sort-desc" style="color: var(--primary); font-size: 20px"></i>
+                                </div>
+                            </template>
+                        </van-popover>
                     </div>
 
                     <van-loading v-if="loading" vertical style="padding: 100px 0; color: #666"
@@ -1380,7 +1510,10 @@
                                 gridTemplateColumns: row.type === 'grid' ? `repeat(${virtualColCount}, 1fr)` : 'none'
                             }"
                         >
-                            <template v-if="row.type === 'header'">{{ row.text }}</template>
+                            <template v-if="row.type === 'header'"
+                                >{{ currentSort === 'rating_desc' ? (row.text === '-' ? '未评分' : row.text + ' 星') :
+                                row.text }}</template
+                            >
                             <template v-else-if="row.type === 'grid'">
                                 <div
                                     v-for="game in row.items"
@@ -1454,6 +1587,40 @@
                 </div>
             </div>
 
+            <div class="fab-overlay" :class="{ 'visible': showFabMenu }" @click="showFabMenu = false"></div>
+
+            <div
+                v-if="currentSystemObj && !showDetail && !showLogPopup"
+                class="fab-wrapper"
+                :class="{ 'hidden': !isFabVisible }"
+            >
+                <div class="fab-options" :class="{ 'is-open': showFabMenu }">
+                    <div class="fab-option-wrapper" :style="{ transitionDelay: showFabMenu ? '0.05s' : '0s' }">
+                        <div class="option-label">同步</div>
+                        <div class="option-button" @click="handleFabAction('sync')">
+                            <i class="ri-refresh-line"></i>
+                        </div>
+                    </div>
+                    <div class="fab-option-wrapper" :style="{ transitionDelay: showFabMenu ? '0s' : '0.05s' }">
+                        <div class="option-label">日志</div>
+                        <div class="option-button" @click="handleFabAction('log')">
+                            <i class="ri-file-list-3-line"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="fab-main" @click="onFabClick">
+                    <i
+                        v-if="globalStatus.runningSystem === currentSystemObj.name"
+                        class="ri-loader-4-line spin-anim"
+                    ></i>
+                    <i
+                        v-else-if="globalStatus.pendingQueue.includes(currentSystemObj.name)"
+                        class="ri-hourglass-line"
+                    ></i>
+                    <i v-else class="ri-add-line fab-icon" :class="{ 'is-open': showFabMenu }"></i>
+                </div>
+            </div>
             <van-popup
                 :show="showDetail"
                 @update:show="handlePopupClose"
@@ -1774,7 +1941,7 @@
 
         <script>
             const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
-            // ====== 更新：视觉中心跑马灯指令（同步渐变消失版） ======
+
             let centerObserver = null;
             const vCenterMarquee = {
                 mounted(el) {
@@ -1797,12 +1964,11 @@
 
                                     if (entry.isIntersecting) {
                                         if (isOverflow) {
-                                            // 修改：因为右侧遮罩会隐身，所以不需要多加 -10px，精确等于宽度差即可
                                             const dist = clientW - scrollW;
                                             target.style.setProperty('--scroll-dist', dist + 'px');
 
                                             target.classList.add('marquee-active');
-                                            parent.classList.add('marquee-parent-active'); // 同步触发遮罩动画
+                                            parent.classList.add('marquee-parent-active');
                                         }
                                     } else {
                                         target.classList.remove('marquee-active');
@@ -1903,11 +2069,9 @@
             const app = createApp({
                 directives: { lazy: vLazy, marquee: vCenterMarquee },
                 setup() {
-                    // 1. 定义详情页头部显示状态变量
                     const isDetailHeaderVisible = ref(true);
                     let lastDetailScrollTop = 0;
 
-                    // 2. 定义滚动监听函数
                     const handleDetailScroll = (e) => {
                         const scrollTop = e.target.scrollTop;
                         if (scrollTop < 0) return;
@@ -1926,10 +2090,25 @@
 
                     const systems = ref([]);
                     const currentSystemObj = ref(null);
+                    const fetchedGames = ref([]);
                     const allGames = ref([]);
                     const loading = ref(false);
                     const showSearch = ref(false);
                     const keyword = ref('');
+
+                    const currentSort = ref('alpha_asc');
+                    const showSortPopover = ref(false);
+                    const sortActions = [
+                        { text: '默认排序 (A-Z)', value: 'alpha_asc' },
+                        { text: '按名称倒序 (Z-A)', value: 'alpha_desc' },
+                        { text: '按评分排序 (高到低)', value: 'rating_desc' }
+                    ];
+
+                    // FAB State
+                    const isFabVisible = ref(true);
+                    let fabLastScroll = 0;
+                    const showFabMenu = ref(false);
+
                     const showDetail = ref(false);
                     const selectedGame = ref(null);
                     const versions = ref([]);
@@ -1993,56 +2172,40 @@
                     const showEmulator = ref(false);
                     const showSingleSyncDialog = ref(false);
 
+                    let searchTimeout = null;
                     watch(keyword, (newVal) => {
-                        if (newVal === '' && currentSystemObj.value) {
-                            onClearSearch();
-                        }
+                        if (searchTimeout) clearTimeout(searchTimeout);
+                        searchTimeout = setTimeout(() => {
+                            applyFilterAndSort();
+                        }, 300);
                     });
 
-                    // 3. 【核心修改】processGreenScreen 移到 onImgLoad 之前，防止报错
-                    //    【修改】使用纯色填充 #18181c (RGB: 24, 24, 28)
-                    const processGreenScreen = (img) => {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        const width = img.naturalWidth;
-                        const height = img.naturalHeight;
-                        canvas.width = width;
-                        canvas.height = height;
-                        ctx.drawImage(img, 0, 0);
+                    const applyFilterAndSort = () => {
+                        let list = fetchedGames.value.slice();
 
-                        const imgData = ctx.getImageData(0, 0, width, height);
-                        const data = imgData.data;
-
-                        // 定义渐变配置 (RGB)
-                        // 模拟光照：左上角较亮 (Highlight)，右下角较暗 (Base #050505)
-                        const startColor = { r: 45, g: 45, b: 50 }; // 亮部：深灰色略带一点点冷色调，模拟反光
-                        const endColor = { r: 5, g: 5, b: 5 }; // 暗部：用户指定的 #050505
-
-                        for (let i = 0; i < data.length; i += 4) {
-                            const r = data[i];
-                            const g = data[i + 1];
-                            const b = data[i + 2];
-
-                            // 检测绿色 (Green Key)
-                            if (g > 150 && g > r + 60 && g > b + 60) {
-                                // 计算当前像素的坐标
-                                const pIndex = i / 4;
-                                const x = pIndex % width;
-                                const y = Math.floor(pIndex / width);
-
-                                // 计算对角线渐变因子 (0.0 ~ 1.0)
-                                const factor = (x / width + y / height) / 2;
-
-                                // 线性插值计算颜色
-                                data[i] = startColor.r + (endColor.r - startColor.r) * factor; // R
-                                data[i + 1] = startColor.g + (endColor.g - startColor.g) * factor; // G
-                                data[i + 2] = startColor.b + (endColor.b - startColor.b) * factor; // B
-                                data[i + 3] = 255; // Alpha
-                            }
+                        if (keyword.value) {
+                            const k = keyword.value.toLowerCase();
+                            list = list.filter(
+                                (g) =>
+                                    (g.name && g.name.toLowerCase().includes(k)) ||
+                                    (g.filename && g.filename.toLowerCase().includes(k))
+                            );
                         }
 
-                        ctx.putImageData(imgData, 0, 0);
-                        return canvas.toDataURL();
+                        if (currentSort.value === 'alpha_asc') {
+                            list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                        } else if (currentSort.value === 'alpha_desc') {
+                            list.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+                        } else if (currentSort.value === 'rating_desc') {
+                            list.sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
+                        }
+
+                        allGames.value = list;
+                        calculateVirtualLayout();
+
+                        nextTick(() => {
+                            updateVisibleRows(lastScrollTop.value || 0);
+                        });
                     };
 
                     const fetchSystems = async () => {
@@ -2079,15 +2242,15 @@
 
                     const loadGames = async (sysObj) => {
                         loading.value = true;
+                        fetchedGames.value = [];
                         allGames.value = [];
                         virtualRows.value = [];
                         visibleVirtualRows.value = [];
                         try {
-                            const k = keyword.value ? encodeURIComponent(keyword.value) : '';
-                            const res = await fetch(`/api/games?system=${sysObj.name}&all=1&keyword=${k}`);
+                            const res = await fetch(`/api/games?system=${sysObj.name}&all=1`);
                             const data = await res.json();
-                            allGames.value = data.data;
-                            calculateVirtualLayout();
+                            fetchedGames.value = data.data || [];
+                            applyFilterAndSort();
                         } finally {
                             loading.value = false;
                             nextTick(() => {
@@ -2099,7 +2262,11 @@
                     };
 
                     const calculateVirtualLayout = () => {
-                        if (!allGames.value.length) return;
+                        if (!allGames.value.length) {
+                            virtualRows.value = [];
+                            totalVirtualHeight.value = 0;
+                            return;
+                        }
                         const containerWidth = window.innerWidth - 32;
                         const itemMinWidth = 105;
                         const gap = 16;
@@ -2112,33 +2279,62 @@
 
                         const groups = {};
                         allGames.value.forEach((game) => {
-                            let letter = (game.name || '#')[0].toUpperCase();
-                            if (!/[A-Z]/.test(letter)) letter = '#';
-                            if (!groups[letter]) groups[letter] = [];
-                            groups[letter].push(game);
+                            let groupKey = '#';
+                            if (currentSort.value.startsWith('alpha')) {
+                                let letter = (game.name || '#')[0].toUpperCase();
+                                if (!/[A-Z0-9]/.test(letter)) letter = '#';
+                                groupKey = letter;
+                            } else if (currentSort.value === 'rating_desc') {
+                                // 【修复】根据前端呈现的 5星制 进行换算和向下取整
+                                const rawRating = Number(game.rating) || 0;
+                                if (rawRating > 0) {
+                                    let stars = Math.floor(rawRating * 5);
+                                    if (stars === 0) stars = 1; // 有分数但极低，保底算作 1 星
+                                    groupKey = `${stars}`; // 修改：原先是 `${stars} 星`，现在改为单字符
+                                } else {
+                                    groupKey = '-'; // 修改：原先是 '未评分'，现在改为单字符 '-'
+                                }
+                            }
+
+                            if (!groups[groupKey]) groups[groupKey] = [];
+                            groups[groupKey].push(game);
                         });
-                        const sortedKeys = Object.keys(groups).sort();
+
+                        let sortedKeys = [];
+                        if (currentSort.value === 'alpha_asc') {
+                            sortedKeys = Object.keys(groups).sort();
+                        } else if (currentSort.value === 'alpha_desc') {
+                            sortedKeys = Object.keys(groups).sort().reverse();
+                        } else if (currentSort.value === 'rating_desc') {
+                            // 【修复】确保星级分组按 5, 4, 3... 降序排列，'-' 放最后
+                            sortedKeys = Object.keys(groups).sort((a, b) => {
+                                if (a === '-') return 1; // 修改：原先判断是 '未评分'
+                                if (b === '-') return -1; // 修改：原先判断是 '未评分'
+                                return parseInt(b) - parseInt(a);
+                            });
+                        }
+
                         virtualIndexList.value = sortedKeys;
 
                         let currentTop = 0;
                         const rows = [];
                         const map = {};
 
-                        sortedKeys.forEach((letter) => {
-                            map[letter] = currentTop;
+                        sortedKeys.forEach((key) => {
+                            map[key] = currentTop;
                             rows.push({
-                                id: `h-${letter}`,
+                                id: `h-${key}`,
                                 type: 'header',
-                                text: letter,
+                                text: key,
                                 top: currentTop,
                                 height: headerHeight
                             });
                             currentTop += headerHeight;
-                            const games = groups[letter];
+                            const games = groups[key];
                             for (let i = 0; i < games.length; i += cols) {
                                 const chunk = games.slice(i, i + cols);
                                 rows.push({
-                                    id: `g-${letter}-${i}`,
+                                    id: `g-${key}-${i}`,
                                     type: 'grid',
                                     items: chunk,
                                     top: currentTop,
@@ -2168,6 +2364,15 @@
                         if (document.activeElement && document.activeElement.tagName === 'INPUT') {
                             document.activeElement.blur();
                         }
+
+                        if (scrollTop > fabLastScroll && scrollTop > 100) {
+                            isFabVisible.value = false;
+                            showFabMenu.value = false;
+                        } else if (scrollTop < fabLastScroll) {
+                            isFabVisible.value = true;
+                        }
+                        fabLastScroll = scrollTop;
+
                         lastScrollTop.value = scrollTop;
                         handleScroll(e);
                         if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -2190,6 +2395,10 @@
                         window.history.pushState({ page: 'gamelist', systemName: sysObj.name }, '');
                         currentSystemObj.value = sysObj;
                         keyword.value = '';
+                        currentSort.value = 'alpha_asc';
+                        isFabVisible.value = true;
+                        showFabMenu.value = false;
+                        fabLastScroll = 0;
                         indicatorTop.value = 70;
                         sidebarTop.value = 70;
                         if (globalStatus.value.runningSystem) pollStatus();
@@ -2421,7 +2630,6 @@
                         currentSwipeIndex.value = 0;
                         showDetail.value = true;
 
-                        // 重置头部显示状态
                         isDetailHeaderVisible.value = true;
                         lastDetailScrollTop = 0;
 
@@ -2448,16 +2656,41 @@
                         showLogPopup.value = true;
                         pollStatus();
                     };
-                    const triggerSync = async () => {
-                        if (showLogPopup.value) return;
+
+                    // FAB 的交互逻辑
+                    const onFabClick = () => {
                         const currentSysName = currentSystemObj.value.name;
                         const isRunning = globalStatus.value.runningSystem === currentSysName;
                         const isQueued = globalStatus.value.pendingQueue.includes(currentSysName);
+
                         if (isRunning || isQueued) {
                             viewLogs();
                         } else {
-                            showSyncDialog.value = true;
+                            showFabMenu.value = !showFabMenu.value;
                         }
+                    };
+
+                    const handleFabAction = (actionStr) => {
+                        showFabMenu.value = false;
+                        // 增加 200ms 的延迟，使菜单收起动画可见
+                        setTimeout(() => {
+                            if (actionStr === 'sync') {
+                                triggerSync();
+                            } else if (actionStr === 'log') {
+                                viewLogs();
+                            }
+                        }, 200);
+                    };
+
+                    // Popover 选中回调
+                    const onSortSelect = (action) => {
+                        currentSort.value = action.value;
+                        applyFilterAndSort();
+                    };
+
+                    const triggerSync = async () => {
+                        if (showLogPopup.value) return;
+                        showSyncDialog.value = true;
                     };
                     const startSync = async () => {
                         const sysName = currentSystemObj.value.name;
@@ -2522,7 +2755,6 @@
                         const imgIndex = imagesOnly.indexOf(currentMedia);
                         if (imgIndex === -1) return;
 
-                        // 直接使用原始 URL
                         previewImages.value = imagesOnly.map((i) => getImgUrl(i.url));
 
                         previewStartIndex.value = imgIndex;
@@ -2563,7 +2795,6 @@
                                   .join('/')
                             : '';
 
-                    // 【核心修改】引入缓存池，防止重复计算
                     const onImgLoad = (e, media) => {
                         const imgEl = e.target;
                         imgEl.classList.add('loaded');
@@ -2572,7 +2803,6 @@
 
                     const download = (id) => (window.location.href = `/api/download/${id}`);
                     const getGamePoster = (game) => {
-                        // 优先级：封面 -> 包装 -> Logo -> 截图 -> 视频
                         const url =
                             game.image_path ||
                             game.box_texture_path ||
@@ -2677,11 +2907,9 @@
                     const doRefreshGame = () => {
                         if (versions.value.length === 0) return;
 
-                        // 立刻关闭弹窗，并仅仅给出一个入队提示，不做任何阻塞或动画
                         showSingleSyncDialog.value = false;
                         vant.showToast({ message: '已加入后台同步队列', icon: 'success' });
 
-                        // 静默发送同步请求，不再 await 等待结果，也不修改界面的刷新状态
                         versions.value.forEach((ver) => {
                             fetch('/api/scan-single', {
                                 method: 'POST',
@@ -2763,13 +2991,11 @@
                     });
 
                     const onSearch = () => {
-                        if (currentSystemObj.value) {
-                            loadGames(currentSystemObj.value);
-                        }
+                        applyFilterAndSort();
                     };
                     const onClearSearch = () => {
                         keyword.value = '';
-                        onSearch();
+                        applyFilterAndSort();
                     };
 
                     return {
@@ -2853,7 +3079,16 @@
                         isRefreshing,
                         showSingleSyncDialog,
                         isDetailHeaderVisible,
-                        handleDetailScroll
+                        handleDetailScroll,
+
+                        showSortPopover,
+                        sortActions,
+                        onSortSelect,
+
+                        isFabVisible,
+                        showFabMenu,
+                        onFabClick,
+                        handleFabAction
                     };
                 }
             });
