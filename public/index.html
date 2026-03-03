@@ -11,8 +11,8 @@
         <link rel="icon" href="data:," />
 
         <title>RetroRom Hub</title>
-<link rel="stylesheet" href="/libs/vant/index.css" />
-<link rel="stylesheet" href="/libs/remixicon/remixicon.css" />
+        <link rel="stylesheet" href="/libs/vant/index.css" />
+        <link rel="stylesheet" href="/libs/remixicon/remixicon.css" />
         <style>
             :root {
                 --bg-body: #101014;
@@ -1769,8 +1769,8 @@
             </van-image-preview>
         </div>
 
-<script src="/libs/vue/vue.global.prod.js"></script>
-<script src="/libs/vant/vant.min.js"></script>
+        <script src="/libs/vue/vue.global.prod.js"></script>
+        <script src="/libs/vant/vant.min.js"></script>
 
         <script>
             const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
@@ -2638,7 +2638,7 @@
                                 window.EJS_gameName = '${safeName}';
                                 window.EJS_biosUrl = '${biosUrl}';
                                 window.EJS_gameUrl = '${gameUrl}';
-                                window.EJS_pathtodata = 'libs/ejs/';
+                                window.EJS_pathtodata = '/libs/ejs/';
                                 window.EJS_startOnLoaded = true;
                                 
                                 ${extraConfig}
@@ -2648,7 +2648,7 @@
                                     'save-sram-location': 'browser'
                                 };
                             <\/script>
-                            <script src="libs/ejs/loader.js"><\/script>
+                            <script src="/libs/ejs/loader.js"><\/script>
                         </body>
                         </html>
                         `;
