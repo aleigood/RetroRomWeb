@@ -1623,6 +1623,7 @@
             </div>
             <van-popup
                 :show="showDetail"
+                :lock-scroll="false"
                 @update:show="handlePopupClose"
                 position="bottom"
                 round
@@ -2325,7 +2326,9 @@
                             rows.push({
                                 id: `h-${key}`,
                                 type: 'header',
-                                text: key,
+                                // 如果是评分排序，将单字符映射回“X 星”或“未评分”，否则保持原样
+                                text:
+                                    currentSort.value === 'rating_desc' ? (key === '-' ? '未评分' : `${key} 星`) : key,
                                 top: currentTop,
                                 height: headerHeight
                             });
