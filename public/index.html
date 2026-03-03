@@ -475,26 +475,76 @@
                 justify-content: center;
                 min-width: 0;
             }
-            /* 修改系统卡片头部的布局以容纳状态图标 */
             .sys-header {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 margin-bottom: 6px;
+                width: 100%;
+                overflow: hidden;
+                position: relative; /* 新增：为了让伪元素绝对定位 */
+            }
+
+            /* 彻底弃用 mask-image，改用背景色渐变伪元素模拟遮罩 */
+            .overflow-mask::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: 32px;
+                /* rgba(28,28,34) 正好对应卡片背景色 #1c1c22 */
+                background: linear-gradient(to right, rgba(28, 28, 34, 0) 0%, rgba(28, 28, 34, 1) 100%);
+                pointer-events: none;
+                z-index: 2;
+            }
+
+            /* 当跑马灯激活时，为父级添加遮罩淡出动画 */
+            .marquee-parent-active::after {
+                animation: mask-fade-anim 6s linear infinite;
+            }
+
+            /* 新增：遮罩消失动画（与文字滚动时间轴完美对齐） */
+            @keyframes mask-fade-anim {
+                0%,
+                25% {
+                    opacity: 1;
+                }
+                40%,
+                60% {
+                    opacity: 0;
+                } /* 刚好文字滚动到底部时，遮罩完全变透明，露出完整末尾文字 */
+                75%,
+                100% {
+                    opacity: 1;
+                }
+            }
+            @keyframes center-marquee {
+                0%,
+                15% {
+                    transform: translateX(0);
+                } /* 开始时停顿一会儿 */
+                45%,
+                55% {
+                    transform: translateX(var(--scroll-dist));
+                } /* 滚动到尾部时停顿一会儿 */
+                85%,
+                100% {
+                    transform: translateX(0);
+                } /* 滚回起点，完成一个周期 */
+            }
+
+            .marquee-active {
+                animation: center-marquee 6s linear infinite;
             }
             .sys-name {
                 font-size: 19px;
                 font-weight: 800;
                 color: #fff;
                 margin-bottom: 0;
-                display: -webkit-box;
-                -webkit-box-orient: vertical;
-                -webkit-line-clamp: 2;
-                line-clamp: 2; /* 👈 增加这一行标准属性消除警告 */
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: normal;
-                word-break: break-word;
+                white-space: nowrap; /* 强制单行不换行 */
+                display: block;
+                will-change: transform;
             }
             .sys-meta {
                 font-size: 12px;
@@ -1221,7 +1271,9 @@
                                         <div class="sys-count-badge">{{ sys.count }}</div>
                                     </div>
                                     <div class="sys-content">
-                                        <div class="sys-header"><div class="sys-name">{{ sys.fullname }}</div></div>
+                                        <div class="sys-header">
+                                            <div class="sys-name" v-marquee>{{ sys.fullname }}</div>
+                                        </div>
                                         <div class="sys-meta" v-if="sys.year">{{ sys.maker }} • {{ sys.year }}</div>
                                         <div class="sys-desc">{{ sys.desc }}</div>
                                     </div>
@@ -1705,7 +1757,62 @@
 
         <script>
             const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
+            // ====== 更新：视觉中心跑马灯指令（同步渐变消失版） ======
+            let centerObserver = null;
+            const vCenterMarquee = {
+                mounted(el) {
+                    if (!centerObserver) {
+                        centerObserver = new IntersectionObserver(
+                            (entries) => {
+                                entries.forEach((entry) => {
+                                    const target = entry.target;
+                                    const parent = target.parentElement;
 
+                                    const scrollW = target.scrollWidth;
+                                    const clientW = parent.clientWidth;
+                                    const isOverflow = scrollW > clientW;
+
+                                    if (isOverflow) {
+                                        parent.classList.add('overflow-mask');
+                                    } else {
+                                        parent.classList.remove('overflow-mask');
+                                    }
+
+                                    if (entry.isIntersecting) {
+                                        if (isOverflow) {
+                                            // 修改：因为右侧遮罩会隐身，所以不需要多加 -10px，精确等于宽度差即可
+                                            const dist = clientW - scrollW;
+                                            target.style.setProperty('--scroll-dist', dist + 'px');
+
+                                            target.classList.add('marquee-active');
+                                            parent.classList.add('marquee-parent-active'); // 同步触发遮罩动画
+                                        }
+                                    } else {
+                                        target.classList.remove('marquee-active');
+                                        parent.classList.remove('marquee-parent-active');
+                                    }
+                                });
+                            },
+                            {
+                                rootMargin: '-35% 0px -35% 0px',
+                                threshold: 0
+                            }
+                        );
+                    }
+
+                    setTimeout(() => {
+                        const parent = el.parentElement;
+                        if (el.scrollWidth > parent.clientWidth) {
+                            parent.classList.add('overflow-mask');
+                        }
+                    }, 100);
+
+                    centerObserver.observe(el);
+                },
+                unmounted(el) {
+                    if (centerObserver) centerObserver.unobserve(el);
+                }
+            };
             const useLazyObserver = () => {
                 let observer = null;
                 const elementStateMap = new WeakMap();
@@ -1777,7 +1884,7 @@
             };
 
             const app = createApp({
-                directives: { lazy: vLazy },
+                directives: { lazy: vLazy, marquee: vCenterMarquee },
                 setup() {
                     // 1. 定义详情页头部显示状态变量
                     const isDetailHeaderVisible = ref(true);
