@@ -1912,10 +1912,8 @@
                 :images="previewImages"
                 :start-position="previewStartIndex"
                 :show-index="false"
-                :close-on-click-overlay="false"
                 :min-zoom="1"
                 :max-zoom="3"
-                @click-overlay="closePreview"
                 @change="onPreviewChange"
             >
                 <template #cover>
@@ -2116,6 +2114,12 @@
                     const currentSwipeIndex = ref(0);
                     const imgSwipe = ref(null);
                     const isPreviewOpen = ref(false);
+                    watch(isPreviewOpen, (newVal) => {
+                        // 如果预览被 Vant 内部逻辑（点击、下滑等）关闭，但历史栈顶依然是 'preview'，则主动出栈
+                        if (!newVal && window.history.state && window.history.state.page === 'preview') {
+                            window.history.back();
+                        }
+                    });
                     const previewImages = ref([]);
                     const previewStartIndex = ref(0);
                     const activePreviewIndex = ref(0);

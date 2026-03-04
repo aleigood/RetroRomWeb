@@ -51,7 +51,7 @@ function cleanRomName (filename) {
     name = name.replace(/v\d+(\.\d+)?/gi, '');
 
     // 将 ® 符号加入到特殊字符清洗规则中
-    name = name.replace(/[&:\-_!.,;'#@™…+®]/g, ' ');
+    name = name.replace(/[&:\-_!.,;#@™…+®]/g, ' ');
     name = name.replace(/\s+/g, ' ').trim();
     return name;
 }
