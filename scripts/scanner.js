@@ -49,7 +49,9 @@ const ROM_EXTS = [
     '.wbfs',
     '.wua',
     '.cci',
-    '.rvz'
+    '.rvz',
+    '.psv',
+    '.god'
 ];
 
 const IGNORE_DIRS = [

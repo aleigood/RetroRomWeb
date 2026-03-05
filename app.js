@@ -6,7 +6,7 @@
  * 2. [Fix] 修复 ESLint handle-callback-err 报错
  * 3. [Feat] 保留街机 ROM 自动合并逻辑
  * 4. [Feat] 接口 /api/systems 支持合并显示本地存在但尚未扫描入库的空主机目录
- * 5. [Feat] 详情页接口增加动态获取物理文件大小功能
+ * 5. [Feat] 详情页接口增加动态获取物理文件大小功能，并支持递归计算文件夹大小
  */
 const Koa = require('koa');
 const Router = require('koa-router');
@@ -19,6 +19,26 @@ const config = require('./config');
 const db = require('./db/database');
 const scanner = require('./scripts/scanner');
 const AdmZip = require('adm-zip');
+
+// === 新增：递归计算文件夹真实大小的辅助函数 ===
+function getFolderSize (dirPath) {
+    let totalSize = 0;
+    try {
+        const files = fs.readdirSync(dirPath);
+        for (const file of files) {
+            const filePath = path.join(dirPath, file);
+            const stat = fs.statSync(filePath);
+            if (stat.isDirectory()) {
+                totalSize += getFolderSize(filePath);
+            } else {
+                totalSize += stat.size;
+            }
+        }
+    } catch (e) {
+        console.error(`[API] 遍历文件夹大小失败: ${dirPath}`, e.message);
+    }
+    return totalSize;
+}
 
 // === 1. 全局加载 systems.json ===
 let systemsConfig = {};
@@ -286,13 +306,19 @@ router.get('/api/game-versions', async (ctx) => {
                         }
                         if (row.marquee_path) gallery.push({ type: 'marquees', url: fixPath(row.marquee_path) });
 
-                        // 【新增】实时获取硬盘中的文件大小
+                        // 【修改】实时获取硬盘中的文件大小，增加对文件夹的递归判断
                         let sizeStr = '';
+                        let isDir = false;
                         if (row.path) {
                             const fullPath = path.join(config.romsDir, row.path);
                             try {
                                 if (fs.existsSync(fullPath)) {
-                                    const size = fs.statSync(fullPath).size;
+                                    const stat = fs.statSync(fullPath);
+                                    isDir = stat.isDirectory();
+
+                                    // 如果是目录则递归获取大小，否则取单文件大小
+                                    const size = isDir ? getFolderSize(fullPath) : stat.size;
+
                                     if (size > 1073741824) sizeStr = (size / 1073741824).toFixed(2) + ' GB';
                                     else if (size > 1048576) sizeStr = (size / 1048576).toFixed(2) + ' MB';
                                     else if (size > 1024) sizeStr = (size / 1024).toFixed(2) + ' KB';
@@ -303,7 +329,8 @@ router.get('/api/game-versions', async (ctx) => {
                             }
                         }
 
-                        return { ...row, gallery, fileSizeStr: sizeStr };
+                        // 将 isDirectory 属性传递给前端
+                        return { ...row, gallery, fileSizeStr: sizeStr, isDirectory: isDir };
                     });
                     ctx.body = result;
                 }
@@ -347,6 +374,14 @@ router.get('/api/download/:id', async (ctx) => {
     }
 
     const stats = fs.statSync(fullPath);
+
+    // 如果恶意绕过前端调用下载接口且目标是文件夹，则直接拦截
+    if (stats.isDirectory()) {
+        ctx.status = 400;
+        ctx.body = 'Cannot download a directory directly.';
+        return;
+    }
+
     ctx.set('Content-Length', stats.size);
     ctx.set('Last-Modified', stats.mtime.toUTCString());
 
@@ -381,6 +416,12 @@ router.get('/api/play/:id/:filename', async (ctx) => {
     }
 
     const stats = fs.statSync(fullPath);
+    if (stats.isDirectory()) {
+        ctx.status = 400;
+        ctx.body = 'Cannot stream a directory.';
+        return;
+    }
+
     ctx.set('Content-Length', stats.size);
     ctx.set('Accept-Ranges', 'bytes');
     ctx.set('Last-Modified', stats.mtime.toUTCString());
@@ -429,6 +470,11 @@ router.get('/api/play-merged/:id/:filename', async (ctx) => {
 
     if (!isArcade) {
         if (fs.existsSync(childPath)) {
+            if (fs.statSync(childPath).isDirectory()) {
+                ctx.status = 400;
+                ctx.body = 'Cannot stream a directory.';
+                return;
+            }
             ctx.type = path.extname(downloadName);
             ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(downloadName)}"`);
             ctx.body = fs.createReadStream(childPath);

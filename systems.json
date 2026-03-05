@@ -858,6 +858,17 @@
         "scraper_id": 105,
         "ejs_core": "pce"
     },
+    "pcfx": {
+        "fullname": "NEC PC-FX",
+        "abbr": "PCFX",
+        "maker": "NEC",
+        "release_year": "1994",
+        "desc": "PC Engine 的正统后继者，一台以全动态视频（FMV）和 2D 动画见长的 32 位主机。",
+        "history": "【点错科技树的动画机】作为 PC Engine 的正统续作，PC-FX 拥有前卫的直立塔式机箱设计。在索尼 PS 和世嘉土星都在火拼 3D 性能的 1994 年底，NEC 却固执地坚信未来的游戏发展方向是“互动动画”，因此为其配备了极其强悍的视频解压缩引擎和 2D 处理能力，却几乎完全放弃了 3D 机能。这导致它严重脱离了时代潮流，最终沦为了大量日式美少女游戏（Galgame）和文字冒险游戏（AVG）的专属播放器，在激烈的次世代战争中迅速被边缘化。",
+        "scraper_id": 72,
+        "ejs_core": "pcfx",
+        "bios": "pcfx.rom"
+    },
     "neogeocd": {
         "fullname": "SNK Neo Geo CD",
         "abbr": "NGCD",

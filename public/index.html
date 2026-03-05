@@ -1784,10 +1784,20 @@
                                     >
                                 </div>
                                 <div class="ver-btn-group">
-                                    <button v-if="canPlay()" class="play-btn" @click.stop="startGame(ver)">
+                                    <button
+                                        v-if="canPlay() && !ver.isDirectory"
+                                        class="play-btn"
+                                        @click.stop="startGame(ver)"
+                                    >
                                         <i class="ri-gamepad-fill"></i> PLAY
                                     </button>
-                                    <button class="dl-btn" @click.stop="download(ver.id)">
+
+                                    <button
+                                        class="dl-btn"
+                                        :disabled="ver.isDirectory"
+                                        :style="ver.isDirectory ? 'background: #444; color: #888; box-shadow: none; cursor: not-allowed;' : ''"
+                                        @click.stop="!ver.isDirectory && download(ver.id)"
+                                    >
                                         <i class="ri-download-cloud-2-line"></i> GET
                                     </button>
                                 </div>
