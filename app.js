@@ -176,14 +176,30 @@ router.get('/api/systems', async (ctx) => {
                 return;
             }
 
-            const existingSystems = rows.map((r) => r.system);
+            // === 新增：幽灵主机（目录已被删除或重命名）自动清理逻辑 ===
+            const ghostSystems = rows.filter((r) => !localDirs.includes(r.system));
+            if (ghostSystems.length > 0) {
+                ghostSystems.forEach((ghost) => {
+                    // 异步从数据库中彻底删除失效主机的所有游戏记录
+                    db.run('DELETE FROM games WHERE system = ?', [ghost.system], (err) => {
+                        if (!err) console.log(`[API] 目录已被移除或重命名，自动清理数据库失效记录: ${ghost.system}`);
+                    });
+                });
+            }
+
+            // 从当前结果中剔除幽灵主机，确保前端不再显示
+            const validRows = rows.filter((r) => localDirs.includes(r.system));
+
+            // 将本地真实存在、但数据库中还没有记录的新目录（或改名后的目录）补充进列表
+            const existingSystems = validRows.map((r) => r.system);
             localDirs.forEach((dir) => {
                 if (!existingSystems.includes(dir)) {
-                    rows.push({ system: dir, count: 0 });
+                    validRows.push({ system: dir, count: 0 });
                 }
             });
 
-            const systems = rows.map((row) => {
+            // 注意：这里将原来的 rows.map 变为了 validRows.map
+            const systems = validRows.map((row) => {
                 const key = (row.system || '').toLowerCase();
                 const info = metadata[key] || {};
                 const sysObj = {

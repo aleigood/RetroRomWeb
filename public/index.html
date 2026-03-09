@@ -430,12 +430,11 @@
                 padding-bottom: 20px;
             }
 
-            /* === 现代卡片样式 (沉浸式展台风) === */
             .sys-card {
                 background: var(--bg-card);
                 border-radius: 18px;
                 overflow: hidden;
-                position: relative; /* 必须为 relative 以容纳绝对定位的背景 */
+                position: relative;
                 display: flex;
                 flex-direction: column;
                 border: 1px solid rgba(255, 255, 255, 0.08);
@@ -445,7 +444,7 @@
                     filter 0.2s;
                 cursor: pointer;
                 transform: translateZ(0);
-                min-height: 200px;
+                min-height: 160px; /* 从 200px 降低，解除卡片整体无法变矮的限制 */
             }
             .sys-card:active {
                 transform: scale(0.95);
@@ -505,18 +504,18 @@
             .sys-card-logo-box {
                 position: relative;
                 z-index: 1;
-                height: 120px;
+                height: 100px; /* 调整为你预期的 100px */
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding: 24px 20px 0; /* 留出顶部空间 */
+                padding: 16px 20px 0; /* 顶部留白从 24px 减小到 16px，让排版更紧凑 */
             }
 
             .sys-card-logo {
-                max-width: 75%;
-                max-height: 100%;
-                object-fit: contain;
-                /* 关键：给 logo 加一点白色泛光和黑色重阴影，保证不管是黑色还是白色 logo 都能看清 */
+                width: 75%; /* 强制宽度基准框为 75% */
+                height: 100%; /* 强制高度基准框占满可用空间 */
+                object-fit: contain; /* 让任何尺寸的图片都在这个固定框内自适应缩放并保持原比例 */
+                /* 下面的阴影代码保持不变 */
                 filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.2));
             }
 
@@ -571,38 +570,39 @@
                 text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
             }
 
-            /* 彻底弃用 mask-image，改用背景色渐变伪元素模拟遮罩 */
-            .overflow-mask::after {
-                content: '';
-                position: absolute;
-                top: 0;
-                right: 0;
-                bottom: 0;
-                width: 32px;
-                /* rgba(28,28,34) 正好对应卡片背景色 #1c1c22 */
-                background: linear-gradient(to right, rgba(28, 28, 34, 0) 0%, rgba(28, 28, 34, 1) 100%);
-                pointer-events: none;
-                z-index: 2;
+            /* 使用原生的 mask-image 遮罩，并通过调整 mask-size 预留出 32px 的滑动空间 */
+            .overflow-mask {
+                -webkit-mask-image: linear-gradient(to right, black 0%, black calc(100% - 32px), transparent 100%);
+                mask-image: linear-gradient(to right, black 0%, black calc(100% - 32px), transparent 100%);
+                -webkit-mask-size: calc(100% + 32px) 100%;
+                mask-size: calc(100% + 32px) 100%;
+                -webkit-mask-repeat: no-repeat;
+                mask-repeat: no-repeat;
+                -webkit-mask-position: 100% 0; /* 默认右对齐，露出右侧的渐变透明区域 */
+                mask-position: 100% 0;
             }
 
-            /* 当跑马灯激活时，为父级添加遮罩淡出动画 */
-            .marquee-parent-active::after {
-                animation: mask-fade-anim 6s linear infinite;
+            /* 当跑马灯激活时，重新挂载与文字同频的动画 */
+            .marquee-parent-active {
+                animation: mask-slide-anim 6s linear infinite;
             }
 
-            /* 新增：遮罩消失动画（与文字滚动时间轴完美对齐） */
-            @keyframes mask-fade-anim {
+            /* 遮罩滑动动画（与文字滚动时间轴完美对齐） */
+            @keyframes mask-slide-anim {
                 0%,
                 25% {
-                    opacity: 1;
+                    -webkit-mask-position: 100% 0;
+                    mask-position: 100% 0; /* 初始状态：右侧有渐变遮罩 */
                 }
                 40%,
                 60% {
-                    opacity: 0;
-                } /* 刚好文字滚动到底部时，遮罩完全变透明，露出完整末尾文字 */
+                    -webkit-mask-position: 0 0;
+                    mask-position: 0 0; /* 文字滚到末尾时：遮罩向左滑动移出可视区，右侧边缘变为完全清晰 */
+                }
                 75%,
                 100% {
-                    opacity: 1;
+                    -webkit-mask-position: 100% 0;
+                    mask-position: 100% 0; /* 滚回起点：遮罩重新出现 */
                 }
             }
             @keyframes center-marquee {
@@ -1659,10 +1659,7 @@
                                 gridTemplateColumns: row.type === 'grid' ? `repeat(${virtualColCount}, 1fr)` : 'none'
                             }"
                         >
-                            <template v-if="row.type === 'header'"
-                                >{{ currentSort === 'rating_desc' ? (row.text === '-' ? '未评分' : row.text + ' 星') :
-                                row.text }}</template
-                            >
+                            <template v-if="row.type === 'header'">{{ row.text }}</template>
                             <template v-else-if="row.type === 'grid'">
                                 <div
                                     v-for="game in row.items"
@@ -2458,7 +2455,7 @@
                                     if (stars === 0) stars = 1;
                                     groupKey = `${stars}`;
                                 } else {
-                                    groupKey = '-';
+                                    groupKey = '0';
                                 }
                             }
 
@@ -2473,8 +2470,8 @@
                             sortedKeys = Object.keys(groups).sort().reverse();
                         } else if (currentSort.value === 'rating_desc') {
                             sortedKeys = Object.keys(groups).sort((a, b) => {
-                                if (a === '-') return 1;
-                                if (b === '-') return -1;
+                                if (a === '0') return 1;
+                                if (b === '0') return -1;
                                 return parseInt(b) - parseInt(a);
                             });
                         }
@@ -2491,7 +2488,7 @@
                                 id: `h-${key}`,
                                 type: 'header',
                                 text:
-                                    currentSort.value === 'rating_desc' ? (key === '-' ? '未评分' : `${key} 星`) : key,
+                                    currentSort.value === 'rating_desc' ? (key === '0' ? '未评分' : `${key} 星`) : key,
                                 top: currentTop,
                                 height: headerHeight
                             });
