@@ -87,7 +87,8 @@
         "release_year": "1996",
         "desc": "万代为 SFC 推出的双卡槽外设，支持游戏联动。",
         "history": "【双插槽的奇思妙想】万代获得任天堂授权后推出的特殊外设，插在 SFC 卡槽上使用。它拥有两个小型卡槽，允许两款游戏进行数据联动（主要是《奥特曼》和《高达》系列），这种“合体”玩法非常有创意。",
-        "scraper_id": 108
+        "scraper_id": 108,
+        "ejs_core": "snes"
     },
     "n64": {
         "fullname": "Nintendo 64",
@@ -223,7 +224,8 @@
         "release_year": "2001",
         "desc": "史上最小的可更换卡带游戏机，专为宝可梦设计。",
         "history": "【最小的可换卡掌机】任天堂推出的一款超袖珍掌机，比 GBA 卡带大不了多少，专为宝可梦小游戏设计。虽然内置了震动和红外功能，但更多被视为一款电子玩具而非严肃的游戏机。",
-        "scraper_id": 211
+        "scraper_id": 211,
+        "ejs_core": "pokemini"
     },
     "satellaview": {
         "fullname": "Nintendo Satellaview",
@@ -232,7 +234,9 @@
         "release_year": "1995",
         "desc": "SFC 的卫星调制解调器外设，曾通过卫星广播下载游戏。",
         "history": "【卫星下载游戏】SFC 的黑科技外设，通过卫星广播信号接收游戏数据（SoundLink）。玩家要在特定时间守在电视前玩“直播游戏”，很多内容（如特殊的《塞尔达传说》版本）至今已难以寻觅。",
-        "scraper_id": 107
+        "scraper_id": 107,
+        "ejs_core": "snes",
+        "bios": "bs-x.bin"
     },
     "sgb": {
         "fullname": "Nintendo Super Game Boy",
@@ -241,7 +245,9 @@
         "release_year": "1994",
         "desc": "能让 Game Boy 游戏在电视上游玩的 SFC 卡带适配器。",
         "history": "【大屏幕的快乐】插在 SFC 上的转接卡，能让你在电视上玩 GB 游戏。它不仅仅是画面放大，还能为黑白游戏添加自定义配色边框，甚至利用 SFC 的声卡增强音效。",
-        "scraper_id": 127
+        "scraper_id": 127,
+        "ejs_core": "snes",
+        "bios": "sgb_boot.bin"
     },
     "mastersystem": {
         "fullname": "Sega Master System",
@@ -313,6 +319,7 @@
         "desc": "世嘉最后一款主机，虽败犹荣，拥有大量创意游戏。",
         "history": "【悲情的先驱】世嘉的绝唱，也是第一台 128 位主机。它极具创新：内置调制解调器支持联网对战、手柄上有可视化的存储卡（VMU）。尽管拥有《莎木》、《索尼克大冒险》等超前大作，但受累于财务危机，最终导致世嘉退出硬件市场。",
         "scraper_id": 23,
+        "ejs_core": "flycast",
         "bios": "dc_boot.bin"
     },
     "gamegear": {
@@ -342,7 +349,9 @@
         "release_year": "1998",
         "desc": "基于 Dreamcast 架构的著名街机基板。",
         "history": "【街机与家用的桥梁】基于 Dreamcast 架构开发的街机基板。由于架构相同，街机游戏移植到 DC 变得易如反掌，这保证了 DC 初期拥有大量高质量的街机移植作，如《疯狂出租车》和《VR战士 4》。",
-        "scraper_id": 56
+        "scraper_id": 56,
+        "ejs_core": "flycast",
+        "bios": "naomi.zip"
     },
     "model2": {
         "fullname": "Sega Model 2",
@@ -369,7 +378,9 @@
         "release_year": "2003",
         "desc": "基于 Dreamcast/NAOMI 架构的街机系统，SNK 后期的家。",
         "history": "【SNK 的新家】基于 Dreamcast/NAOMI 架构的街机系统。在 Neo Geo 停止支持后，SNK 将其作为主力平台，推出了《拳皇 XI》和《合金弹头 6》。它的卡带易于更换，维护成本低，深受街机厅老板喜爱。",
-        "scraper_id": 53
+        "scraper_id": 53,
+        "ejs_core": "flycast",
+        "bios": "awbios.zip"
     },
     "stv": {
         "fullname": "Sega Titan Video",
@@ -378,7 +389,9 @@
         "release_year": "1995",
         "desc": "基于世嘉土星架构的街机基板。",
         "history": "【土星的街机兄弟】ST-V 是 Sega Titan Video 的缩写，它与世嘉土星家用机架构几乎完全相同，使用的是卡带介质。这使得《苍穹红莲队》、《棉花小魔女》等街机游戏能够完美移植到土星上。",
-        "scraper_id": 75
+        "scraper_id": 75,
+        "ejs_core": "yabause",
+        "bios": "stvbios.zip"
     },
     "triforce": {
         "fullname": "Namco/Sega/Nintendo Triforce",
@@ -407,7 +420,8 @@
         "desc": "基于 Atari 8-bit 电脑架构的主机，手柄极易损坏。",
         "history": "【并不超级的系统】基于 Atari 400/800 电脑架构设计。尽管画面比 2600 强，但其模拟摇杆极其容易损坏且无法自动回中，加上不兼容 2600 游戏，导致它在市场上迅速被 ColecoVision 击败。",
         "scraper_id": 40,
-        "ejs_core": "atari5200"
+        "ejs_core": "atari5200",
+        "bios": "5200.rom"
     },
     "atari7800": {
         "fullname": "Atari 7800",
@@ -417,7 +431,8 @@
         "desc": "兼容 2600 游戏，画面更强，但为时已晚。",
         "history": "【迟到的修正】旨在纠正 5200 的错误，完全兼容 2600 游戏。本来能与 NES 一战，却因雅达利公司被出售而推迟发售。等它上市时，任天堂已经统治了世界，它只能沦为配角。",
         "scraper_id": 41,
-        "ejs_core": "atari7800"
+        "ejs_core": "atari7800",
+        "bios": "7800 BIOS (U).rom"
     },
     "atarijaguar": {
         "fullname": "Atari Jaguar",
@@ -427,7 +442,8 @@
         "desc": "标榜“64位”的主机，雅达利的最后绝唱。",
         "history": "【Do the Math】雅达利最后的绝唱。标榜自己是“64位主机”（实际上是双 32 位处理器），试图在参数上碾压 16 位主机。但由于手柄设计反人类（带电话拨号键盘）、开发极难且缺乏大作，最终悲惨退场。",
         "scraper_id": 27,
-        "ejs_core": "jaguar"
+        "ejs_core": "jaguar",
+        "bios": "jagboot.rom"
     },
     "atarijaguarcd": {
         "fullname": "Atari Jaguar CD",
@@ -436,7 +452,9 @@
         "release_year": "1995",
         "desc": "Jaguar 的光盘外设，因其造型像马桶而闻名。",
         "history": "【马桶盖外设】Jaguar 的光驱附件，因其插入主机后的造型酷似马桶而闻名。可靠性极差，现存完好的设备非常稀少。它是雅达利在硬件市场最后的挣扎。",
-        "scraper_id": 171
+        "scraper_id": 171,
+        "ejs_core": "jaguar",
+        "bios": "jagcd.rom"
     },
     "atarilynx": {
         "fullname": "Atari Lynx",
@@ -446,7 +464,8 @@
         "desc": "世界上第一款彩色液晶屏掌机，支持左右手反转。",
         "history": "【彩屏先驱】世界上第一款彩色液晶掌机，支持左右手切换（可以翻转屏幕）。虽然机能强大，支持硬件缩放，但昂贵的价格和“吃电老虎”的属性（6节电池玩不久）让它输给了 Game Boy。",
         "scraper_id": 28,
-        "ejs_core": "lynx"
+        "ejs_core": "lynx",
+        "bios": "lynxboot.img"
     },
     "atarist": {
         "fullname": "Atari ST",
@@ -455,7 +474,9 @@
         "release_year": "1985",
         "desc": "内置 MIDI 接口的 16 位电脑，深受音乐人喜爱。",
         "history": "【音乐人的最爱】意为“Sixteen/Thirty-two”（16/32位）。由于内置了 MIDI 接口，它成为了 80、90 年代音乐工作室的标配电脑。在欧洲非常流行，与 Amiga 是死对头，拥有大量优秀的动作和策略游戏。",
-        "scraper_id": 42
+        "scraper_id": 42,
+        "ejs_core": "hatari",
+        "bios": "tos.img"
     },
     "atari800": {
         "fullname": "Atari 800",
@@ -464,7 +485,9 @@
         "release_year": "1979",
         "desc": "雅达利的高端 8 位电脑，拥有专用的协处理器。",
         "history": "【8 位机的强者】Atari 8 位机系列（400/800）使用了 Jay Miner 设计的专用芯片来处理图形和声音（他后来设计了 Amiga）。这使得 Atari 800 的游戏画面在 1979 年处于绝对领先地位，也是《Star Raiders》的诞生地。",
-        "scraper_id": 43
+        "scraper_id": 43,
+        "ejs_core": "atari800",
+        "bios": "ATARIXL.ROM"
     },
     "atarixe": {
         "fullname": "Atari XEGS",
@@ -473,7 +496,9 @@
         "release_year": "1987",
         "desc": "伪装成游戏机的 Atari 65XE 电脑。",
         "history": "【换壳的策略】XE Game System 实际上是一台重新包装的 Atari 65XE 电脑，配有可拆卸键盘。雅达利试图用它同时攻占游戏机和电脑市场，但效果平平。",
-        "scraper_id": 43
+        "scraper_id": 43,
+        "ejs_core": "atari800",
+        "bios": "ATARIXL.ROM"
     },
     "mame": {
         "fullname": "MAME Arcade",
@@ -553,7 +578,9 @@
         "release_year": "2001",
         "desc": "激光视盘（LaserDisc）街机游戏模拟器。",
         "history": "【互动电影的先驱】Daphne 专门模拟那些基于激光视盘（LaserDisc）的街机游戏，如著名的《龙穴历险记》（Dragon's Lair）和《太空王牌》。这类游戏本质上是播放动画片，玩家需要在特定时刻按下按键来推进剧情。",
-        "scraper_id": 49
+        "scraper_id": 49,
+        "ejs_core": "daphne",
+        "bios": "daphne.zip"
     },
     "type-x": {
         "fullname": "Taito Type X",
@@ -572,7 +599,8 @@
         "desc": "图形和音效在当时具有革命性的家用电脑。",
         "history": "【多媒体先驱】安迪·沃霍尔曾用它作画，美剧《巴比伦5号》曾用它制作特效。Amiga 拥有超越时代的图形（4096色）和多任务操作系统。虽然在美国被视为电脑，但在欧洲，它是玩游戏的最佳平台之一。",
         "scraper_id": 64,
-        "ejs_core": "amiga"
+        "ejs_core": "amiga",
+        "bios": "kick13.rom"
     },
     "c64": {
         "fullname": "Commodore 64",
@@ -619,7 +647,8 @@
         "release_year": "1981",
         "desc": "PC 游戏的黄金时代。",
         "history": "【CONFIG.SYS 的回忆】在 Windows 统治一切之前，PC 游戏是在 DOS 提示符下运行的。这是属于 SoundBlaster 声卡和 3.5 寸软盘的时代，诞生了 FPS 鼻祖《毁灭战士》、RTS 鼻祖《沙丘2》以及《仙剑奇侠传》等中文 RPG 经典。",
-        "scraper_id": 135
+        "scraper_id": 135,
+        "ejs_core": "dos"
     },
     "msx": {
         "fullname": "MSX",
@@ -628,7 +657,9 @@
         "release_year": "1983",
         "desc": "在亚洲和南美非常流行的家用电脑标准。",
         "history": "【统一标准的梦想】微软联合 ASCII 试图建立的统一家用电脑标准。虽然在美国失败，但在日本、韩国、巴西和阿拉伯地区极受欢迎。Konami 是 MSX 最坚定的支持者，小岛秀夫的处女作《合金装备》就诞生于此。",
-        "scraper_id": 113
+        "scraper_id": 113,
+        "ejs_core": "bluemsx",
+        "bios": "msx.rom"
     },
     "msx1": {
         "fullname": "MSX1",
@@ -637,7 +668,9 @@
         "release_year": "1983",
         "desc": "第一代 MSX 标准。",
         "history": "【MSX 的起点】MSX 标准的第一代。硬件规格类似于 ColecoVision，虽然卷轴滚动能力较弱，但凭借海量的软件支持（尤其是 Konami 的卡带游戏），成为了 8 位电脑的一股重要力量。",
-        "scraper_id": 113
+        "scraper_id": 113,
+        "ejs_core": "bluemsx",
+        "bios": "msx.rom"
     },
     "msx2": {
         "fullname": "MSX2",
@@ -646,7 +679,9 @@
         "release_year": "1985",
         "desc": "MSX 的升级版，拥有更强的图形处理能力。",
         "history": "【进化的标准】大幅增强了图形处理能力，支持 256 色显示和硬件卷轴。这使得 MSX2 能够运行画面精美的 RPG 和动作游戏。《合金装备 2：固蛇》是该平台上剧情叙事的巅峰之作。",
-        "scraper_id": 116
+        "scraper_id": 116,
+        "ejs_core": "bluemsx",
+        "bios": "msx2.rom"
     },
     "x68k": {
         "fullname": "Sharp X68000",
@@ -666,7 +701,9 @@
         "release_year": "1982",
         "desc": "集成了电视功能的红色电脑，X68000 的前辈。",
         "history": "【电视与电脑的融合】Sharp X1 的一大卖点是能够与电视画面叠加显示（Superimpose）。它拥有红色的时尚外观，是日本 8 位电脑御三家（NEC, Fujitsu, Sharp）之一，拥有许多优秀的街机移植作品。",
-        "scraper_id": 220
+        "scraper_id": 220,
+        "ejs_core": "x1",
+        "bios": "iplrom.dat"
     },
     "zxspectrum": {
         "fullname": "Sinclair ZX Spectrum",
@@ -675,7 +712,8 @@
         "release_year": "1982",
         "desc": "英国最受欢迎的 8 位家用电脑。",
         "history": "【英国的国民电脑】如果你问一个英国人他的第一台电脑是什么，大概率是“Speccy”。标志性的橡胶键盘和独特的色彩冲突（Color Clash）画面是它的特征。它孕育了著名的 Rare 工作室（当时叫 Ultimate Play the Game）。",
-        "scraper_id": 76
+        "scraper_id": 76,
+        "ejs_core": "fuse"
     },
     "apple2": {
         "fullname": "Apple II",
@@ -684,7 +722,9 @@
         "release_year": "1977",
         "desc": "乔布斯和沃兹尼亚克的传奇之作。",
         "history": "【车库传奇】史蒂夫·沃兹尼亚克的设计奇迹，让苹果公司起飞的产品。它拥有开放的架构和扩展槽，这在当时是革命性的。《波斯王子》、《德军总部》的初代版本都在此平台上开发。它是美国教育市场长达十几年的统治者。",
-        "scraper_id": 86
+        "scraper_id": 86,
+        "ejs_core": "linapple",
+        "bios": "apple2e.rom"
     },
     "apple2gs": {
         "fullname": "Apple IIGS",
@@ -693,7 +733,9 @@
         "release_year": "1986",
         "desc": "Apple II 系列的 16 位巅峰，拥有出色的图形和声音。",
         "history": "【GS 代表图形与声音】Apple IIGS 是为了应对 Amiga 和 Atari ST 而推出的。它使用了与 SNES 相同的 65816 处理器和 Ensoniq 声卡，音质极佳。它是苹果在全面转向 Macintosh 之前对 Apple II 最后的致敬。",
-        "scraper_id": 217
+        "scraper_id": 217,
+        "ejs_core": "kegs",
+        "bios": "ROM01"
     },
     "macintosh": {
         "fullname": "Macintosh",
@@ -702,7 +744,9 @@
         "release_year": "1984",
         "desc": "普及了图形用户界面的经典电脑。",
         "history": "【Hello】1984 年，Macintosh 凭借鼠标和图形窗口界面震惊了世界。虽然早期黑白 Mac 游戏不多，但《暗影门》、《模拟城市》和《波斯王子》等经典都在此留下了浓墨重彩的一笔。",
-        "scraper_id": 146
+        "scraper_id": 146,
+        "ejs_core": "minivmac",
+        "bios": "vMac.ROM"
     },
     "pc98": {
         "fullname": "NEC PC-9800",
@@ -711,7 +755,9 @@
         "release_year": "1982",
         "desc": "日本国民级电脑，拥有大量日式 RPG 和 AVG。",
         "history": "【日本的 IBM PC】在 Windows 95 普及前，统治日本电脑市场十余年的霸主。拥有高分辨率汉字显示能力，是日式美少女游戏（Galgame）、RPG（如《英雄传说》）和策略游戏（如《三国志》）的温床。以其独特的 FM 音源音乐著称。",
-        "scraper_id": 208
+        "scraper_id": 208,
+        "ejs_core": "np2kai",
+        "bios": "np2kai/BIOS.ROM"
     },
     "pc88": {
         "fullname": "NEC PC-8801",
@@ -720,7 +766,9 @@
         "release_year": "1981",
         "desc": "PC-98 的 8 位前辈，Falcom 粉丝的圣地。",
         "history": "【日式 RPG 的摇篮】在 PC-98 称霸之前，PC-88 是日本最流行的 8 位电脑。Falcom 的《伊苏》、《屠龙战士》等传说级 RPG 都首发于此。它的 Sound Board II 音乐卡定义了 80 年代日式游戏音乐的风格。",
-        "scraper_id": 221
+        "scraper_id": 221,
+        "ejs_core": "quasi88",
+        "bios": "N88.ROM"
     },
     "fmtowns": {
         "fullname": "Fujitsu FM Towns",
@@ -729,7 +777,9 @@
         "release_year": "1989",
         "desc": "标配 CD-ROM 的日式多媒体电脑。",
         "history": "【多媒体怪兽】富士通推出的 32 位电脑，最大特点是首发即标配 CD-ROM 光驱。这使得它拥有大量街机游戏的完美移植版（如《超级街霸II》），以及画质精美的 CD-ROM 冒险游戏。",
-        "scraper_id": 253
+        "scraper_id": 253,
+        "ejs_core": "tsugaru",
+        "bios": "FMT_DIC.ROM"
     },
     "amstradcpc": {
         "fullname": "Amstrad CPC",
@@ -738,7 +788,8 @@
         "release_year": "1984",
         "desc": "在欧洲（特别是法国）极受欢迎的 8 位电脑。",
         "history": "【彩色个人电脑】CPC 代表 \"Colour Personal Computer\"。Amstrad 采取了将主机与显示器（内置电源）捆绑销售的策略，性价比极高。它在欧洲市场与 C64 和 ZX Spectrum 形成了三足鼎立的局面。",
-        "scraper_id": 65
+        "scraper_id": 65,
+        "ejs_core": "cap32"
     },
     "bbcmicro": {
         "fullname": "BBC Micro",
@@ -747,7 +798,8 @@
         "release_year": "1981",
         "desc": "英国的教育电脑，ARM 架构的起源地。",
         "history": "【教育的基石】由 BBC 委托 Acorn 公司制造，旨在提高英国民众的计算机素养。它造价昂贵但极其坚固和扩展性强。最重要的是，Acorn 团队后来在此基础上研发了 ARM 架构，这也就是今天每一台智能手机芯片的祖先。",
-        "scraper_id": 37
+        "scraper_id": 37,
+        "ejs_core": "beebem"
     },
     "ti99": {
         "fullname": "Texas Instruments TI-99/4A",
@@ -756,7 +808,9 @@
         "release_year": "1981",
         "desc": "第一台 16 位家用电脑，标志性的银黑外观。",
         "history": "【德仪的野心】虽然它是世界上第一台家用 16 位电脑，但由于架构限制，速度并不快。它以其能够连接语音合成器模块并“说话”而闻名，这是 80 年代初的黑科技。",
-        "scraper_id": 205
+        "scraper_id": 205,
+        "ejs_core": "ti99sim",
+        "bios": "ti994a.rom"
     },
     "trs-80": {
         "fullname": "Tandy TRS-80",
@@ -819,7 +873,8 @@
         "release_year": "1979",
         "desc": "纯文字冒险游戏的虚拟引擎。",
         "history": "【文字的魅力】在图形尚未普及的年代，Infocom 用 Z-Machine 引擎创造了《Zork》等伟大的互动小说。玩家通过输入指令（如 \"Go North\"）进行探索，想象力是最好的显卡。",
-        "scraper_id": 215
+        "scraper_id": 215,
+        "ejs_core": "scummvm"
     },
     "pcengine": {
         "fullname": "NEC PC Engine",
@@ -848,7 +903,9 @@
         "release_year": "1989",
         "desc": "美版 PC Engine 的 CD 外设。",
         "history": "【昂贵的升级】TG-16 的 CD 扩展底座。虽然价格昂贵（399美元），但它带来了《伊苏 I & II》这样的史诗级 CD 游戏，拥有真人配音和管弦乐配乐，这在当时是前所未有的体验。",
-        "scraper_id": 114
+        "scraper_id": 114,
+        "ejs_core": "pce",
+        "bios": "syscard3.pce"
     },
     "supergrafx": {
         "fullname": "NEC SuperGrafx",
@@ -878,7 +935,9 @@
         "release_year": "1994",
         "desc": "光盘版的 Neo Geo。",
         "history": "【漫长的 Loading】为了解决 Neo Geo 卡带过贵的问题，SNK 推出了光盘版。虽然游戏价格降到了十分之一，但只有单倍速的光驱导致了臭名昭著的读取时间（玩一局格斗可能要读盘一分钟），那只在读取画面跳舞的猴子成为了玩家的共同回忆。",
-        "scraper_id": 70
+        "scraper_id": 70,
+        "ejs_core": "neocd",
+        "bios": "neocdz.zip"
     },
     "ngp": {
         "fullname": "Neo Geo Pocket",
@@ -907,7 +966,8 @@
         "release_year": "1999",
         "desc": "横井军平设计的掌机，拥有独特的横竖玩法。",
         "history": "【横井军平的遗作】GB 之父离开任天堂后的最后设计。特点是仅用一节电池即可运行极长时间，以及独特的按键布局，支持横着玩和竖着玩（适合射击游戏）。拥有大量万代旗下的动漫 IP 游戏（如高达、数码宝贝）。",
-        "scraper_id": 45
+        "scraper_id": 45,
+        "ejs_core": "wswan"
     },
     "wonderswancolor": {
         "fullname": "Bandai WonderSwan Color",
@@ -916,7 +976,8 @@
         "release_year": "2000",
         "desc": "WS 的彩色升级版，最终幻想系列曾在此重制。",
         "history": "【彩色的天鹅】WS 的彩色升级版。不仅有万代的动漫支持，还成功拉拢了史克威尔，重制了《最终幻想 1/2/4》。虽然在日本取得了一定成绩（曾占据 8% 市场），但在 GBA 的强势碾压下最终未能走出日本。",
-        "scraper_id": 46
+        "scraper_id": 46,
+        "ejs_core": "wswan"
     },
     "xbox": {
         "fullname": "Microsoft Xbox",
@@ -943,7 +1004,8 @@
         "release_year": "2001",
         "desc": "经典的图形冒险游戏引擎。",
         "history": "【点击冒险的引擎】它不是模拟器，而是一个重写的游戏引擎，专门用于运行 LucasArts 的经典点击式冒险游戏（如《猴岛小英雄》）。现在它已扩展支持数百款冒险游戏。它是重温那个幽默、解谜和像素艺术黄金年代的最佳方式。",
-        "scraper_id": 123
+        "scraper_id": 123,
+        "ejs_core": "scummvm"
     },
     "pico8": {
         "fullname": "PICO-8",
@@ -952,7 +1014,8 @@
         "release_year": "2015",
         "desc": "备受喜爱的幻想游戏主机。",
         "history": "【幻想主机】一台不存在硬件实体的“虚拟主机”。它人为地限制了分辨率（128x128）和色彩（16色），旨在激发开发者的创造力。著名的《Celeste》原型就诞生于此。社区活跃，充满了极具创意的微型游戏。",
-        "scraper_id": 234
+        "scraper_id": 234,
+        "ejs_core": "retro8"
     },
     "tic80": {
         "fullname": "TIC-80",
@@ -961,7 +1024,8 @@
         "release_year": "2017",
         "desc": "开源的幻想计算机。",
         "history": "【开源幻想】类似于 PICO-8 的幻想计算机，但完全开源。支持多种编程语言（Lua, JS, Python 等），宽屏显示，是学习复古游戏编程的绝佳平台。",
-        "scraper_id": 222
+        "scraper_id": 222,
+        "ejs_core": "tic80"
     },
     "easyrpg": {
         "fullname": "EasyRPG",
@@ -970,7 +1034,8 @@
         "release_year": "2010",
         "desc": "RPG Maker 2000/2003 的开源引擎。",
         "history": "【RPG 制作大师的播放器】一个开源项目，旨在运行由 RPG Maker 2000 和 2003 制作的游戏。这让诸如《梦日记》、《Ib》等经典独立 RPG 能够在各种现代设备上完美运行。",
-        "scraper_id": 231
+        "scraper_id": 231,
+        "ejs_core": "easyrpg"
     },
     "openbor": {
         "fullname": "OpenBOR",
@@ -979,7 +1044,8 @@
         "release_year": "2004",
         "desc": "开源的横版过关游戏引擎。",
         "history": "【同人动作引擎】源自《Beats of Rage》的开源引擎，专门用于制作 2D 横版清版动作游戏。社区用它制作了大量高质量的同人作品，如《时空双龙》、《怒之铁拳》的改版等。",
-        "scraper_id": 214
+        "scraper_id": 214,
+        "ejs_core": "openbor"
     },
     "mugen": {
         "fullname": "M.U.G.E.N",
@@ -1005,7 +1071,8 @@
         "release_year": "2008",
         "desc": "基于 AVR 单片机的极简开源主机。",
         "history": "【单片机的奇迹】仅仅使用一颗普通的 ATMega644 单片机和极少的外部元件，就能生成视频信号和音频。它是一个极好的电子制作和编程学习项目。",
-        "scraper_id": 216
+        "scraper_id": 216,
+        "ejs_core": "uzem"
     },
     "supracan": {
         "fullname": "Super A'Can",
@@ -1023,7 +1090,9 @@
         "release_year": "1991",
         "desc": "多媒体播放器，因拥有糟糕的塞尔达游戏而闻名。",
         "history": "【塞尔达的黑历史】飞利浦 CD-i 本意是一台家庭多媒体设备而非纯游戏机。但由于索尼-任天堂合作破裂的复杂原因，飞利浦获得了任天堂 IP 的授权，制作了《塞尔达：加梅隆之杖》等三款被公认为“史上最烂”的游戏。",
-        "scraper_id": 133
+        "scraper_id": 133,
+        "ejs_core": "same_cdi",
+        "bios": "cdimono1.zip"
     },
     "channelf": {
         "fullname": "Fairchild Channel F",
@@ -1032,7 +1101,9 @@
         "release_year": "1976",
         "desc": "世界上第一台使用可更换 ROM 卡带的游戏主机。",
         "history": "【历史的开创者】虽然不知名，但它在历史上极其重要——它是世界上第一台使用“可更换 ROM 卡带”的游戏机。在这个设计之前，游戏机通常只内置几款游戏。它由杰里·劳森（Jerry Lawson）设计，他是电子游戏行业的非裔先驱。",
-        "scraper_id": 80
+        "scraper_id": 80,
+        "ejs_core": "freechaf",
+        "bios": "sl31253.rom"
     },
     "odyssey2": {
         "fullname": "Magnavox Odyssey 2",
@@ -1041,7 +1112,9 @@
         "release_year": "1978",
         "desc": "配有薄膜键盘的早期主机，曾是雅达利 2600 的竞争对手。",
         "history": "【带键盘的主机】世界上第一台游戏机 Odyssey 的继任者。最显眼的特征是内置了一个薄膜键盘，试图模糊游戏机与电脑的界限。虽然画面不如雅达利，但其著名的《K.C. Munchkin!》曾引发了著名的版权官司。",
-        "scraper_id": 104
+        "scraper_id": 104,
+        "ejs_core": "o2em",
+        "bios": "o2rom.bin"
     },
     "videopac": {
         "fullname": "Philips Videopac G7000",
@@ -1050,7 +1123,9 @@
         "release_year": "1978",
         "desc": "Odyssey 2 在欧洲的版本。",
         "history": "【欧洲的奥德赛】Odyssey 2 在欧洲的名称。由于飞利浦在欧洲的强大影响力，它在欧洲市场表现不俗，拥有许多独特的独占游戏。",
-        "scraper_id": 104
+        "scraper_id": 104,
+        "ejs_core": "o2em",
+        "bios": "o2rom.bin"
     },
     "vectrex": {
         "fullname": "GCE Vectrex",
@@ -1059,7 +1134,9 @@
         "release_year": "1982",
         "desc": "自带矢量显示器的独特游戏机。",
         "history": "【矢量图的魅力】史上最独特的游戏机之一。它自带一个竖置的矢量显示器（类似于示波器），只能显示线条，但清晰度极高且无像素感。为了显示色彩，玩家需要在屏幕前贴上彩色的塑料覆盖膜。这是一台真正的极客机器。",
-        "scraper_id": 102
+        "scraper_id": 102,
+        "ejs_core": "vecx",
+        "bios": "vectrex.bin"
     },
     "supervision": {
         "fullname": "Watara Supervision",
@@ -1068,7 +1145,8 @@
         "release_year": "1992",
         "desc": "廉价版的 Game Boy 竞争对手，屏幕较大但模糊。",
         "history": "【廉价的挑战者】众多试图挑战 Game Boy 的主机之一。它的卖点是更大的屏幕和可折叠机身，价格也更便宜。但由于屏幕残影严重（甚至比 GB 还差）且缺乏大作支持，最终沦为了超市货架上的廉价玩具。",
-        "scraper_id": 207
+        "scraper_id": 207,
+        "ejs_core": "potator"
     },
     "intellivision": {
         "fullname": "Intellivision",
@@ -1077,7 +1155,9 @@
         "release_year": "1979",
         "desc": "雅达利 2600 的主要竞争对手。",
         "history": "【智能电视】玩具巨头美泰推出的主机，是雅达利 2600 的主要竞争对手。它的手柄非常奇特，带有一个数字键盘和圆盘方向键。它是世界上第一台16位游戏机（虽然 CPU 很慢），并首次引入了语音合成模块。",
-        "scraper_id": 115
+        "scraper_id": 115,
+        "ejs_core": "freeintv",
+        "bios": "exec.bin"
     },
     "colecovision": {
         "fullname": "ColecoVision",
@@ -1087,7 +1167,8 @@
         "desc": "能提供接近街机画面的早期主机。",
         "history": "【街机体验带回家】在 1982 年，它的画面震惊了世界，几乎完美移植了当时的街机大作《大金刚》。如果你想体验 80 年代初最好的家用画面，这就是首选。可惜它不幸遇上了 1983 年的游戏业大崩溃，如流星般划过。",
         "scraper_id": 48,
-        "ejs_core": "coleco"
+        "ejs_core": "coleco",
+        "bios": "coleco.rom"
     },
     "chailove": {
         "fullname": "ChaiLove",
@@ -1095,7 +1176,8 @@
         "maker": "Rob Loach",
         "release_year": "2018",
         "desc": "基于 ChaiScript 的 2D 游戏框架。",
-        "history": "【爱与脚本】ChaiLove 是一个允许开发者使用 ChaiScript 语言编写游戏的框架。它旨在提供简单、跨平台的 2D 游戏开发体验，通常用于复古游戏 jam 或作为 RetroArch 的一个核心存在。"
+        "history": "【爱与脚本】ChaiLove 是一个允许开发者使用 ChaiScript 语言编写游戏的框架。它旨在提供简单、跨平台的 2D 游戏开发体验，通常用于复古游戏 jam 或作为 RetroArch 的一个核心存在。",
+        "ejs_core": "chailove"
     },
     "lutro": {
         "fullname": "Lutro",
@@ -1104,7 +1186,8 @@
         "release_year": "2013",
         "desc": "基于 Lua 的 2D 游戏引擎，兼容 Love2D API。",
         "history": "【Lua 的力量】Lutro 试图在 Libretro 生态系统中实现 Love2D 游戏引擎的一个子集。这意味着许多用 Lua 编写的简单 2D 游戏可以直接在支持 RetroArch 的任何设备上运行，无需修改代码。",
-        "scraper_id": 206
+        "scraper_id": 206,
+        "ejs_core": "lutro"
     },
     "ports": {
         "fullname": "Ports",
