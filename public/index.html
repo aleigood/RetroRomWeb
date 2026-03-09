@@ -429,68 +429,69 @@
                 gap: 20px;
                 padding-bottom: 20px;
             }
+            /* === 现代卡片样式 (方案一) === */
             .sys-card {
                 background: var(--bg-card);
-                border-radius: 20px;
+                border-radius: 18px;
                 overflow: hidden;
-                border: 1px solid rgba(255, 255, 255, 0.05);
-                box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.3);
                 display: flex;
-                height: 140px;
-                position: relative;
-                transition: transform 0.2s;
+                flex-direction: column;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5);
+                /* 增加 filter 的过渡动画 */
+                transition:
+                    transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+                    filter 0.2s;
+                cursor: pointer;
                 transform: translateZ(0);
             }
             .sys-card:active {
-                transform: scale(0.96);
+                /* 点击时不仅缩小，还会整体稍微变暗，模拟真实的物理按压效果 */
+                transform: scale(0.95);
+                filter: brightness(0.75);
             }
-            .sys-visual {
-                width: 130px;
-                height: 100%;
+            .sys-top {
+                height: 110px;
+                background: #25252b;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                flex-shrink: 0;
                 position: relative;
-                overflow: hidden;
-                background: linear-gradient(135deg, #2d3436, #000);
             }
-            .sys-visual::after {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
-            }
-            .sys-abbr {
-                font-size: 28px;
-                font-weight: 900;
-                color: rgba(255, 255, 255, 0.95);
-                text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            .sys-logo {
+                height: 55%;
+                max-width: 75%;
+                object-fit: contain;
+                filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
                 z-index: 2;
-                text-transform: uppercase;
+            }
+            .sys-fallback-abbr {
+                font-size: 38px;
+                font-weight: 900;
+                letter-spacing: 1px;
+                -webkit-background-clip: text;
+                background-clip: text;
+                color: transparent;
+                z-index: 2;
             }
             .sys-count-badge {
                 position: absolute;
-                bottom: 6px;
-                right: 6px;
-                font-size: 9px;
-                color: rgba(255, 255, 255, 0.9);
-                font-weight: 700;
-                z-index: 2;
+                top: 12px;
+                right: 12px;
                 background: rgba(0, 0, 0, 0.4);
-                padding: 1px 5px;
-                border-radius: 4px;
+                color: #fff;
+                padding: 4px 10px;
+                border-radius: 20px;
+                font-size: 11px;
+                font-weight: bold;
+                backdrop-filter: blur(4px);
+                z-index: 5;
             }
             .sys-content {
-                flex: 1;
-                padding: 18px;
+                padding: 16px;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
-                min-width: 0;
             }
             .sys-header {
                 display: flex;
@@ -579,40 +580,200 @@
                 overflow: hidden;
                 line-height: 1.5;
             }
+            /* === 主机内页头部横幅 (上下分层杂志风 Two-Tone Editorial) === */
             .intro-header {
-                margin: 0 0 20px 0;
-                padding: 24px;
+                background: var(--bg-card);
                 border-radius: 24px;
-                color: #fff;
-                box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.4);
-                position: relative;
+                margin-bottom: 24px;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.6);
                 overflow: hidden;
-                background-size: 200% 200% !important;
-                animation: gradientMove 8s ease infinite;
+                display: flex;
+                flex-direction: column;
             }
-            .intro-bg-icon {
+
+            /* 上半部分：纯粹的产品展示台 */
+            .intro-stage {
+                width: 100%;
+                height: 180px; /* 提供极为宽裕的展示高度，确保硬件大图完美展现 */
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+            }
+
+            /* 展台内部的光影边缘过渡，增加影棚的深度感，让边缘暗下来 */
+            .intro-stage::after {
+                content: '';
                 position: absolute;
-                right: -25px;
-                bottom: -35px;
-                font-size: 160px;
-                opacity: 0.12;
-                transform: rotate(-15deg);
+                inset: 0;
+                background: radial-gradient(circle at center, transparent 10%, rgba(0, 0, 0, 0.5) 120%);
+                pointer-events: none;
+                z-index: 2;
             }
+
+            /* 超大号透明水印，呼应首页方案2的视觉冲击力 */
+            .stage-watermark {
+                position: absolute;
+                font-size: 110px;
+                font-weight: 900;
+                font-style: italic;
+                color: rgba(255, 255, 255, 0.2);
+                white-space: nowrap;
+                z-index: 1;
+                letter-spacing: -2px;
+                user-select: none;
+                mix-blend-mode: overlay; /* 让水印极具质感地融入底色 */
+            }
+
+            /* 完整的主机图片，像艺术品一样居中陈列 */
+            .stage-console-img {
+                max-width: 85%;
+                max-height: 85%;
+                object-fit: contain;
+                z-index: 3;
+                filter: drop-shadow(0 20px 20px rgba(0, 0, 0, 0.6)); /* 逼真的悬浮阴影 */
+                transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            }
+
+            /* === 主机内页头部横幅 (上下分层杂志风 Two-Tone Editorial) === */
+            .intro-header {
+                background: var(--bg-card);
+                border-radius: 24px;
+                margin-bottom: 24px;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.6);
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* 上半部分：纯粹的产品展示台 */
+            .intro-stage {
+                width: 100%;
+                height: 180px; /* 提供极为宽裕的展示高度，确保硬件大图完美展现 */
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+            }
+
+            /* 展台内部的光影边缘过渡，增加影棚的深度感，让边缘暗下来 */
+            .intro-stage::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: radial-gradient(circle at center, transparent 10%, rgba(0, 0, 0, 0.5) 120%);
+                pointer-events: none;
+                z-index: 2;
+            }
+
+            /* 超大号透明水印，呼应首页方案2的视觉冲击力 */
+            .stage-watermark {
+                position: absolute;
+                font-size: 110px;
+                font-weight: 900;
+                font-style: italic;
+                color: rgba(255, 255, 255, 0.2);
+                white-space: nowrap;
+                z-index: 1;
+                letter-spacing: -2px;
+                user-select: none;
+                mix-blend-mode: overlay; /* 让水印极具质感地融入底色 */
+            }
+
+            /* 完整的主机图片，像艺术品一样居中陈列 */
+            .stage-console-img {
+                max-width: 85%;
+                max-height: 85%;
+                object-fit: contain;
+                z-index: 3;
+                filter: drop-shadow(0 20px 20px rgba(0, 0, 0, 0.6)); /* 逼真的悬浮阴影 */
+                transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            }
+
+            /* 点击时的物理下压反馈 */
+            .intro-header:active .stage-console-img {
+                transform: scale(0.92) translateY(6px);
+            }
+
+            /* 下半部分：极简文本区 */
+            .intro-editorial {
+                padding: 24px 24px 30px 24px;
+                background: #1c1c22;
+                position: relative;
+                z-index: 4;
+            }
+
+            .intro-title {
+                font-size: 26px;
+                font-weight: 900;
+                color: #fff;
+                margin-bottom: 14px;
+                line-height: 1.2;
+                letter-spacing: 0.5px;
+            }
+
+            .intro-meta-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .meta-tag {
+                background: rgba(255, 255, 255, 0.06);
+                padding: 6px 14px;
+                border-radius: 8px;
+                font-size: 12px;
+                font-weight: bold;
+                color: #d0d0d0;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+            }
+
+            .intro-text {
+                font-size: 14px;
+                line-height: 1.7;
+                color: rgba(255, 255, 255, 0.75);
+                text-align: justify;
+            } /* 内容区 */
+            .intro-content {
+                position: relative;
+                z-index: 4;
+                width: 65%; /* 给右侧图片留出重叠空间 */
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
             .intro-title {
                 font-size: 24px;
                 font-weight: 900;
-                margin-bottom: 10px;
-                text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-                position: relative;
-                z-index: 2;
+                color: #fff;
+                margin: 0;
+                text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
             }
+
             .intro-text {
                 font-size: 13px;
                 line-height: 1.6;
-                opacity: 0.95;
-                position: relative;
-                z-index: 2;
-                font-weight: 500;
+                color: rgba(255, 255, 255, 0.9);
+                text-align: justify;
+                /* 增加文字阴影，保证在彩色背景下依然清晰 */
+                text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+                display: -webkit-box;
+                -webkit-line-clamp: 4; /* 限制手机端描述行数，防止过高 */
+                line-clamp: 4;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+
+            /* 当没有图片时，文字宽度自动撑满 */
+            .intro-console-img[style*='display: none'] + .intro-content,
+            .intro-console-img:not([src]) + .intro-content {
+                width: 100%;
             }
             .game-card {
                 background: var(--bg-card);
@@ -624,9 +785,15 @@
                 box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.4);
                 transform: translateZ(0);
                 will-change: transform;
+                /* 👇 加上与首页一致的过渡动画 */
+                transition:
+                    transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+                    filter 0.2s;
             }
             .game-card:active {
                 transform: scale(0.95);
+                /* 👇 加上轻微的变暗反馈，提升物理按压感 */
+                filter: brightness(0.8);
             }
             .thumb-box {
                 width: 100%;
@@ -1399,6 +1566,7 @@
                     >
                         <div v-for="(group, letter) in groupedSystems" :key="letter">
                             <van-index-anchor :index="letter">{{ letter }}</van-index-anchor>
+
                             <div class="sys-group">
                                 <div
                                     v-for="sys in group"
@@ -1406,15 +1574,23 @@
                                     class="sys-card anim-item"
                                     @click="enterSystem(sys)"
                                 >
-                                    <div class="sys-visual" :style="{ background: getSysColor(sys.name) }">
+                                    <div class="sys-top">
+                                        <img
+                                            v-show="!sys.logoError"
+                                            :src="`/logos/${sys.name}.svg`"
+                                            class="sys-logo"
+                                            @error="sys.logoError = true"
+                                        />
                                         <div
-                                            class="sys-abbr"
-                                            :style="{ fontSize: (sys.abbr && sys.abbr.length > 5) ? '26px' : '28px' }"
+                                            v-show="sys.logoError"
+                                            class="sys-fallback-abbr"
+                                            :style="{ backgroundImage: getSysColor(sys.name) }"
                                         >
                                             {{ sys.abbr }}
                                         </div>
                                         <div class="sys-count-badge">{{ sys.count }}</div>
                                     </div>
+
                                     <div class="sys-content">
                                         <div class="sys-header">
                                             <div class="sys-name" v-marquee>{{ sys.fullname }}</div>
@@ -1438,10 +1614,26 @@
                     ref="gameListContainerRef"
                     @scroll="handleGameScroll"
                 >
-                    <div class="intro-header" :style="{ background: getSysColor(currentSystemObj.name) }">
-                        <i class="ri-gamepad-fill intro-bg-icon"></i>
-                        <div class="intro-title">{{ currentSystemObj.fullname }}</div>
-                        <div class="intro-text">{{ currentSystemObj.history }}</div>
+                    <div class="intro-header">
+                        <div class="intro-stage" :style="{ background: getSysColor(currentSystemObj.name) }">
+                            <div class="stage-watermark">{{ currentSystemObj.abbr }}</div>
+                            <img
+                                :src="`/logos/${currentSystemObj.name}_console.svg`"
+                                class="stage-console-img"
+                                @error="$event.target.style.display='none'"
+                            />
+                        </div>
+
+                        <div class="intro-editorial">
+                            <div class="intro-title">{{ currentSystemObj.fullname }}</div>
+                            <div class="intro-meta-tags">
+                                <span class="meta-tag" v-if="currentSystemObj.maker">{{ currentSystemObj.maker }}</span>
+                                <span class="meta-tag" v-if="currentSystemObj.release_year"
+                                    >{{ currentSystemObj.release_year }}</span
+                                >
+                            </div>
+                            <div class="intro-text">{{ currentSystemObj.history }}</div>
+                        </div>
                     </div>
 
                     <div style="display: flex; align-items: center; margin-bottom: 10px; gap: 10px">
