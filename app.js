@@ -232,6 +232,7 @@ router.get('/api/games', async (ctx) => {
 
     const fields = `
         name, 
+        GROUP_CONCAT(filename) as filename,
         MAX(image_path) as image_path, 
         MAX(video_path) as video_path,
         MAX(marquee_path) as marquee_path,

@@ -47,11 +47,13 @@ const ROM_EXTS = [
     '.nsp',
     '.xci',
     '.wbfs',
+    '.wad',
     '.wua',
     '.cci',
     '.rvz',
     '.psv',
-    '.god'
+    '.god',
+    '.d88'
 ];
 
 const IGNORE_DIRS = [
