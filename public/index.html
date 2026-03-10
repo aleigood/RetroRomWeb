@@ -476,14 +476,14 @@
             .sys-card-content {
                 position: relative;
                 z-index: 2;
-                padding: 16px 20px 20px;
+                /* 将顶部 padding 从 16px 减小到 8px，大幅缩小与 Logo 图片的视觉间隙 */
+                padding: 8px 20px 20px;
                 display: flex;
                 flex-direction: column;
                 justify-content: flex-end;
                 flex: 1;
-                background: transparent; /* 直接设为透明 */
+                background: transparent;
             }
-
             .sys-count-badge {
                 position: absolute;
                 top: 14px;
@@ -504,21 +504,26 @@
             .sys-card-logo-box {
                 position: relative;
                 z-index: 1;
-                height: 100px; /* 调整为你预期的 100px */
+                height: 80px; /* <--- 调整到 80px 左右 */
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding: 16px 20px 0; /* 顶部留白从 24px 减小到 16px，让排版更紧凑 */
+                /* 减少顶部 padding (16px)，底部保持为 0，进一步缩小外部间隙 */
+                padding: 16px 20px 0;
             }
 
             .sys-card-logo {
-                width: 75%; /* 强制宽度基准框为 75% */
-                height: 100%; /* 强制高度基准框占满可用空间 */
-                object-fit: contain; /* 让任何尺寸的图片都在这个固定框内自适应缩放并保持原比例 */
-                /* 下面的阴影代码保持不变 */
+                /* 直接将图片标签的物理盒子锁死为安全区域 */
+                width: 75%;
+                height: 70%;
+
+                /* contain 的魔法：
+                   如果图很大，它会缩小直到完整塞进这个 70%x80% 的盒子；
+                   如果图很小（viewBox很小），它会自动放大撑满这个盒子，且保持原比例不变！*/
+                object-fit: contain;
+
                 filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.2));
             }
-
             /* 找不到 Logo 时的默认文字缩写 */
             .sys-fallback-abbr {
                 font-size: 42px;
@@ -1512,48 +1517,33 @@
                     ref="homeContainerRef"
                     @scroll="handleScroll"
                 >
-                    <van-index-bar
-                        :index-list="systemIndexList"
-                        :sticky="false"
-                        highlight-color="var(--primary)"
-                        @select="onIndexSelect"
-                        ref="systemIndexBarRef"
-                    >
-                        <div v-for="(group, letter) in groupedSystems" :key="letter">
-                            <van-index-anchor :index="letter">{{ letter }}</van-index-anchor>
-
-                            <div class="sys-group">
-                                <div
-                                    v-for="sys in group"
-                                    :key="sys.name"
-                                    class="sys-card anim-item"
-                                    @click="enterSystem(sys)"
-                                >
-                                    <div class="sys-card-bg" :style="{ background: getSysColor(sys.name) }"></div>
-
-                                    <div class="sys-count-badge">{{ sys.count }}</div>
-
-                                    <div class="sys-card-logo-box">
-                                        <img
-                                            v-show="!sys.logoError"
-                                            :src="`/logos/${sys.name}.svg`"
-                                            class="sys-card-logo"
-                                            @error="sys.logoError = true"
-                                        />
-                                        <div v-show="sys.logoError" class="sys-fallback-abbr">{{ sys.abbr }}</div>
-                                    </div>
-
-                                    <div class="sys-card-content">
-                                        <div class="sys-header">
-                                            <div class="sys-name" v-marquee>{{ sys.fullname }}</div>
-                                        </div>
-                                        <div class="sys-meta" v-if="sys.year">{{ sys.maker }} • {{ sys.year }}</div>
-                                        <div class="sys-desc">{{ sys.desc }}</div>
-                                    </div>
+                    <div class="sys-group" v-if="systems.length > 0">
+                        <div
+                            v-for="sys in sortedSystems"
+                            :key="sys.name"
+                            class="sys-card anim-item"
+                            @click="enterSystem(sys)"
+                        >
+                            <div class="sys-card-bg" :style="{ background: getSysColor(sys.name) }"></div>
+                            <div class="sys-count-badge">{{ sys.count }}</div>
+                            <div class="sys-card-logo-box">
+                                <img
+                                    v-show="!sys.logoError"
+                                    :src="`/logos/${sys.name}.svg`"
+                                    class="sys-card-logo"
+                                    @error="sys.logoError = true"
+                                />
+                                <div v-show="sys.logoError" class="sys-fallback-abbr">{{ sys.abbr }}</div>
+                            </div>
+                            <div class="sys-card-content">
+                                <div class="sys-header">
+                                    <div class="sys-name" v-marquee>{{ sys.fullname }}</div>
                                 </div>
+                                <div class="sys-meta" v-if="sys.year">{{ sys.maker }} • {{ sys.year }}</div>
+                                <div class="sys-desc">{{ sys.desc }}</div>
                             </div>
                         </div>
-                    </van-index-bar>
+                    </div>
                     <van-empty v-if="systems.length===0" description="Library Empty" image="search" />
                 </div>
             </transition>
@@ -1718,13 +1708,13 @@
             </div>
 
             <div
-                v-if="(!loading && (currentSystemObj ? virtualIndexList.length > 0 : systemIndexList.length > 0))"
+                v-if="(!loading && currentSystemObj && virtualIndexList.length > 0)"
                 class="custom-sidebar"
                 ref="customSidebarRef"
                 :style="{ top: sidebarTop + 'px' }"
             >
                 <div
-                    v-for="char in (currentSystemObj ? virtualIndexList : systemIndexList)"
+                    v-for="char in virtualIndexList"
                     :key="char"
                     class="custom-index-char"
                     :class="{ active: currentLetter === char && isTouchingIndex }"
@@ -2651,7 +2641,8 @@
 
                             const sidebar = customSidebarRef.value || document.querySelector('.custom-sidebar');
 
-                            const list = currentSystemObj.value ? virtualIndexList.value : systemIndexList.value;
+                            if (!currentSystemObj.value) return; // 首页直接拦截
+                            const list = virtualIndexList.value;
 
                             if (sidebar) {
                                 const rect = sidebar.getBoundingClientRect();
@@ -3109,25 +3100,14 @@
                         });
                     };
 
-                    const groupedSystems = computed(() => {
-                        if (!systems.value.length) return {};
-                        const groups = {};
-                        systems.value.forEach((sys) => {
-                            const makerName = sys.maker || 'Unknown';
-                            let letter = makerName[0].toUpperCase();
-                            if (!/[A-Z]/.test(letter)) letter = '#';
-                            if (!groups[letter]) groups[letter] = [];
-                            groups[letter].push(sys);
+                    const sortedSystems = computed(() => {
+                        if (!systems.value.length) return [];
+                        return [...systems.value].sort((a, b) => {
+                            const yearA = parseInt(a.year) || 9999;
+                            const yearB = parseInt(b.year) || 9999;
+                            return yearA - yearB; // 年份从小到大排序
                         });
-                        return Object.keys(groups)
-                            .sort()
-                            .reduce((obj, key) => {
-                                obj[key] = groups[key];
-                                return obj;
-                            }, {});
                     });
-                    const systemIndexList = computed(() => Object.keys(groupedSystems.value));
-
                     const marqueeUrl = computed(() => {
                         if (versions.value.length === 0) return '';
                         const ver = versions.value[0];
@@ -3215,8 +3195,7 @@
                         transitionName,
                         isTouchingIndex,
                         onIndexSelect,
-                        groupedSystems,
-                        systemIndexList,
+                        sortedSystems,
                         handleScroll,
                         handleGameScroll,
                         isScrollingPage,
