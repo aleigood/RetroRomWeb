@@ -254,7 +254,7 @@
                 transition: opacity 0.3s;
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
                 opacity: 0.1;
-                touch-action: none;
+                touch-action: none !important;
             }
             .index-hint::before {
                 content: '';
@@ -282,38 +282,48 @@
             body.touching-sidebar .index-hint {
                 opacity: 0;
             }
+
+            /* 调整索引栏宽度和上下间隙 */
             .custom-sidebar {
                 position: fixed !important;
                 right: 0 !important;
                 z-index: 2000 !important;
-                width: 30px;
+                width: 28px !important; /* <--- 从 35px 变窄，让它看起来更精致 */
+                padding: 12px 0 !important; /* <--- 核心新增：增加上下内边距，确保首尾索引不会贴到黑底的边缘 */
                 background: transparent !important;
                 box-shadow: none !important;
-                opacity: 0;
+                opacity: 0 !important;
                 top: 70px;
                 bottom: auto !important;
                 height: auto !important;
+                max-height: calc(100vh - 120px) !important;
                 transform: translateY(0) !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: center !important;
-                touch-action: none;
                 user-select: none;
                 -webkit-user-select: none;
-                transition: opacity 0.2s;
+                transition: background 0.2s;
                 pointer-events: none !important;
             }
+
             body.touching-sidebar .custom-sidebar {
                 background: rgba(0, 0, 0, 0.7) !important;
-                border-top-left-radius: 16px;
-                border-bottom-left-radius: 16px;
+                border-top-left-radius: 14px; /* 稍微减小一点圆角，配合变窄的宽度 */
+                border-bottom-left-radius: 14px;
                 opacity: 1 !important;
-                padding: 8px 0;
                 pointer-events: auto !important;
             }
+            /* 3. 索引圆点及单字符样式 */
             .custom-index-char {
-                padding: 2px 0 !important;
-                text-align: center;
+                padding: 0 !important;
+                flex: 1; /* 开启弹性伸缩 */
+                max-height: 24px; /* 数量少时，限制最大高度 */
+                min-height: 8px; /* 数量极多时，保证最小的触摸与显示高度 */
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
                 color: rgba(255, 255, 255, 0.6) !important;
                 font-size: 10px;
                 font-weight: 700 !important;
@@ -326,35 +336,89 @@
                 color: #fff !important;
                 transform: scale(1.6);
             }
+            .custom-index-char .dot {
+                width: 5px;
+                height: 5px;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.3);
+                transition: all 0.2s;
+            }
+            body.touching-sidebar .custom-index-char.active .dot {
+                background: #fff;
+                transform: scale(2.5);
+                box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+            }
+
+            /* 1. 重新设计侧边气泡，完美恢复原汁原味的水滴曲面，并支持自适应拉长 */
             .side-bubble {
                 position: fixed;
-                right: 45px;
-                width: 50px;
+                right: 55px;
                 height: 50px;
-                background: var(--primary);
+                min-width: 50px;
                 color: #fff;
-                border-radius: 50% 50% 0 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 28px;
+                padding: 0 15px; /* 长单词安全距离 */
+                font-size: 22px;
                 font-weight: 900;
-                box-shadow: -4px 4px 15px rgba(0, 0, 0, 0.4);
                 pointer-events: none;
                 z-index: 3000;
                 opacity: 0;
-                transform: translateY(-50%) rotate(-45deg) scale(0.5);
+                /* 仅做平移缩放，容器本身不再旋转 */
+                transform: translateY(-50%) translateX(20px) scale(0.8);
                 transition:
                     opacity 0.1s,
                     transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                white-space: nowrap;
+                /* 给整个组合图形添加统一的阴影 */
+                filter: drop-shadow(-4px 4px 10px rgba(0, 0, 0, 0.4));
             }
             .side-bubble.visible {
                 opacity: 1;
-                transform: translateY(-50%) rotate(-45deg) scale(1);
+                transform: translateY(-50%) translateX(0) scale(1);
             }
+
+            /* 水滴左侧：平滑的半圆拉伸体 */
+            .side-bubble::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 25px; /* 刚好停在右侧水滴的中心点，实现曲面完美衔接 */
+                bottom: 0;
+                background: var(--primary);
+                border-radius: 25px 0 0 25px;
+                z-index: -1;
+            }
+
+            /* 水滴右侧：原版 50x50 的完美弧形旋转尖尾 */
+            .side-bubble::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                right: 0;
+                width: 50px;
+                height: 50px;
+                background: var(--primary);
+                border-radius: 50% 50% 0 50%;
+                transform: rotate(-45deg);
+                z-index: -1;
+                border: none; /* 清除上次的硬直角边框代码 */
+            }
+
+            /* 移除文字的旋转，因为现在容器是正的 */
             .side-bubble span {
-                transform: rotate(45deg);
+                transform: none;
                 display: block;
+            }
+            /* 单字符时，去掉 padding，强制宽度 50px，形成完美的正圆水滴 */
+            .side-bubble.is-single {
+                padding: 0;
+                width: 55px;
+            }
+            .side-bubble.is-single span {
+                transform: translateX(-2px); /* 视觉居中微调 */
             }
             .van-index-anchor {
                 background: transparent !important;
@@ -430,11 +494,12 @@
                 padding-bottom: 20px;
             }
 
+            /* === 现代卡片样式 (沉浸式展台风) === */
             .sys-card {
                 background: var(--bg-card);
                 border-radius: 18px;
                 overflow: hidden;
-                position: relative;
+                position: relative; /* 必须为 relative 以容纳绝对定位的背景 */
                 display: flex;
                 flex-direction: column;
                 border: 1px solid rgba(255, 255, 255, 0.08);
@@ -444,7 +509,7 @@
                     filter 0.2s;
                 cursor: pointer;
                 transform: translateZ(0);
-                min-height: 160px; /* 从 200px 降低，解除卡片整体无法变矮的限制 */
+                min-height: 160px; /* 解除卡片整体无法变矮的限制 */
             }
             .sys-card:active {
                 transform: scale(0.95);
@@ -457,7 +522,8 @@
                 inset: 0;
                 z-index: 0;
             }
-            /* 稍微减弱展台四周的黑影，让卡片边缘更鲜艳通透 */
+
+            /* 移除显脏的黑圈，改为顶部高光+底部微暗的质感叠加 */
             .sys-card-bg::after {
                 content: '';
                 position: absolute;
@@ -473,17 +539,18 @@
                 pointer-events: none;
             }
 
+            /* 底部内容区，完全透明 */
             .sys-card-content {
                 position: relative;
                 z-index: 2;
-                /* 将顶部 padding 从 16px 减小到 8px，大幅缩小与 Logo 图片的视觉间隙 */
-                padding: 8px 20px 20px;
+                padding: 8px 20px 20px; /* 大幅缩小与 Logo 图片的视觉间隙 */
                 display: flex;
                 flex-direction: column;
                 justify-content: flex-end;
                 flex: 1;
-                background: transparent;
+                background: transparent; /* 直接设为透明 */
             }
+
             .sys-count-badge {
                 position: absolute;
                 top: 14px;
@@ -504,26 +571,21 @@
             .sys-card-logo-box {
                 position: relative;
                 z-index: 1;
-                height: 80px; /* <--- 调整到 80px 左右 */
+                height: 80px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                /* 减少顶部 padding (16px)，底部保持为 0，进一步缩小外部间隙 */
-                padding: 16px 20px 0;
+                padding: 16px 20px 0; /* 顶部留白减小，排版紧凑 */
             }
 
             .sys-card-logo {
-                /* 直接将图片标签的物理盒子锁死为安全区域 */
+                /* 将图片标签的物理盒子锁死为安全区域 */
                 width: 75%;
                 height: 70%;
-
-                /* contain 的魔法：
-                   如果图很大，它会缩小直到完整塞进这个 70%x80% 的盒子；
-                   如果图很小（viewBox很小），它会自动放大撑满这个盒子，且保持原比例不变！*/
                 object-fit: contain;
-
                 filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.2));
             }
+
             /* 找不到 Logo 时的默认文字缩写 */
             .sys-fallback-abbr {
                 font-size: 42px;
@@ -554,6 +616,7 @@
                 text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
                 letter-spacing: 0.5px;
             }
+
             .sys-meta {
                 font-size: 12px;
                 color: rgba(255, 255, 255, 0.95) !important;
@@ -587,6 +650,12 @@
                 mask-position: 100% 0;
             }
 
+            /* 隐藏掉旧版硬编码的深色伪元素遮罩 */
+            .overflow-mask::after,
+            .marquee-parent-active::after {
+                display: none !important;
+            }
+
             /* 当跑马灯激活时，重新挂载与文字同频的动画 */
             .marquee-parent-active {
                 animation: mask-slide-anim 6s linear infinite;
@@ -610,6 +679,7 @@
                     mask-position: 100% 0; /* 滚回起点：遮罩重新出现 */
                 }
             }
+
             @keyframes center-marquee {
                 0%,
                 15% {
@@ -650,7 +720,7 @@
                 z-index: 0;
             }
 
-            /* 同样减弱详情页顶部的边缘暗角效果 */
+            /* 去除详情页顶部的死黑暗角，改用通透光泽 */
             .intro-bg::after {
                 content: '';
                 position: absolute;
@@ -1522,10 +1592,13 @@
                             v-for="sys in sortedSystems"
                             :key="sys.name"
                             class="sys-card anim-item"
+                            :id="'sys-card-' + sys.name"
                             @click="enterSystem(sys)"
                         >
                             <div class="sys-card-bg" :style="{ background: getSysColor(sys.name) }"></div>
+
                             <div class="sys-count-badge">{{ sys.count }}</div>
+
                             <div class="sys-card-logo-box">
                                 <img
                                     v-show="!sys.logoError"
@@ -1535,6 +1608,7 @@
                                 />
                                 <div v-show="sys.logoError" class="sys-fallback-abbr">{{ sys.abbr }}</div>
                             </div>
+
                             <div class="sys-card-content">
                                 <div class="sys-header">
                                     <div class="sys-name" v-marquee>{{ sys.fullname }}</div>
@@ -1701,25 +1775,26 @@
 
             <div
                 class="side-bubble"
-                :class="{ visible: showLetterToast && !showLogPopup }"
+                :class="{ visible: showLetterToast && !showLogPopup, 'is-single': String(currentLetter).length === 1 }"
                 :style="{ top: bubbleY + 'px' }"
             >
                 <span>{{ currentLetter }}</span>
             </div>
 
             <div
-                v-if="(!loading && currentSystemObj && virtualIndexList.length > 0)"
+                v-if="(!loading && (currentSystemObj ? virtualIndexList.length > 0 : systemIndexList.length > 0))"
                 class="custom-sidebar"
                 ref="customSidebarRef"
                 :style="{ top: sidebarTop + 'px' }"
             >
                 <div
-                    v-for="char in virtualIndexList"
+                    v-for="char in (currentSystemObj ? virtualIndexList : systemIndexList)"
                     :key="char"
                     class="custom-index-char"
                     :class="{ active: currentLetter === char && isTouchingIndex }"
                 >
-                    {{ char }}
+                    <span v-if="String(char).length === 1">{{ char }}</span>
+                    <div v-else class="dot"></div>
                 </div>
             </div>
 
@@ -2445,7 +2520,7 @@
                                     if (stars === 0) stars = 1;
                                     groupKey = `${stars}`;
                                 } else {
-                                    groupKey = '0';
+                                    groupKey = '0'; // 未评分使用 '0'
                                 }
                             }
 
@@ -2545,11 +2620,27 @@
                     };
 
                     const jumpToLetter = (char) => {
-                        const targetTop = virtualMap.value[char];
-                        if (targetTop !== undefined && gameListContainerRef.value) {
-                            const wrapper = virtualWrapperRef.value;
-                            const offset = wrapper ? wrapper.offsetTop : 300;
-                            gameListContainerRef.value.scrollTo({ top: targetTop + offset, behavior: 'auto' });
+                        if (currentSystemObj.value) {
+                            // === 游戏列表模式：跳转到字母分组 ===
+                            const targetTop = virtualMap.value[char];
+                            if (targetTop !== undefined && gameListContainerRef.value) {
+                                const wrapper = virtualWrapperRef.value;
+                                const offset = wrapper ? wrapper.offsetTop : 300;
+                                // 减去 72px 的安全距离，防止分组标题被顶部导航栏遮挡，始终停在导航栏正下方
+                                gameListContainerRef.value.scrollTo({ top: targetTop + offset - 72, behavior: 'auto' });
+                            }
+                        } else {
+                            // === 首页主机模式：定位到卡片 ===
+                            const sys = sortedSystems.value.find((s) => (s.abbr || s.name) === char);
+                            if (sys && homeContainerRef.value) {
+                                const el = document.getElementById('sys-card-' + sys.name);
+                                if (el) {
+                                    const container = homeContainerRef.value;
+                                    const elTop = el.offsetTop;
+                                    // 减去 72px 左右的安全距离（导航栏 + 间距），使其对齐到屏幕上方导航栏正下方
+                                    container.scrollTo({ top: Math.max(0, elTop - 72), behavior: 'auto' });
+                                }
+                            }
                         }
                     };
 
@@ -2634,15 +2725,16 @@
                         }
 
                         if (e.type === 'touchstart') {
+                            // 只认 isHint，删除了之前的 isNearRightEdge 等多余代码
                             if (!isHint) return;
 
                             isTouchingIndex.value = true;
                             document.body.classList.add('touching-sidebar');
-
                             const sidebar = customSidebarRef.value || document.querySelector('.custom-sidebar');
 
-                            if (!currentSystemObj.value) return; // 首页直接拦截
-                            const list = virtualIndexList.value;
+                            // 动态判断使用哪个数据源
+                            if (!currentSystemObj.value && !systemIndexList.value.length) return;
+                            const list = currentSystemObj.value ? virtualIndexList.value : systemIndexList.value;
 
                             if (sidebar) {
                                 const rect = sidebar.getBoundingClientRect();
@@ -2666,12 +2758,7 @@
                                 setTimeout(() => (showLetterToast.value = false), 300);
 
                                 if (currentLetter.value) {
-                                    if (sidebarRectCache && sidebarRectCache.isGame) {
-                                        jumpToLetter(currentLetter.value);
-                                    } else {
-                                        if (systemIndexBarRef.value)
-                                            systemIndexBarRef.value.scrollTo(currentLetter.value);
-                                    }
+                                    jumpToLetter(currentLetter.value);
                                 }
                                 updateLayoutFromScroll();
                             }
@@ -2944,6 +3031,7 @@
                             'linear-gradient(135deg, #00b894, #00cec9)',
                             'linear-gradient(135deg, #fdcb6e, #e17055)',
                             'linear-gradient(135deg, #74b9ff, #0984e3)',
+                            'linear-gradient(135deg, #fd79a8, #e84393)',
                             'linear-gradient(135deg, #badc58, #6ab04c)'
                         ];
                         let hash = 0;
@@ -3105,9 +3193,15 @@
                         return [...systems.value].sort((a, b) => {
                             const yearA = parseInt(a.year) || 9999;
                             const yearB = parseInt(b.year) || 9999;
-                            return yearA - yearB; // 年份从小到大排序
+                            return yearA - yearB;
                         });
                     });
+
+                    // 动态提取主页所需的单词/短语作为索引
+                    const systemIndexList = computed(() => {
+                        return sortedSystems.value.map((sys) => sys.abbr || sys.name);
+                    });
+
                     const marqueeUrl = computed(() => {
                         if (versions.value.length === 0) return '';
                         const ver = versions.value[0];
@@ -3196,6 +3290,7 @@
                         isTouchingIndex,
                         onIndexSelect,
                         sortedSystems,
+                        systemIndexList,
                         handleScroll,
                         handleGameScroll,
                         isScrollingPage,
