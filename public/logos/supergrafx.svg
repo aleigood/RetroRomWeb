@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Generator: Adobe Illustrator 27.4.1, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
 <svg version="1.1"
-	 id="svg2" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:svg="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"
+	 id="svg2" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:svg="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 	 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 180 66.4"
 	 style="enable-background:new 0 0 180 66.4;" xml:space="preserve">
 <style type="text/css">
 	.st0{fill:none;}
-	.st1{fill:#141414;}
+	.st1{fill:#27272B;}
 </style>
 <sodipodi:namedview  bordercolor="#666666" borderopacity="1" gridtolerance="10" guidetolerance="10" id="namedview50" inkscape:current-layer="svg2" inkscape:cx="90.478256" inkscape:cy="42.396755" inkscape:pageopacity="0" inkscape:pageshadow="2" inkscape:window-height="2065" inkscape:window-maximized="1" inkscape:window-width="3840" inkscape:window-x="0" inkscape:window-y="0" inkscape:zoom="12.153842" objecttolerance="10" pagecolor="#ffffff" showgrid="false">
 	</sodipodi:namedview>
@@ -83,7 +83,7 @@
 			c-2.2,2.2-4.4,4.3-6.5,6.5L69.4,66.1z"/>
 	</g>
 	<g id="g80" transform="translate(5.9731,44.6838)">
-		<path id="path82" inkscape:connector-curvature="0" class="st1" d="M40.5-34.1v-0.1c1.9-3.9,4.1-5.9,6.4-5.9
+		<path id="path82" inkscape:connector-curvature="0" class="st1" d="M40.5-34.1L40.5-34.1c1.9-4,4.1-6,6.4-6
 			c1.9,0.1,3.7,1.6,5.2,4.4c1.4,2.7,2.5,6.5,3.3,11c0,0.1-0.1,0.3-0.2,0.3c-0.1,0-0.3-0.1-0.3-0.2c-1.4-9.1-4.5-14.8-7.9-15
 			c-2-0.1-4.1,1.9-5.9,5.6c-0.1,0.1-0.2,0.2-0.4,0.1C40.5-33.9,40.5-34,40.5-34.1"/>
 	</g>
