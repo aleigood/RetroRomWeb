@@ -1441,12 +1441,12 @@
             }
             .fab-options {
                 position: absolute;
-                bottom: calc(100% + 15px);
+                bottom: calc(100% + 20px);
                 right: 6px; /* (56-44)/2 = 6px 保证小按钮和主按钮中心对齐 */
                 display: flex;
                 flex-direction: column;
                 align-items: flex-end;
-                gap: 15px;
+                gap: 20px;
                 pointer-events: none;
             }
             .fab-options.is-open {
@@ -2715,6 +2715,8 @@
                     };
 
                     const handleIndexTouch = (e) => {
+                        if (showFabMenu.value || showSyncDialog.value || showSingleSyncDialog.value) return;
+                        
                         const isHint =
                             e.target.closest('.index-hint') ||
                             e.target.closest('.van-index-bar__sidebar') ||
