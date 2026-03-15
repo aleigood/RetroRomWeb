@@ -7,11 +7,10 @@ const path = require('path');
  */
 function findGreenBoundary (data, width, height) {
     const channels = 4;
-    // 扫描三行（25%, 50%, 75% 高度处）
     const scanRows = [Math.floor(height * 0.25), Math.floor(height * 0.5), Math.floor(height * 0.75)];
 
     const boundaries = [];
-    const startX = Math.floor(width * 0.6); // 从 60% 处向左扫
+    const startX = Math.floor(width * 0.6);
 
     for (const y of scanRows) {
         let foundX = 0;
@@ -21,7 +20,6 @@ function findGreenBoundary (data, width, height) {
             const g = data[idx + 1];
             const b = data[idx + 2];
 
-            // 绿色判定
             if (g > 150 && g > r + 60 && g > b + 60) {
                 foundX = x;
                 break;
@@ -46,35 +44,49 @@ async function processBoxTexture (texturePath, marqueePath) {
     const width = info.width;
     const height = info.height;
 
-    // 2. 确定绿幕边界
+    // 2. 确定绿幕边界 (计算出缺失背面的精确宽度)
     const greenBoundaryX = findGreenBoundary(data, width, height);
-
-    if (greenBoundaryX === 0) {
-        return;
-    }
+    if (greenBoundaryX === 0) return;
 
     const filename = path.basename(texturePath);
-    // 只保留简单的开始提示
-    // console.log(`[ImgProc] 处理: ${filename}`);
 
-    // 3. 准备背景
-    const backgroundBuffer = Buffer.alloc(width * height * 4);
-    const startColor = { r: 45, g: 45, b: 50 };
-    const endColor = { r: 5, g: 5, b: 5 };
+    // 恢复并增加处理开始的日志提示
+    console.log(`[ImgProc] 开始处理: ${filename}`);
 
+    // 3. 提取右侧正面封面
+    const extractLeft = Math.floor(width * 0.6);
+    const extractWidth = width - extractLeft;
+
+    // --- 核心修改：精确计算 1.6 倍等比例放大 ---
+    const scale = 1.6;
+    const scaledW = Math.floor(extractWidth * scale);
+    const scaledH = Math.floor(height * scale);
+
+    // 确保放大后的尺寸足以覆盖左侧绿幕区 (安全兜底)
+    const finalW = Math.max(scaledW, greenBoundaryX);
+    const finalH = Math.max(scaledH, height);
+
+    // 生成专属毛玻璃补丁
+    const patchBuffer = await sharp(data, { raw: { width, height, channels: 4 } })
+        // A. 提取原图右侧的正面封面
+        .extract({ left: extractLeft, top: 0, width: extractWidth, height })
+        // B. 等比例放大 1.6 倍
+        .resize({ width: finalW, height: finalH, fit: 'fill' })
+        // C. 从 1.6 倍大图的正中间，精确裁切出刚好能塞入绿幕区的长方形
+        .extract({
+            left: Math.floor((finalW - greenBoundaryX) / 2),
+            top: Math.floor((finalH - height) / 2),
+            width: greenBoundaryX,
+            height
+        })
+        // D. 添加模糊和压暗质感
+        .blur(40)
+        .modulate({ brightness: 0.5 })
+        .png() // 转换为 png Buffer 以保证合成层不出现通道冲突
+        .toBuffer();
+
+    // 4. 前景去绿 (将原图中绿色部分变透明)
     for (let i = 0; i < data.length; i += 4) {
-        // 背景渐变
-        const pIndex = i / 4;
-        const x = pIndex % width;
-        const y = Math.floor(pIndex / width);
-        const factor = (x / width + y / height) / 2;
-
-        backgroundBuffer[i] = startColor.r + (endColor.r - startColor.r) * factor;
-        backgroundBuffer[i + 1] = startColor.g + (endColor.g - startColor.g) * factor;
-        backgroundBuffer[i + 2] = startColor.b + (endColor.b - startColor.b) * factor;
-        backgroundBuffer[i + 3] = 255;
-
-        // 前景去绿
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
@@ -83,22 +95,25 @@ async function processBoxTexture (texturePath, marqueePath) {
         }
     }
 
-    // 4. 合成 Logo
+    // 5. 合成图层队列
     const compositeOps = [];
 
+    // 第一层：铺上刚刚生成的 1.6x 毛玻璃补丁 (严格贴在最左侧的空缺处)
+    compositeOps.push({
+        input: patchBuffer,
+        top: 0,
+        left: 0
+    });
+
+    // 第二层：居中贴上高清 Logo
     if (marqueePath && fs.existsSync(marqueePath)) {
         try {
-            // A. 读取原始 Logo 并执行强力 Trim (阈值 30)
             const rawLogo = sharp(marqueePath);
             const trimmedBuffer = await rawLogo.trim({ threshold: 30 }).toBuffer();
 
-            // B. 计算目标尺寸
-            // 宽度限制为容器的 70%
             const maxLogoW = Math.floor(greenBoundaryX * 0.7);
-            // 高度保留一定余地 (90%)
             const maxLogoH = Math.floor(height * 0.9);
 
-            // C. Resize
             const resizedPipeline = sharp(trimmedBuffer).resize({
                 width: maxLogoW,
                 height: maxLogoH,
@@ -106,11 +121,9 @@ async function processBoxTexture (texturePath, marqueePath) {
                 withoutEnlargement: true
             });
 
-            // 先输出 Buffer 确保获取到的是缩放后的真实尺寸
             const finalLogoBuffer = await resizedPipeline.toBuffer();
             const finalLogoMeta = await sharp(finalLogoBuffer).metadata();
 
-            // D. 计算居中位置
             const logoLeft = Math.floor((greenBoundaryX - finalLogoMeta.width) / 2);
             const logoTop = Math.floor((height - finalLogoMeta.height) / 2);
 
@@ -124,23 +137,28 @@ async function processBoxTexture (texturePath, marqueePath) {
         }
     }
 
+    // 第三层：盖上去绿后的原图原始骨架（侧脊 + 正面封面）
     compositeOps.push({
         input: data,
-        raw: { width, height, channels: 4 }
+        raw: { width, height, channels: 4 },
+        top: 0,
+        left: 0
     });
 
-    // 5. 输出
-    const finalBuffer = await sharp(backgroundBuffer, {
-        raw: { width, height, channels: 4 }
+    // 6. 最终输出画布 (创建一个带有黑色底部的安全托盘)
+    const finalBuffer = await sharp({
+        create: {
+            width,
+            height,
+            channels: 4,
+            background: { r: 0, g: 0, b: 0, alpha: 255 }
+        }
     })
         .composite(compositeOps)
         .png()
         .toBuffer();
 
     await fs.writeFile(texturePath, finalBuffer);
-
-    // 简单的完成提示（如果不需要可注释掉）
-    console.log(`[ImgProc] 已处理: ${filename}`);
 }
 
 module.exports = { processBoxTexture };

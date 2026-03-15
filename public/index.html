@@ -890,9 +890,7 @@
                 z-index: 5;
                 background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 10%, rgba(0, 0, 0, 0.6) 60%, transparent);
                 padding: 30px 8px 10px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
+                display: block;
             }
             .g-title {
                 font-size: 12px;
@@ -2716,7 +2714,7 @@
 
                     const handleIndexTouch = (e) => {
                         if (showFabMenu.value || showSyncDialog.value || showSingleSyncDialog.value) return;
-                        
+
                         const isHint =
                             e.target.closest('.index-hint') ||
                             e.target.closest('.van-index-bar__sidebar') ||

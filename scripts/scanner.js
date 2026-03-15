@@ -12,6 +12,7 @@
  * 8. [Feat] 增加 media_library 数据库死链精准清理机制，并解决跨平台路径大小写比对问题
  * 9. [Fix] 彻底修复 ESLint promise/param-names 与 n/handle-callback-err 规范问题
  * 10.[Feat] 向抓取器传递日志回调，用于记录未命中时的实际搜索词
+ * 11.[Fix] 修复因为用户手动删除硬盘媒体文件导致数据库死链持续被复用且无法重新触发下载的逻辑漏洞
  */
 const fs = require('fs-extra');
 const path = require('path');
@@ -532,12 +533,26 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
     let boxTexturePath = null;
     let screenshotPath = null;
 
+    // --- 新增：物理文件有效性严格校验函数 ---
+    const verifyMediaPath = (relPath) => {
+        if (!relPath) return null;
+        const absPath = path.join(config.mediaDir, relPath);
+        try {
+            if (fs.existsSync(absPath) && fs.statSync(absPath).size > 0) {
+                return relPath;
+            }
+        } catch (e) {}
+        return null; // 文件不存在或大小为0，判为失效死链
+    };
+
     if (oldData) {
-        if (oldData.image_path) imagePath = oldData.image_path;
-        if (oldData.video_path) videoPath = oldData.video_path;
-        if (oldData.marquee_path) marqueePath = oldData.marquee_path;
-        if (oldData.box_texture_path) boxTexturePath = oldData.box_texture_path;
-        if (oldData.screenshot_path) screenshotPath = oldData.screenshot_path;
+        // 核心修复：在复用数据库中记录的路径前，先校验硬盘上该文件是否真实存在。
+        // 如果已经被用户手动删除，则返回 null，强制后续重新抓取或写入空值。
+        if (oldData.image_path) imagePath = verifyMediaPath(oldData.image_path) || imagePath;
+        if (oldData.video_path) videoPath = verifyMediaPath(oldData.video_path) || videoPath;
+        if (oldData.marquee_path) marqueePath = verifyMediaPath(oldData.marquee_path);
+        if (oldData.box_texture_path) boxTexturePath = verifyMediaPath(oldData.box_texture_path);
+        if (oldData.screenshot_path) screenshotPath = verifyMediaPath(oldData.screenshot_path);
     }
 
     const gameInfo = {
