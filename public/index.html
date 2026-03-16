@@ -1738,15 +1738,15 @@
                                         </div>
                                         <template v-else>
                                             <img
-                                                v-if="!game.image_path && !game.screenshot_path && game.marquee_path"
+                                                v-if="isLogoOnlyMode(game)"
                                                 class="thumb-bg lazy-img"
                                                 v-lazy="getGamePoster(game)"
                                             />
                                             <img
                                                 class="thumb-img lazy-img"
                                                 :style="{ 
-                                                    objectFit: (!game.image_path && !game.screenshot_path && game.marquee_path) ? 'contain' : 'cover',
-                                                    transform: (!game.image_path && !game.screenshot_path && game.marquee_path) ? 'scale(0.8)' : 'none'
+                                                    objectFit: isLogoOnlyMode(game) ? 'contain' : 'cover',
+                                                    transform: isLogoOnlyMode(game) ? 'scale(0.8)' : 'none'
                                                 }"
                                                 v-lazy="getGamePoster(game)"
                                             />
@@ -2231,6 +2231,8 @@
             const useLazyObserver = () => {
                 let observer = null;
                 const elementStateMap = new WeakMap();
+                const loadedUrls = new Set(); // 👈 新增：全局免疫库，记住已经解码过的图片
+
                 const initObserver = () => {
                     if (observer) return;
                     observer = new IntersectionObserver(
@@ -2238,15 +2240,23 @@
                             entries.forEach((entry) => {
                                 const el = entry.target;
                                 const state = elementStateMap.get(el);
-                                // 极简逻辑：只要进入可视区且未加载，立刻触发加载，抛弃 setTimeout
                                 if (entry.isIntersecting && !state.loaded) {
+                                    // 👈 新增核心逻辑：如果曾经加载过，瞬间显示，拒绝重新走异步解码和渐显动画！
+                                    if (loadedUrls.has(state.src)) {
+                                        el.src = state.src;
+                                        el.classList.add('loaded');
+                                        state.loaded = true;
+                                        observer.unobserve(el);
+                                        return;
+                                    }
+
                                     loadImage(el, state.src);
                                     state.loaded = true;
                                     observer.unobserve(el);
                                 }
                             });
                         },
-                        { rootMargin: '300px 0px' } // 提前 300px 加载，保证平滑
+                        { rootMargin: '300px 0px' }
                     );
                 };
                 const loadImage = (el, src) => {
@@ -2256,17 +2266,20 @@
                         .then(() => {
                             el.src = src;
                             el.classList.add('loaded');
+                            loadedUrls.add(src); // 👈 新增：成功后拉入记忆库
                         })
                         .catch(() => {
                             el.src = src;
-                            el.onload = () => el.classList.add('loaded');
+                            el.onload = () => {
+                                el.classList.add('loaded');
+                                loadedUrls.add(src); // 👈 新增：成功后拉入记忆库
+                            };
                         });
                 };
                 return {
                     observe: (el, src) => {
                         initObserver();
                         if (!src) return;
-                        // 移除 timer 状态
                         elementStateMap.set(el, { src, loaded: false });
                         observer.observe(el);
                     },
@@ -2408,6 +2421,11 @@
 
                     const showEmulator = ref(false);
                     const showSingleSyncDialog = ref(false);
+                    let cachedWrapperOffsetTop = -1;
+                    // 判断是否需要采用 Logo 专属渲染模式
+                    const isLogoOnlyMode = (game) => {
+                        return !game.image_path && !game.screenshot_path && game.marquee_path;
+                    };
 
                     let searchTimeout = null;
                     watch(keyword, (newVal) => {
@@ -2418,6 +2436,8 @@
                     });
 
                     const applyFilterAndSort = () => {
+                        cachedWrapperOffsetTop = -1; // 👈 新增：搜索、清空、排序引发列表重排时，重置高度缓存
+
                         let list = fetchedGames.value.slice();
 
                         if (keyword.value) {
@@ -2483,6 +2503,9 @@
                         allGames.value = [];
                         virtualRows.value = [];
                         visibleVirtualRows.value = [];
+
+                        cachedWrapperOffsetTop = -1; // 👈 新增：切换主机加载游戏时，重置高度缓存
+
                         try {
                             const res = await fetch(`/api/games?system=${sysObj.name}&all=1`);
                             const data = await res.json();
@@ -2586,16 +2609,15 @@
 
                     const updateVisibleRows = (scrollTop) => {
                         const viewportHeight = window.innerHeight;
-                        // 扩大缓冲区域，避免因为快速滚动出现空白现象
                         const buffer = 500;
 
-                        // 动态获取 virtual-wrapper 相对滚动容器顶部的距离
-                        // 这样即使主机卡片高度动态变化（无图片、文字长短不同等），依然可以准确计算
-                        const wrapperOffsetTop = virtualWrapperRef.value ? virtualWrapperRef.value.offsetTop : 0;
+                        // 👈 核心修改：只在第一次（或窗口尺寸改变时）读取 DOM 的 offsetTop，之后无限次复用缓存！
+                        if (cachedWrapperOffsetTop === -1 && virtualWrapperRef.value) {
+                            cachedWrapperOffsetTop = virtualWrapperRef.value.offsetTop;
+                        }
+                        const wrapperOffsetTop = cachedWrapperOffsetTop === -1 ? 0 : cachedWrapperOffsetTop;
 
-                        // 计算基于虚拟列表内部的相对偏移量
                         const relativeScrollTop = scrollTop - wrapperOffsetTop;
-
                         const startY = relativeScrollTop - buffer;
                         const endY = relativeScrollTop + viewportHeight + buffer;
 
@@ -3341,7 +3363,8 @@
                         showFabMenu,
                         onFabClick,
                         handleFabAction,
-                        virtualWrapperRef // 暴露给模板
+                        virtualWrapperRef, // 暴露给模板
+                        isLogoOnlyMode
                     };
                 }
             });
