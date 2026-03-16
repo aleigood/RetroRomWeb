@@ -847,7 +847,7 @@
                 position: absolute;
                 width: 100%;
                 height: 100%;
-                object-fit: contain;
+                object-fit: cover;
                 z-index: 2;
             }
             .lazy-img {
@@ -873,13 +873,16 @@
                 top: 8px;
                 right: 8px;
                 z-index: 5;
-                background: rgba(0, 0, 0, 0.75);
-                backdrop-filter: blur(4px);
+                /* === 修改下面这三行 === */
+                background: rgba(0, 0, 0, 0.35); /* 降低黑色浓度，提升通透感 */
+                backdrop-filter: blur(8px); /* 增加模糊半径，让毛玻璃质感更细腻 */
+                border: 1px solid rgba(255, 255, 255, 0.25); /* 稍微提亮一点边线，增加精致感 */
+
+                /* 下面的保持不变 */
                 color: #fff;
                 font-size: 9px;
                 padding: 3px 8px;
                 border-radius: 6px;
-                border: 1px solid rgba(255, 255, 255, 0.15);
                 font-weight: bold;
             }
             .game-info-overlay {
@@ -888,7 +891,7 @@
                 left: 0;
                 right: 0;
                 z-index: 5;
-                background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 10%, rgba(0, 0, 0, 0.6) 60%, transparent);
+                background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 50%, transparent 100%);
                 padding: 30px 8px 10px;
                 display: block;
             }
@@ -1734,8 +1737,19 @@
                                             <i class="ri-gamepad-line" style="font-size: 32px"></i>
                                         </div>
                                         <template v-else>
-                                            <img class="thumb-bg lazy-img" v-lazy="getGamePoster(game)" />
-                                            <img class="thumb-img lazy-img" v-lazy="getGamePoster(game)" />
+                                            <img
+                                                v-if="!game.image_path && !game.screenshot_path && game.marquee_path"
+                                                class="thumb-bg lazy-img"
+                                                v-lazy="getGamePoster(game)"
+                                            />
+                                            <img
+                                                class="thumb-img lazy-img"
+                                                :style="{ 
+                                                    objectFit: (!game.image_path && !game.screenshot_path && game.marquee_path) ? 'contain' : 'cover',
+                                                    transform: (!game.image_path && !game.screenshot_path && game.marquee_path) ? 'scale(0.8)' : 'none'
+                                                }"
+                                                v-lazy="getGamePoster(game)"
+                                            />
                                         </template>
                                         <div class="ver-badge" v-if="game.version_count > 1">
                                             {{ game.version_count }} Ver
@@ -2224,23 +2238,15 @@
                             entries.forEach((entry) => {
                                 const el = entry.target;
                                 const state = elementStateMap.get(el);
-                                if (entry.isIntersecting) {
-                                    if (!state.loaded && !state.timer) {
-                                        state.timer = setTimeout(() => {
-                                            loadImage(el, state.src);
-                                            state.loaded = true;
-                                            observer.unobserve(el);
-                                        }, 100);
-                                    }
-                                } else {
-                                    if (state.timer) {
-                                        clearTimeout(state.timer);
-                                        state.timer = null;
-                                    }
+                                // 极简逻辑：只要进入可视区且未加载，立刻触发加载，抛弃 setTimeout
+                                if (entry.isIntersecting && !state.loaded) {
+                                    loadImage(el, state.src);
+                                    state.loaded = true;
+                                    observer.unobserve(el);
                                 }
                             });
                         },
-                        { rootMargin: '300px 0px' }
+                        { rootMargin: '300px 0px' } // 提前 300px 加载，保证平滑
                     );
                 };
                 const loadImage = (el, src) => {
@@ -2260,7 +2266,8 @@
                     observe: (el, src) => {
                         initObserver();
                         if (!src) return;
-                        elementStateMap.set(el, { src, loaded: false, timer: null });
+                        // 移除 timer 状态
+                        elementStateMap.set(el, { src, loaded: false });
                         observer.observe(el);
                     },
                     unobserve: (el) => {
@@ -2276,6 +2283,9 @@
                 updated: (el, binding) => {
                     if (binding.value !== binding.oldValue) {
                         el.classList.remove('loaded');
+                        // === 核心修复：复用 DOM 时，先强制解绑旧的观察器 ===
+                        lazyManager.unobserve(el);
+                        // === 然后再重新绑定，强迫浏览器立即执行可见性检查 ===
                         lazyManager.observe(el, binding.value);
                     }
                 },
@@ -3055,12 +3065,9 @@
 
                     const download = (id) => (window.location.href = `/api/download/${id}`);
                     const getGamePoster = (game) => {
+                        // 优先级调整为：封面 -> 截图 -> Logo -> 包装盒，并移除了视频
                         const url =
-                            game.image_path ||
-                            game.box_texture_path ||
-                            game.marquee_path ||
-                            game.screenshot_path ||
-                            game.video_path;
+                            game.image_path || game.screenshot_path || game.marquee_path || game.box_texture_path;
                         return getImgUrl(url);
                     };
 
