@@ -1744,10 +1744,7 @@
                                             />
                                             <img
                                                 class="thumb-img lazy-img"
-                                                :style="{ 
-                                                    objectFit: isLogoOnlyMode(game) ? 'contain' : 'cover',
-                                                    transform: isLogoOnlyMode(game) ? 'scale(0.8)' : 'none'
-                                                }"
+                                                :style="getCoverStyle(game, currentSystemObj)"
                                                 v-lazy="getGamePoster(game)"
                                             />
                                         </template>
@@ -2422,10 +2419,6 @@
                     const showEmulator = ref(false);
                     const showSingleSyncDialog = ref(false);
                     let cachedWrapperOffsetTop = -1;
-                    // 判断是否需要采用 Logo 专属渲染模式
-                    const isLogoOnlyMode = (game) => {
-                        return !game.image_path && !game.screenshot_path && game.marquee_path;
-                    };
 
                     let searchTimeout = null;
                     watch(keyword, (newVal) => {
@@ -3093,6 +3086,68 @@
                         return getImgUrl(url);
                     };
 
+                    // 判断是否仅显示 Logo
+                    const isLogoOnlyMode = (game) => {
+                        return !game.image_path && !game.screenshot_path && game.marquee_path;
+                    };
+
+                    // 动态获取封面样式，读取 systems.json 中的 cover_crop 属性进行计算
+                    const getCoverStyle = (game, sysObj) => {
+                        // 1. Logo 模式保持不变
+                        if (isLogoOnlyMode(game)) {
+                            return {
+                                objectFit: 'contain',
+                                objectPosition: 'center',
+                                transform: 'scale(0.8)',
+                                width: '100%',
+                                height: '100%',
+                                left: '0',
+                                top: '0',
+                                maxWidth: 'none'
+                            };
+                        }
+
+                        const defaultStyle = {
+                            objectFit: 'cover',
+                            objectPosition: '50% 50%',
+                            transform: 'none',
+                            width: '100%',
+                            height: '100%',
+                            left: '0',
+                            top: '0',
+                            maxWidth: 'none'
+                        };
+
+                        const cropValue = sysObj && sysObj.cover_crop ? Number(sysObj.cover_crop) : 0;
+                        if (!cropValue || isNaN(cropValue)) {
+                            return defaultStyle;
+                        }
+
+                        const style = { ...defaultStyle };
+                        const p = cropValue / 100; // 将百分比转为小数，如 0.2
+                        const absP = Math.abs(p);
+
+                        // 核心：计算需要放大多少来填补被裁掉的空间
+                        const scaleW = 100 / (1 - absP);
+                        style.width = `${scaleW}%`;
+
+                        // 🎯 终极数学修复：根据裁剪比例动态计算 object-position，完美纠正视觉重心偏移！
+                        const objPos = 50 + 50 * p;
+                        style.objectPosition = `${objPos}% center`;
+
+                        // 根据正负值决定位移方向
+                        if (cropValue > 0) {
+                            // 正数：从左裁切，利用负 left 推出可视区
+                            const offsetL = (p / (1 - p)) * 100;
+                            style.left = `-${offsetL}%`;
+                        } else {
+                            // 负数：从右裁切，left 保持 0，超出的在右侧自然隐藏
+                            style.left = '0';
+                        }
+
+                        return style;
+                    };
+
                     const canPlay = () => {
                         if (!currentSystemObj.value) return false;
                         return !!currentSystemObj.value.ejs_core;
@@ -3364,7 +3419,12 @@
                         onFabClick,
                         handleFabAction,
                         virtualWrapperRef, // 暴露给模板
-                        isLogoOnlyMode
+                        lowResFlags,
+                        loadedFlags,
+                        getGamePoster,
+                        isLogoOnlyMode,
+                        getCoverStyle,
+                        allGames
                     };
                 }
             });

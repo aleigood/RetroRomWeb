@@ -198,7 +198,6 @@ router.get('/api/systems', async (ctx) => {
                 }
             });
 
-            // 注意：这里将原来的 rows.map 变为了 validRows.map
             const systems = validRows.map((row) => {
                 const key = (row.system || '').toLowerCase();
                 const info = metadata[key] || {};
@@ -212,7 +211,8 @@ router.get('/api/systems', async (ctx) => {
                     desc: info.desc || 'Detected local directory.',
                     history: info.history || info.desc || 'No details available.',
                     ejs_core: info.ejs_core || '',
-                    bios: info.bios || ''
+                    bios: info.bios || '',
+                    cover_crop: info.cover_crop || 0 // 👈 新增：将 cover_crop 字段下发给前端
                 };
                 Object.keys(info).forEach((k) => {
                     if (k.startsWith('ejs_') && k !== 'ejs_core') sysObj[k] = info[k];

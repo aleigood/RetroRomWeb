@@ -144,7 +144,8 @@
         "desc": "便携掌机的鼻祖，凭借《俄罗斯方块》和《宝可梦》风靡世界。",
         "history": "【枯萎技术的水平思考】横井军平的设计杰作。尽管屏幕是黑白的残影屏，机能也不如竞争对手，但凭借无敌的续航和耐用性，加上《俄罗斯方块》的捆绑销售，彻底统治了掌机市场。",
         "scraper_id": 9,
-        "ejs_core": "gb"
+        "ejs_core": "gb",
+        "cover_crop": 21
     },
     "gbc": {
         "fullname": "Game Boy Color",
@@ -154,7 +155,8 @@
         "desc": "彩色屏幕的 Game Boy，完全兼容前代游戏。",
         "history": "【迟来的色彩】在 GB 发售 9 年后，任天堂终于推出了彩色版。机能略有提升，并完全向下兼容 GB 卡带。它拥有透明紫等时尚外壳，专属游戏《塞尔达传说：梦见岛DX》是必玩之作。",
         "scraper_id": 10,
-        "ejs_core": "gbc"
+        "ejs_core": "gbc",
+        "cover_crop": 20
     },
     "gba": {
         "fullname": "Game Boy Advance",
@@ -165,7 +167,8 @@
         "history": "【口袋里的 SNES】拥有强大的 32 位性能，是 2D 像素艺术最后的辉煌堡垒。在 3D 游戏大行其道的年代，GBA 贡献了《黄金太阳》、《恶魔城》、《火焰纹章》等无数 2D 巅峰作品。",
         "scraper_id": 12,
         "ejs_core": "gba",
-        "bios": "gba_bios.bin"
+        "bios": "gba_bios.bin",
+        "cover_crop": 25
     },
     "nds": {
         "fullname": "Nintendo DS",
@@ -175,7 +178,8 @@
         "desc": "双屏加触摸的创新设计，销量极高的掌机。",
         "history": "【双屏的异质者】起初被认为是用来防御 PSP 的“第三支柱”，却凭借双屏幕、触摸屏和麦克风的创新交互成为了史上销量第二的游戏机。《脑锻炼》和《任天狗》拓展了非玩家群体。",
         "scraper_id": 15,
-        "ejs_core": "nds"
+        "ejs_core": "nds",
+        "cover_crop": 18
     },
     "n3ds": {
         "fullname": "Nintendo 3DS",
@@ -184,7 +188,8 @@
         "release_year": "2011",
         "desc": "支持裸眼 3D 显示的掌机，拥有极其丰富的游戏库。",
         "history": "【裸眼 3D 的尝试】主打无需眼镜的 3D 显示技术。虽然初期定价失误，但岩田聪社长带头降价并推出“大使计划”挽回了局势。它是《马力欧 3D 大陆》和《路易吉洋楼》的舞台。",
-        "scraper_id": 17
+        "scraper_id": 17,
+        "cover_crop": -10
     },
     "virtualboy": {
         "fullname": "Nintendo Virtual Boy",
