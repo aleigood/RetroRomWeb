@@ -635,7 +635,13 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                         if (boxTexturePath) {
                             const fullBoxPath = path.join(config.mediaDir, boxTexturePath);
                             const fullMarqueePath = marqueePath ? path.join(config.mediaDir, marqueePath) : null;
-                            await imgProcessor.processBoxTexture(fullBoxPath, fullMarqueePath);
+                            // 新增：提取并传递刚刚下载好（或硬盘已有）的真实截图绝对路径
+                            const fullScreenshotPath = screenshotPath
+                                ? path.join(config.mediaDir, screenshotPath)
+                                : null;
+
+                            // 传入这第三个参数
+                            await imgProcessor.processBoxTexture(fullBoxPath, fullMarqueePath, fullScreenshotPath);
                         }
                     }
                 }

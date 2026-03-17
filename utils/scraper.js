@@ -56,36 +56,39 @@ function cleanRomName (filename) {
     return name;
 }
 
-// 将全局绝对超时改为“空闲断流超时”(Idle Timeout)，兼容慢速网络，并抛出错误以便上层捕获
+// 修改：引入 .tmp 临时文件机制，保证文件原子性写入，杜绝半截损坏文件
 async function downloadFile (url, savePath) {
     if (!url) return;
+
+    // 👇 1. 定义临时文件路径
+    const tmpPath = savePath + '.tmp';
+
     try {
         const response = await axios({
             url,
             method: 'GET',
             responseType: 'stream',
-            timeout: 30000 // 这里的 timeout 仅限于建立连接和响应头的时间
+            timeout: 30000
         });
         fs.ensureDirSync(path.dirname(savePath));
-        const writer = fs.createWriteStream(savePath);
+
+        // 👇 2. 写入流指向 .tmp 文件
+        const writer = fs.createWriteStream(tmpPath);
 
         return new Promise((resolve, reject) => {
             let downloadTimeout;
 
-            // 重置超时器的函数。只要有数据流动，就重置倒计时。
-            // 只有连续 60 秒毫无数据流入，才会被判定为彻底断流。
             const resetTimeout = () => {
                 if (downloadTimeout) clearTimeout(downloadTimeout);
                 downloadTimeout = setTimeout(() => {
-                    writer.destroy(); // 强制销毁写入流释放描述符
+                    writer.destroy();
+                    // 👇 3. 超时中断时，立即删除临时文件
+                    fs.unlink(tmpPath, () => {});
                     reject(new Error('网络传输静默超过 60 秒，判定为断流并强制中断'));
-                }, 60000); // 空闲忍耐时间：60秒
+                }, 60000);
             };
 
-            // 开启初始监控
             resetTimeout();
-
-            // 监听数据块的流入，每次有数据过来就续命
             response.data.on('data', () => {
                 resetTimeout();
             });
@@ -93,27 +96,33 @@ async function downloadFile (url, savePath) {
             response.data.pipe(writer);
 
             writer.on('finish', () => {
-                clearTimeout(downloadTimeout); // 下载完成，清除超时器
+                clearTimeout(downloadTimeout);
+                // 👇 4. 只有完整无误下载结束，才将 .tmp 重命名为正式文件
+                fs.renameSync(tmpPath, savePath);
                 resolve();
             });
 
             writer.on('error', (err) => {
-                clearTimeout(downloadTimeout); // 写入发生错误，清除超时器
-                fs.unlink(savePath, () => {});
+                clearTimeout(downloadTimeout);
+                // 👇 5. 写入出错，删除临时文件
+                fs.unlink(tmpPath, () => {});
                 reject(err);
             });
 
-            // 监听原始读取流 (response.data) 的异常断开
             response.data.on('error', (err) => {
                 clearTimeout(downloadTimeout);
                 writer.destroy();
-                fs.unlink(savePath, () => {});
+                // 👇 6. 响应流出错，删除临时文件
+                fs.unlink(tmpPath, () => {});
                 reject(err);
             });
         });
     } catch (e) {
         console.error(`[Scraper] 下载失败: ${url} - ${e.message}`);
-        // 将错误抛出，让 scanner.js 能够捕获并在前端日志显示
+        // 👇 7. 兜底清理
+        try {
+            if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+        } catch (err) {}
         throw e;
     }
 }

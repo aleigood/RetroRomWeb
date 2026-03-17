@@ -2228,7 +2228,7 @@
             const useLazyObserver = () => {
                 let observer = null;
                 const elementStateMap = new WeakMap();
-                const loadedUrls = new Set(); // 👈 新增：全局免疫库，记住已经解码过的图片
+                const loadedUrls = new Set(); // 依然保留记忆库，用于节省 CPU 解码开销
 
                 const initObserver = () => {
                     if (observer) return;
@@ -2238,10 +2238,14 @@
                                 const el = entry.target;
                                 const state = elementStateMap.get(el);
                                 if (entry.isIntersecting && !state.loaded) {
-                                    // 👈 新增核心逻辑：如果曾经加载过，瞬间显示，拒绝重新走异步解码和渐显动画！
                                     if (loadedUrls.has(state.src)) {
                                         el.src = state.src;
-                                        el.classList.add('loaded');
+                                        // 🎯 UX 核心修正：即便在缓存中，也强制延迟 15 毫秒添加 loaded 类名。
+                                        // 这 15 毫秒是为了骗过浏览器，让它先渲染出 opacity: 0 的初始状态，从而完美触发渐显动画。
+                                        setTimeout(() => {
+                                            el.classList.add('loaded');
+                                        }, 15);
+
                                         state.loaded = true;
                                         observer.unobserve(el);
                                         return;
@@ -2256,6 +2260,7 @@
                         { rootMargin: '300px 0px' }
                     );
                 };
+
                 const loadImage = (el, src) => {
                     const img = new Image();
                     img.src = src;
@@ -2263,16 +2268,17 @@
                         .then(() => {
                             el.src = src;
                             el.classList.add('loaded');
-                            loadedUrls.add(src); // 👈 新增：成功后拉入记忆库
+                            loadedUrls.add(src);
                         })
                         .catch(() => {
                             el.src = src;
                             el.onload = () => {
                                 el.classList.add('loaded');
-                                loadedUrls.add(src); // 👈 新增：成功后拉入记忆库
+                                loadedUrls.add(src);
                             };
                         });
                 };
+
                 return {
                     observe: (el, src) => {
                         initObserver();
@@ -2285,17 +2291,21 @@
                     }
                 };
             };
+
             const lazyManager = useLazyObserver();
+
+            // 🎯 恢复极其干净的指令逻辑，确保每次复用必定重置透明度
             const vLazy = {
                 mounted: (el, binding) => {
                     lazyManager.observe(el, binding.value);
                 },
                 updated: (el, binding) => {
                     if (binding.value !== binding.oldValue) {
+                        // 虚拟列表复用时，剥夺 loaded 状态，强制回到透明
                         el.classList.remove('loaded');
-                        // === 核心修复：复用 DOM 时，先强制解绑旧的观察器 ===
+                        el.removeAttribute('src');
+
                         lazyManager.unobserve(el);
-                        // === 然后再重新绑定，强迫浏览器立即执行可见性检查 ===
                         lazyManager.observe(el, binding.value);
                     }
                 },
@@ -2303,7 +2313,6 @@
                     lazyManager.unobserve(el);
                 }
             };
-
             const app = createApp({
                 directives: { lazy: vLazy, marquee: vCenterMarquee },
                 setup() {
