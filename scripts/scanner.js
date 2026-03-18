@@ -8,11 +8,10 @@
  * 4. [Feat] 单游戏刷新支持强制覆盖图片 (Overwrite Mode)
  * 5. [Fix] 增加媒体文件下载异常的捕获与前端日志推送，防止队列卡死
  * 6. [Feat] 采用 VIP 快车道机制执行单游戏刷新，并增加防误删文件保护
- * 7. [Fix] 修复 ESLint 检查错误：Promise 参数命名规范问题
- * 8. [Feat] 增加 media_library 数据库死链精准清理机制，并解决跨平台路径大小写比对问题
- * 9. [Fix] 彻底修复 ESLint promise/param-names 与 n/handle-callback-err 规范问题
- * 10.[Feat] 向抓取器传递日志回调，用于记录未命中时的实际搜索词
- * 11.[Fix] 修复因为用户手动删除硬盘媒体文件导致数据库死链持续被复用且无法重新触发下载的逻辑漏洞
+ * 7. [Fix] 增加 media_library 数据库死链精准清理机制，并解决跨平台路径大小写比对问题
+ * 8. [Feat] 向抓取器传递日志回调，用于记录未命中时的实际搜索词
+ * 9. [Feat] 终极多版本优化：利用刮削返回的“游戏名”匹配同名游戏，在非覆盖模式下直接复用本地媒体数据，跳过重复下载。
+ * 10.[Fix] 修复所有 ESLint n/handle-callback-err 回调错误未处理的警告。
  */
 const fs = require('fs-extra');
 const path = require('path');
@@ -20,7 +19,7 @@ const config = require('../config');
 const db = require('../db/database');
 const scraper = require('../utils/scraper');
 const fileQueue = require('../utils/queue');
-const imgProcessor = require('../utils/imgProcessor'); // 引入图片处理器
+const imgProcessor = require('../utils/imgProcessor');
 
 const IMG_EXTS = ['.png', '.jpg', '.jpeg', '.gif'];
 const VIDEO_EXTS = ['.mp4', '.webm', '.mkv', '.avi'];
@@ -128,9 +127,7 @@ async function addToSyncQueue (system, options = {}) {
 
 // === 单游戏强制刷新 (VIP 队列版) ===
 async function syncSingleGame (system, filename, options) {
-    // 包装成一个任务推入 fileQueue 的 VIP 快车道
     return new Promise((resolve, reject) => {
-        // 第二个参数 true 代表推入 expressQueue
         fileQueue.add(async () => {
             try {
                 ensureMediaTable();
@@ -163,14 +160,12 @@ async function syncSingleGame (system, filename, options) {
                 };
                 const syncOps = options || defaultOps;
 
-                // 单游戏刷新时，强制关闭增量模式，并开启 overwrite (覆盖资源) 模式
+                // 单游戏刷新时，强制关闭增量模式，并开启 overwrite 模式
                 syncOps.incremental = false;
                 syncOps.overwrite = true;
 
                 await processNewGame(system, filename, oldData, syncOps, scraperId);
 
-                // 如果在 VIP 任务执行时，全局刚好也在同步同一个主机，
-                // 我们不能立刻执行清理，否则会误删全局正在下载但还没入库的图片！
                 if (globalStatus.runningSystem !== system) {
                     console.log(`[Manual Sync] Cleaning orphaned media for ${system}...`);
                     await cleanOrphanedMedia(system);
@@ -201,7 +196,6 @@ async function processSystemSync (system, options) {
     const sysInfo = sysConfig[system.toLowerCase()] || {};
     const scraperId = sysInfo.scraper_id;
 
-    // 默认 incremental: true (增量更新)
     const defaultOps = {
         syncInfo: true,
         syncImages: true,
@@ -209,7 +203,7 @@ async function processSystemSync (system, options) {
         syncMarquees: true,
         syncBoxArt: false,
         incremental: true,
-        overwrite: false // 批量扫描默认不覆盖现有图片，节省流量
+        overwrite: false
     };
     const syncOps = options ? { ...defaultOps, ...options } : defaultOps;
 
@@ -243,12 +237,10 @@ async function processSystemSync (system, options) {
             if (!diskFiles.includes(g.filename)) return false;
             if (globalStatus.isStopping) return false;
 
-            // 如果 incremental 为 false (强制刷新)，直接视为需要更新
             if (syncOps.incremental === false) {
                 return true;
             }
 
-            // --- 增量检测逻辑 ---
             const missingInfo = syncOps.syncInfo && (!g.desc || g.desc === '暂无简介');
 
             let missingImg = syncOps.syncImages && !g.image_path;
@@ -313,7 +305,6 @@ async function processSystemSync (system, options) {
     let completedCount = 0;
 
     taskList.forEach((filename) => {
-        // 全局任务默认推入普通队列 (isExpress 默认为 false)
         fileQueue.add(async () => {
             if (globalStatus.isStopping) {
                 completedCount++;
@@ -370,7 +361,6 @@ async function cleanOrphanedMedia (system) {
 
     const validPaths = new Set();
     rows.forEach((row) => {
-        // 统一转化为小写存入 Set，解决跨平台大小写“误杀”问题
         if (row.image_path) validPaths.add(path.normalize(row.image_path).toLowerCase());
         if (row.video_path) validPaths.add(path.normalize(row.video_path).toLowerCase());
         if (row.marquee_path) validPaths.add(path.normalize(row.marquee_path).toLowerCase());
@@ -389,7 +379,6 @@ async function cleanOrphanedMedia (system) {
             if (file.startsWith('.')) continue;
 
             const fullPath = path.join(dirPath, file);
-            // 比对时也将路径转为小写
             const dbStylePath = path.join(system, folder, file).toLowerCase();
 
             if (!validPaths.has(path.normalize(dbStylePath))) {
@@ -403,11 +392,9 @@ async function cleanOrphanedMedia (system) {
         }
     }
 
-    // 物理文件清理完毕后，执行数据库精确死链清理
     await cleanDeadMediaLinks(system);
 }
 
-// === 精准清理死链的函数 ===
 async function cleanDeadMediaLinks (system) {
     const prefixMatch = `${system.toLowerCase()}%`;
     const sql = 'SELECT url, local_path FROM media_library WHERE LOWER(local_path) LIKE ?';
@@ -533,7 +520,6 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
     let boxTexturePath = null;
     let screenshotPath = null;
 
-    // --- 新增：物理文件有效性严格校验函数 ---
     const verifyMediaPath = (relPath) => {
         if (!relPath) return null;
         const absPath = path.join(config.mediaDir, relPath);
@@ -542,12 +528,10 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                 return relPath;
             }
         } catch (e) {}
-        return null; // 文件不存在或大小为0，判为失效死链
+        return null;
     };
 
     if (oldData) {
-        // 核心修复：在复用数据库中记录的路径前，先校验硬盘上该文件是否真实存在。
-        // 如果已经被用户手动删除，则返回 null，强制后续重新抓取或写入空值。
         if (oldData.image_path) imagePath = verifyMediaPath(oldData.image_path) || imagePath;
         if (oldData.video_path) videoPath = verifyMediaPath(oldData.video_path) || videoPath;
         if (oldData.marquee_path) marqueePath = verifyMediaPath(oldData.marquee_path);
@@ -576,16 +560,95 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
     if (shouldScrape) {
         addLog(`处理: ${filename}`, system);
         try {
-            // 【核心修改】将 addLog 包装为回调函数传递给 fetchGameInfo，用于接收搜索词未命中的日志推送
             const scraperData = await scraper.fetchGameInfo(system, filename, fullPath, scraperId, (msg) =>
                 addLog(msg, system)
             );
+
             if (scraperData) {
                 addLog(`匹配成功: ${scraperData.name}`, system);
                 if (options.syncInfo) Object.assign(gameInfo, scraperData);
 
                 const safeName = scraperData.name.replace(/[\\/:*?"<>|]/g, '-').trim();
                 const overwrite = options.overwrite === true;
+
+                // === 核心机制 1：基于游戏名的智能多版本复用 ===
+                // 仅在【非覆盖模式】下生效：只要游戏名一致，立刻复用物理路径，并把刮削到的 URL 置空，彻底跳过下载和后续生成
+                let reusedCount = 0;
+                if (!overwrite) {
+                    const siblingGames = await new Promise((resolve) => {
+                        db.all(
+                            'SELECT * FROM games WHERE system = ? AND name = ? AND filename != ?',
+                            [system, gameInfo.name, filename],
+                            (err, rows) => {
+                                if (err) console.error('[Scanner] 查询兄弟游戏数据错误:', err);
+                                resolve(rows || []);
+                            }
+                        );
+                    });
+
+                    for (const siblingGame of siblingGames) {
+                        if (options.syncMarquees && scraperData.marqueeUrl) {
+                            const valid = verifyMediaPath(siblingGame.marquee_path);
+                            if (valid) {
+                                marqueePath = valid;
+                                reusedCount++;
+                                scraperData.marqueeUrl = null;
+                            }
+                        }
+                        if (options.syncImages && scraperData.boxArtUrl) {
+                            const valid = verifyMediaPath(siblingGame.image_path);
+                            if (valid) {
+                                imagePath = valid;
+                                reusedCount++;
+                                scraperData.boxArtUrl = null;
+                            }
+                        }
+                        if (options.syncImages && scraperData.screenUrl) {
+                            const valid = verifyMediaPath(siblingGame.screenshot_path);
+                            if (valid) {
+                                screenshotPath = valid;
+                                reusedCount++;
+                                scraperData.screenUrl = null;
+                            }
+                        }
+                        if (options.syncVideo && scraperData.videoUrl) {
+                            const valid = verifyMediaPath(siblingGame.video_path);
+                            if (valid) {
+                                videoPath = valid;
+                                reusedCount++;
+                                scraperData.videoUrl = null;
+                            }
+                        }
+                        if (options.syncBoxArt && scraperData.boxTextureUrl) {
+                            const valid = verifyMediaPath(siblingGame.box_texture_path);
+                            if (valid) {
+                                boxTexturePath = valid;
+                                reusedCount++;
+                                scraperData.boxTextureUrl = null;
+                            }
+                        }
+                    }
+
+                    if (reusedCount > 0) {
+                        addLog(`♻️ 极速秒传: 识别到同名游戏 [${gameInfo.name}]，直接复用其已有媒体`, system);
+                    }
+                }
+
+                // === 核心机制 2：基于 URL 的重复下载拦截 ===
+                // 仅在【非覆盖模式】下生效
+                const checkMediaLibrary = async (url) => {
+                    if (!url || overwrite) return null;
+                    const existing = await new Promise((resolve) => {
+                        db.get('SELECT local_path FROM media_library WHERE url = ?', [url], (err, row) => {
+                            if (err) console.error('[Scanner] 查询媒体库历史记录错误:', err);
+                            resolve(row);
+                        });
+                    });
+                    if (existing && verifyMediaPath(existing.local_path)) {
+                        return existing.local_path;
+                    }
+                    return null;
+                };
 
                 const handleDownload = async (url, folder, type) => {
                     if (!url) return null;
@@ -607,43 +670,72 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                     }
                 };
 
-                if (options.syncMarquees) {
-                    if (scraperData.marqueeUrl) {
-                        marqueePath = await handleDownload(scraperData.marqueeUrl, 'marquees', 'marquees');
-                    }
+                let urlReusedCount = 0;
+
+                // 如果经过了兄弟版本复用，URL 已经被置为 null，下面的判定将直接跳过不执行
+                if (options.syncMarquees && scraperData.marqueeUrl) {
+                    const cached = await checkMediaLibrary(scraperData.marqueeUrl);
+                    if (cached) {
+                        marqueePath = cached;
+                        urlReusedCount++;
+                    } else marqueePath = await handleDownload(scraperData.marqueeUrl, 'marquees', 'marquees');
                 }
 
                 if (options.syncImages) {
                     if (scraperData.boxArtUrl) {
-                        imagePath = await handleDownload(scraperData.boxArtUrl, 'covers', 'covers');
+                        const cached = await checkMediaLibrary(scraperData.boxArtUrl);
+                        if (cached) {
+                            imagePath = cached;
+                            urlReusedCount++;
+                        } else imagePath = await handleDownload(scraperData.boxArtUrl, 'covers', 'covers');
                     }
                     if (scraperData.screenUrl) {
-                        screenshotPath = await handleDownload(scraperData.screenUrl, 'screenshots', 'screenshots');
+                        const cached = await checkMediaLibrary(scraperData.screenUrl);
+                        if (cached) {
+                            screenshotPath = cached;
+                            urlReusedCount++;
+                        } else { screenshotPath = await handleDownload(scraperData.screenUrl, 'screenshots', 'screenshots'); }
                     }
                 }
 
-                if (options.syncVideo) {
-                    if (scraperData.videoUrl) {
-                        videoPath = await handleDownload(scraperData.videoUrl, 'videos', 'videos');
-                    }
+                if (options.syncVideo && scraperData.videoUrl) {
+                    const cached = await checkMediaLibrary(scraperData.videoUrl);
+                    if (cached) {
+                        videoPath = cached;
+                        urlReusedCount++;
+                    } else videoPath = await handleDownload(scraperData.videoUrl, 'videos', 'videos');
                 }
 
-                if (options.syncBoxArt) {
-                    if (scraperData.boxTextureUrl) {
+                if (options.syncBoxArt && scraperData.boxTextureUrl) {
+                    const cached = await checkMediaLibrary(scraperData.boxTextureUrl);
+                    if (cached) {
+                        boxTexturePath = cached;
+                        urlReusedCount++;
+                    } else {
                         boxTexturePath = await handleDownload(scraperData.boxTextureUrl, 'boxtextures', 'boxtextures');
 
+                        // 只有在真的下载了新图片，或者本地图片尚未处理时，才调用耗时的 sharp 生成环节
                         if (boxTexturePath) {
                             const fullBoxPath = path.join(config.mediaDir, boxTexturePath);
                             const fullMarqueePath = marqueePath ? path.join(config.mediaDir, marqueePath) : null;
-                            // 新增：提取并传递刚刚下载好（或硬盘已有）的真实截图绝对路径
                             const fullScreenshotPath = screenshotPath
                                 ? path.join(config.mediaDir, screenshotPath)
                                 : null;
 
-                            // 传入这第三个参数
-                            await imgProcessor.processBoxTexture(fullBoxPath, fullMarqueePath, fullScreenshotPath);
+                            const introText = gameInfo.desc && gameInfo.desc !== '暂无简介' ? gameInfo.desc : null;
+
+                            await imgProcessor.processBoxTexture(
+                                fullBoxPath,
+                                fullMarqueePath,
+                                fullScreenshotPath,
+                                introText
+                            );
                         }
                     }
+                }
+
+                if (urlReusedCount > 0) {
+                    addLog(`♻️ URL缓存拦截: 复用了 ${urlReusedCount} 项已下载媒体`, system);
                 }
             }
         } catch (e) {
@@ -683,7 +775,6 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
     });
 }
 
-// 增加 overwrite 参数
 async function downloadMedia (url, system, type, filename, overwrite = false) {
     const target = path.join(config.mediaDir, system, type, filename);
 
@@ -699,22 +790,24 @@ async function downloadMedia (url, system, type, filename, overwrite = false) {
         fs.unlinkSync(target);
     }
 
-    const existing = await new Promise((resolve) => {
-        db.get('SELECT local_path FROM media_library WHERE url = ?', [url], (err, row) => {
-            if (err) console.error(err);
-            resolve(row);
+    if (!overwrite) {
+        const existing = await new Promise((resolve) => {
+            db.get('SELECT local_path FROM media_library WHERE url = ?', [url], (err, row) => {
+                if (err) console.error('[Scanner] 下载前查询媒体库历史错误:', err);
+                resolve(row);
+            });
         });
-    });
 
-    if (existing) {
-        const sourcePath = path.join(config.mediaDir, existing.local_path);
-        if (fs.existsSync(sourcePath)) {
-            try {
-                fs.ensureDirSync(path.dirname(target));
-                fs.linkSync(sourcePath, target);
-                addLog(`🔗 空间优化: ${filename} (HardLink)`, system);
-                return;
-            } catch (e) {}
+        if (existing) {
+            const sourcePath = path.join(config.mediaDir, existing.local_path);
+            if (fs.existsSync(sourcePath)) {
+                try {
+                    fs.ensureDirSync(path.dirname(target));
+                    fs.linkSync(sourcePath, target);
+                    addLog(`🔗 空间优化: ${filename} (HardLink)`, system);
+                    return;
+                } catch (e) {}
+            }
         }
     }
 
@@ -723,7 +816,9 @@ async function downloadMedia (url, system, type, filename, overwrite = false) {
 
     if (fs.existsSync(target)) {
         const relPath = path.relative(config.mediaDir, target).replace(/\\/g, '/');
-        db.run('INSERT OR REPLACE INTO media_library (url, local_path) VALUES (?, ?)', [url, relPath]);
+        db.run('INSERT OR REPLACE INTO media_library (url, local_path) VALUES (?, ?)', [url, relPath], (err) => {
+            if (err) console.error('[Scanner] 插入媒体记录失败:', err);
+        });
     }
 }
 
