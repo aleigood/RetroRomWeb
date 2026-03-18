@@ -743,20 +743,20 @@
                 background: transparent; /* 直接设为透明 */
             }
 
-            /* 无图片时的自适应样式，同样去掉背景色 */
             .intro-text-box.no-image {
                 background: transparent;
                 padding-top: 24px;
             }
+
             .intro-image-box {
                 position: relative;
                 z-index: 1;
                 width: 100%;
-                height: 120px; /* 降低了图片区域的高度 */
+                height: 125px; /* 修改：高度适当回收 */
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding-top: 16px;
+                padding-top: 24px; /* 修改：将 36px 减小为 24px，寻找最平衡的视觉重心 */
             }
 
             .intro-console-img {
@@ -1598,7 +1598,28 @@
                         >
                             <div class="sys-card-bg" :style="{ background: getSysColor(sys.name) }"></div>
 
-                            <div class="sys-count-badge">{{ sys.count }}</div>
+                            <div class="sys-count-badge">
+                                <i
+                                    v-if="globalStatus.runningSystem === sys.name"
+                                    class="ri-loader-4-line spin-anim"
+                                    style="
+                                        font-size: 13px;
+                                        width: 13px;
+                                        height: 13px;
+                                        display: inline-flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        line-height: 1;
+                                        transform-origin: center center;
+                                    "
+                                ></i>
+                                <i
+                                    v-else-if="globalStatus.pendingQueue.includes(sys.name)"
+                                    class="ri-hourglass-line"
+                                    style="font-size: 12px; display: inline-block"
+                                ></i>
+                                <span v-else>{{ sys.count }}</span>
+                            </div>
 
                             <div class="sys-card-logo-box">
                                 <img
@@ -2635,13 +2656,22 @@
                             document.activeElement.blur();
                         }
 
-                        if (scrollTop > fabLastScroll && scrollTop > 100) {
-                            isFabVisible.value = false;
-                            showFabMenu.value = false;
-                        } else if (scrollTop < fabLastScroll) {
-                            isFabVisible.value = true;
+                        // 【新增】：设置滚动防抖阈值（比如 40 像素），只有累积滑动超过这个距离才触发判定
+                        const scrollThreshold = 40;
+
+                        if (Math.abs(scrollTop - fabLastScroll) > scrollThreshold) {
+                            // 向下滚动（页面上移），且离开顶部 100px 以上时隐藏
+                            if (scrollTop > fabLastScroll && scrollTop > 100) {
+                                isFabVisible.value = false;
+                                showFabMenu.value = false;
+                            }
+                            // 向上滚动（页面下移）时显示
+                            else if (scrollTop < fabLastScroll) {
+                                isFabVisible.value = true;
+                            }
+                            // 只有触发了判定，才更新最后记录的滚动位置
+                            fabLastScroll = scrollTop;
                         }
-                        fabLastScroll = scrollTop;
 
                         lastScrollTop.value = scrollTop;
                         handleScroll(e);

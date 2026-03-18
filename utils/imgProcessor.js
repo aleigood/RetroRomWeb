@@ -53,67 +53,69 @@ function wrapSvgTextNode (text, maxWidth, fontSize) {
 }
 
 /**
- * 【终极边界扫描算法】：从左向右扫描，跳过边缘杂色，支持绿/黑/透明三种幕布
+ * 【极简大面积边界扫描算法】：上中下三点采样，确保左侧是巨大的纯绿幕才执行切割
  */
 function findLeftBoundary (data, width, height, filename) {
     const channels = 4;
-    const scanRows = [0.25, 0.5, 0.75].map((p) => Math.floor(height * p));
-    const boundaries = [];
-    const startX = Math.floor(width * 0.05);
+    const startX = Math.floor(width * 0.05); // 从 5% 开始，避开最左边可能存在的黑边
 
-    for (const y of scanRows) {
-        let boundX = 0;
+    // 1. 【大面积特征质检】：检查左侧 25%(上)、50%(中)、75%(下) 三个位置
+    const checkPointsY = [Math.floor(height * 0.25), Math.floor(height * 0.5), Math.floor(height * 0.75)];
 
-        for (let x = startX; x < Math.floor(width * 0.6); x++) {
-            const idx = (y * width + x) * channels;
-            const r = data[idx];
-            const g = data[idx + 1];
-            const b = data[idx + 2];
-            const a = data[idx + 3];
+    let isLargeGreenArea = true;
 
-            // 宽容的背景色判断：透明幕、绿幕、黑幕
-            const isTransparent = a < 20;
-            const isGreen = g > 80 && g > r + 20 && g > b + 20;
-            const isBlack = r < 50 && g < 50 && b < 50 && a > 200;
+    for (const y of checkPointsY) {
+        const idx = (y * width + startX) * channels;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
 
-            // 如果遇到【非背景色】，说明可能碰到真实的包装盒边缘了
-            if (!isTransparent && !isGreen && !isBlack) {
-                // 向前探路 10 个像素，防抖验证
-                let isSolid = true;
-                for (let step = 1; step <= 10; step++) {
-                    const nextX = x + step;
-                    if (nextX >= width) break;
-                    const nIdx = (y * width + nextX) * channels;
-                    const nr = data[nIdx];
-                    const ng = data[nIdx + 1];
-                    const nb = data[nIdx + 2];
-                    const na = data[nIdx + 3];
+        // 纯绿色判定标准：G通道大于180，且R和B通道小于80
+        if (!(g > 180 && r < 80 && b < 80)) {
+            isLargeGreenArea = false;
+            break; // 只要有一个点不是纯绿，立刻判定为正常封面
+        }
+    }
 
-                    if (
-                        na < 20 ||
-                        (ng > 80 && ng > nr + 20 && ng > nb + 20) ||
-                        (nr < 50 && ng < 50 && nb < 50 && na > 200)
-                    ) {
-                        isSolid = false;
-                        break;
-                    }
-                }
+    if (!isLargeGreenArea) {
+        console.log(`[ImgProc] ${filename} 左侧未检测到大面积绿幕，视为原始封面，跳过处理。`);
+        return 0; // 绝对安全退出，保留原图
+    }
 
-                if (isSolid) {
-                    boundX = x;
+    // 2. 既然确定左侧是一大块纯绿幕，只需沿着中线向右寻找绿幕结束的切割点即可
+    const scanY = Math.floor(height * 0.5);
+    let boundX = 0;
+
+    for (let x = startX; x < Math.floor(width * 0.6); x++) {
+        const idx = (scanY * width + x) * channels;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+
+        const isGreen = g > 180 && r < 80 && b < 80;
+
+        if (!isGreen) {
+            // 向前看 5 个像素防噪点，确保真真切切碰到真实游戏外盒了
+            let isSolid = true;
+            for (let step = 1; step <= 5; step++) {
+                const nx = x + step;
+                if (nx >= width) break;
+                const nIdx = (scanY * width + nx) * channels;
+                if (data[nIdx + 1] > 180 && data[nIdx] < 80 && data[nIdx + 2] < 80) {
+                    isSolid = false;
                     break;
                 }
             }
+            if (isSolid) {
+                boundX = x;
+                console.log(`[ImgProc] 完美定位垂直切割线: X=${boundX} (${filename})`);
+                break;
+            }
         }
-        boundaries.push(boundX);
     }
 
-    boundaries.sort((a, b) => a - b);
-    const medianBoundary = boundaries[1];
-
-    // 限制：截断点必须大于宽度的15%，否则说明全图无背景，取消处理
-    const finalResult = medianBoundary < width * 0.15 ? 0 : medianBoundary;
-    return finalResult;
+    // 3. 【面积兜底】：算出来的绿色宽度必须大于整张图的 20%，否则放弃
+    return boundX < width * 0.2 ? 0 : boundX;
 }
 
 /**
@@ -154,9 +156,24 @@ async function processBoxTexture (texturePath, marqueePath, screenshotPath, intr
 
     const hasValidLogo = marqueePath && fs.existsSync(marqueePath);
 
-    // 3. 【排版重构】截图体量缩小，凸显主角 Logo
-    const shotW = Math.floor(greenBoundaryX * 0.32); // 宽度占比调回 32%
-    const shotH = Math.floor(shotW * 0.75); // 严格锁定 4:3 比例
+    // 3. 【核心修复：排版尺寸重构与防碰撞安全锁】
+    // 提前计算全局高度定位点
+    const footerHeight = 135;
+    const footerY = height - footerHeight;
+    const descY = Math.floor(height * 0.34);
+    const highlightY = Math.floor(height * 0.56);
+
+    // 按照 32% 的宽度占比预估截图尺寸
+    let shotW = Math.floor(greenBoundaryX * 0.32);
+    let shotH = Math.floor(shotW * 0.75);
+
+    // 【安全检查】：计算距离底部 Footer 的剩余极限高度（保留 20px 呼吸间距）
+    const maxShotH = footerY - highlightY - 20;
+    if (shotH > maxShotH) {
+        // 如果截图过高，则强制降维，限制最高高度，并反推缩小宽度，严格保持 4:3 比例
+        shotH = maxShotH;
+        shotW = Math.floor(shotH / 0.75);
+    }
 
     let b64Screenshot;
     let hasRealScreenshot = false;
@@ -191,13 +208,11 @@ async function processBoxTexture (texturePath, marqueePath, screenshotPath, intr
     // 4. 清理并准备介绍文本
     const defaultIntro =
         'ゲームの詳細情報がありません。未知の冒険が今、始まる！多彩なアクションを駆使して、立ちはだかる強敵を打ち倒せ。';
-    // 【修改】：将文本最大截断字符数放宽到 600，确保有足够的字数填补 11 行的空间
     const introTextToPrint = introText ? sanitizeSvgText(introText, 600) : sanitizeSvgText(defaultIntro, 600);
 
     const leftMargin = 28;
     const textAreaWidth = greenBoundaryX * 0.85 - leftMargin;
     const fontSize = 9.5;
-    // 【修改】：将限制显示的最多行数增加两行，从 9 行放宽到 11 行
     const introLines = wrapSvgTextNode(introTextToPrint, textAreaWidth, fontSize).slice(0, 11);
 
     let introSvgSpan = '';
@@ -207,18 +222,12 @@ async function processBoxTexture (texturePath, marqueePath, screenshotPath, intr
 
     const paperTop = '#fdfdfa';
     const paperBottom = '#ecece4';
-    const footerHeight = 135;
-    const footerY = height - footerHeight;
-
-    // 【垂直居中与水平居中重构】
-    const descY = Math.floor(height * 0.34);
-    const highlightY = Math.floor(height * 0.56);
 
     // 整个下半部模块水平居中：文字靠右贴近 47%，图片靠左贴近 51%，中间留白 4%
     const highlightTextX = Math.floor(greenBoundaryX * 0.47);
     const highlightImgX = Math.floor(greenBoundaryX * 0.51);
 
-    // 文字绝对垂直居中算法：截图高度一半 减去 文字块整体高度一半（4行文字约40px高度 -> 中心距顶部约20px）
+    // 文字绝对垂直居中算法：使用最终的安全截图高度(shotH)一半 减去 文字块整体高度一半（约20px）
     const textCenterOffsetY = Math.floor(shotH / 2) - 20;
 
     // --- 核心修改：生成极具质感的 SVG 排版 ---
