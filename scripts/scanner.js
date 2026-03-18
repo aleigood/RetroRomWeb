@@ -12,6 +12,7 @@
  * 8. [Feat] 向抓取器传递日志回调，用于记录未命中时的实际搜索词
  * 9. [Feat] 终极多版本优化：利用刮削返回的“游戏名”匹配同名游戏，在非覆盖模式下直接复用本地媒体数据，跳过重复下载。
  * 10.[Fix] 修复所有 ESLint n/handle-callback-err 回调错误未处理的警告。
+ * 11.[Fix] 新增静默本地探测补偿机制：即使未勾选同步某些图片，也能智能捞取本地同名图片供背板生成器使用。
  */
 const fs = require('fs-extra');
 const path = require('path');
@@ -476,27 +477,28 @@ function getDirFilesMap (dirPath) {
     return fileMap;
 }
 
-function findLocalImage (system, romBasename) {
-    const types = ['covers', 'miximages', 'screenshots'];
-    for (const type of types) {
-        const fileMap = getDirFilesMap(path.join(config.mediaDir, system, type));
-        for (const ext of IMG_EXTS) {
-            if (fileMap[(romBasename + ext).toLowerCase()]) {
-                return path.join(system, type, fileMap[(romBasename + ext).toLowerCase()]).replace(/\\/g, '/');
-            }
+// 通用的本地媒体查找器
+function findLocalFile (system, folder, romBasename, exts) {
+    const fileMap = getDirFilesMap(path.join(config.mediaDir, system, folder));
+    for (const ext of exts) {
+        if (fileMap[(romBasename + ext).toLowerCase()]) {
+            return path.join(system, folder, fileMap[(romBasename + ext).toLowerCase()]).replace(/\\/g, '/');
         }
     }
     return null;
 }
 
-function findLocalVideo (system, romBasename) {
-    const fileMap = getDirFilesMap(path.join(config.mediaDir, system, 'videos'));
-    for (const ext of VIDEO_EXTS) {
-        if (fileMap[(romBasename + ext).toLowerCase()]) {
-            return path.join(system, 'videos', fileMap[(romBasename + ext).toLowerCase()]).replace(/\\/g, '/');
-        }
+function findLocalImage (system, romBasename) {
+    const types = ['covers', 'miximages', 'screenshots'];
+    for (const type of types) {
+        const res = findLocalFile(system, type, romBasename, IMG_EXTS);
+        if (res) return res;
     }
     return null;
+}
+
+function findLocalVideo (system, romBasename) {
+    return findLocalFile(system, 'videos', romBasename, VIDEO_EXTS);
 }
 
 function loadSystemConfig () {
@@ -514,11 +516,12 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
     const fullPath = path.join(config.romsDir, system, filename);
     const basename = path.basename(filename, path.extname(filename));
 
+    // 利用原始的 ROM 文件名，初始化一遍所有本地物理文件状态，防止旧数据库记录丢失的情况
     let imagePath = findLocalImage(system, basename);
     let videoPath = findLocalVideo(system, basename);
-    let marqueePath = null;
-    let boxTexturePath = null;
-    let screenshotPath = null;
+    let marqueePath = findLocalFile(system, 'marquees', basename, IMG_EXTS);
+    let boxTexturePath = findLocalFile(system, 'boxtextures', basename, IMG_EXTS);
+    let screenshotPath = findLocalFile(system, 'screenshots', basename, IMG_EXTS);
 
     const verifyMediaPath = (relPath) => {
         if (!relPath) return null;
@@ -534,9 +537,9 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
     if (oldData) {
         if (oldData.image_path) imagePath = verifyMediaPath(oldData.image_path) || imagePath;
         if (oldData.video_path) videoPath = verifyMediaPath(oldData.video_path) || videoPath;
-        if (oldData.marquee_path) marqueePath = verifyMediaPath(oldData.marquee_path);
-        if (oldData.box_texture_path) boxTexturePath = verifyMediaPath(oldData.box_texture_path);
-        if (oldData.screenshot_path) screenshotPath = verifyMediaPath(oldData.screenshot_path);
+        if (oldData.marquee_path) marqueePath = verifyMediaPath(oldData.marquee_path) || marqueePath;
+        if (oldData.box_texture_path) boxTexturePath = verifyMediaPath(oldData.box_texture_path) || boxTexturePath;
+        if (oldData.screenshot_path) screenshotPath = verifyMediaPath(oldData.screenshot_path) || screenshotPath;
     }
 
     const gameInfo = {
@@ -571,8 +574,25 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                 const safeName = scraperData.name.replace(/[\\/:*?"<>|]/g, '-').trim();
                 const overwrite = options.overwrite === true;
 
-                // === 核心机制 1：基于游戏名的智能多版本复用 ===
-                // 仅在【非覆盖模式】下生效：只要游戏名一致，立刻复用物理路径，并把刮削到的 URL 置空，彻底跳过下载和后续生成
+                // === 核心修复：静默本地文件探测补偿机制 ===
+                // 即使你未勾选 Logo 同步，且因为新变体 ROM 导致老数据里没有关联 Logo，
+                // 我们也会利用清洗好的安全游戏名，去硬盘里找一下是不是有同名的图拿来渲染！
+                const silentLocalCheck = (folder, exts) => {
+                    for (const ext of exts) {
+                        const relPath = path.join(system, folder, safeName + ext).replace(/\\/g, '/');
+                        if (verifyMediaPath(relPath)) return relPath;
+                    }
+                    return null;
+                };
+
+                // 只有当路径仍为空时才做静默补全，确保不会覆盖掉正常合法的旧路径
+                if (!marqueePath) marqueePath = silentLocalCheck('marquees', IMG_EXTS);
+                if (!screenshotPath) screenshotPath = silentLocalCheck('screenshots', IMG_EXTS);
+                if (!imagePath) imagePath = silentLocalCheck('covers', IMG_EXTS);
+                if (!videoPath) videoPath = silentLocalCheck('videos', VIDEO_EXTS);
+                if (!boxTexturePath) boxTexturePath = silentLocalCheck('boxtextures', IMG_EXTS);
+
+                // === 基于游戏名的智能多版本复用 (仅在非强制覆盖模式生效) ===
                 let reusedCount = 0;
                 if (!overwrite) {
                     const siblingGames = await new Promise((resolve) => {
@@ -634,8 +654,7 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
                     }
                 }
 
-                // === 核心机制 2：基于 URL 的重复下载拦截 ===
-                // 仅在【非覆盖模式】下生效
+                // === 基于 URL 的重复下载拦截 ===
                 const checkMediaLibrary = async (url) => {
                     if (!url || overwrite) return null;
                     const existing = await new Promise((resolve) => {
@@ -672,7 +691,6 @@ async function processNewGame (system, filename, oldData = null, options = {}, s
 
                 let urlReusedCount = 0;
 
-                // 如果经过了兄弟版本复用，URL 已经被置为 null，下面的判定将直接跳过不执行
                 if (options.syncMarquees && scraperData.marqueeUrl) {
                     const cached = await checkMediaLibrary(scraperData.marqueeUrl);
                     if (cached) {
