@@ -1623,12 +1623,12 @@
 
                             <div class="sys-card-logo-box">
                                 <img
-                                    v-show="!sys.logoError"
+                                    v-if="!sys.logoError"
                                     :src="`/logos/${sys.name}.svg`"
                                     class="sys-card-logo"
                                     @error="sys.logoError = true"
                                 />
-                                <div v-show="sys.logoError" class="sys-fallback-abbr">{{ sys.abbr }}</div>
+                                <div v-else class="sys-fallback-abbr">{{ sys.abbr }}</div>
                             </div>
 
                             <div class="sys-card-content">
@@ -1655,7 +1655,7 @@
                     <div class="intro-header">
                         <div class="intro-bg" :style="{ background: getSysColor(currentSystemObj.name) }"></div>
 
-                        <div class="intro-image-box" v-show="!currentSystemObj.consoleImgError">
+                        <div class="intro-image-box" v-if="!currentSystemObj.consoleImgError">
                             <img
                                 :src="`/logos/${currentSystemObj.name}_console.svg`"
                                 class="intro-console-img"
@@ -2707,6 +2707,10 @@
                     };
 
                     const enterSystem = async (sysObj) => {
+                        // 【核心修复】：每次进入主机，清空网络错误记忆，给予重试加载的机会
+                        sysObj.logoError = false;
+                        sysObj.consoleImgError = false;
+
                         transitionName.value = 'slide-left';
                         window.history.pushState({ page: 'gamelist', systemName: sysObj.name }, '');
                         currentSystemObj.value = sysObj;
@@ -2722,6 +2726,9 @@
                     };
 
                     const handleUiBack = () => {
+                        // 【核心修复】：点击左上角返回时，顺手关闭 FAB 菜单
+                        showFabMenu.value = false;
+
                         if (currentSystemObj.value && !showDetail.value && !showLogPopup.value) {
                             if (window.history.state && window.history.state.page === 'gamelist') {
                                 if (window.history.length <= 2) {
@@ -2864,6 +2871,9 @@
 
                     window.addEventListener('popstate', (event) => {
                         const state = event.state;
+                        // 【核心修复】：无论页面发生什么回退跳转，强制关闭 FAB 菜单和模糊遮罩
+                        showFabMenu.value = false;
+
                         if (isPreviewOpen.value) {
                             isPreviewOpen.value = false;
                             return;
@@ -2877,6 +2887,10 @@
                                 transitionName.value = 'slide-left';
                                 const sys = systems.value.find((s) => s.name === state.systemName);
                                 if (sys) {
+                                    // 【核心修复】：通过历史记录返回时，同样清空网络错误记忆
+                                    sys.logoError = false;
+                                    sys.consoleImgError = false;
+
                                     currentSystemObj.value = sys;
                                     loadGames(sys);
                                     pollStatus();
