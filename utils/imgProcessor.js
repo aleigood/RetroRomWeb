@@ -13,20 +13,34 @@ const fs = require('fs-extra');
 const path = require('path');
 
 /**
- * 辅助函数：清理文本，移除 SVG/XML 不兼容的特殊字符
+ * 清理并转义准备渲染到 SVG 的文本
+ * 核心修复：增加 XML 实体转义，防止 & < > 等字符导致 sharp(SVG) 渲染崩溃
  */
-function sanitizeSvgText (text, maxLength = 350) {
+function sanitizeSvgText (text, maxLength = 600) {
     if (!text) return '';
-    let cleaned = text
-        .replace(/[\r\n\v\f]/g, ' ')
-        .replace(/&[a-z0-9#]{2,8};/g, '')
+
+    // 将包含控制字符的正则单独提取，并精准应用 ESLint 豁免规则
+    // eslint-disable-next-line no-control-regex
+    const ctrlRegex = /[\x00-\x1F\x7F-\x9F]/g;
+
+    // 1. 基础清理：去掉多余换行和不可见控制字符
+    let clean = text
+        .replace(/[\r\n]+/g, ' ')
+        .replace(ctrlRegex, '')
+        .trim();
+
+    // 2. 长度截断
+    if (clean.length > maxLength) {
+        clean = clean.substring(0, maxLength) + '...';
+    }
+
+    // 3. 【核心修复】：转义 XML/SVG 保留字符
+    return clean
+        .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .trim();
-    if (cleaned.length > maxLength) {
-        cleaned = cleaned.substring(0, maxLength - 3) + '...';
-    }
-    return cleaned;
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
 }
 
 /**
@@ -53,71 +67,92 @@ function wrapSvgTextNode (text, maxWidth, fontSize) {
 }
 
 /**
- * 【极简大面积边界扫描算法】：上中下三点采样，确保左侧是巨大的纯绿幕才执行切割
+ * 【动态容差蔓延算法】：通过提取基准色 + 计算曼哈顿色差，完美兼容 JPEG 杂波，精准屏蔽复杂自然纹理
  */
 function findLeftBoundary (data, width, height, filename) {
     const channels = 4;
-    const startX = Math.floor(width * 0.05); // 从 5% 开始，避开最左边可能存在的黑边
+    const startX = Math.floor(width * 0.05); // 从 5% 开始取样
 
-    // 1. 【大面积特征质检】：检查左侧 25%(上)、50%(中)、75%(下) 三个位置
+    // 辅助函数：计算两个颜色的色差（曼哈顿距离，性能极高）
+    const colorDiff = (r1, g1, b1, r2, g2, b2) => {
+        return Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
+    };
+
     const checkPointsY = [Math.floor(height * 0.25), Math.floor(height * 0.5), Math.floor(height * 0.75)];
 
-    let isLargeGreenArea = true;
+    let sumR = 0;
+    let sumG = 0;
+    let sumB = 0;
+    const samples = [];
 
+    // 1. 采样并检查“大面积颜色的绝对平滑度”
     for (const y of checkPointsY) {
         const idx = (y * width + startX) * channels;
-        const r = data[idx];
-        const g = data[idx + 1];
-        const b = data[idx + 2];
-
-        // 纯绿色判定标准：G通道大于180，且R和B通道小于80
-        if (!(g > 180 && r < 80 && b < 80)) {
-            isLargeGreenArea = false;
-            break; // 只要有一个点不是纯绿，立刻判定为正常封面
-        }
+        samples.push({ r: data[idx], g: data[idx + 1], b: data[idx + 2] });
+        sumR += data[idx];
+        sumG += data[idx + 1];
+        sumB += data[idx + 2];
     }
 
-    if (!isLargeGreenArea) {
-        console.log(`[ImgProc] ${filename} 左侧未检测到大面积绿幕，视为原始封面，跳过处理。`);
-        return 0; // 绝对安全退出，保留原图
+    // 计算三个采样点相互之间的最大色差
+    const maxSampleDiff = Math.max(
+        colorDiff(samples[0].r, samples[0].g, samples[0].b, samples[1].r, samples[1].g, samples[1].b),
+        colorDiff(samples[1].r, samples[1].g, samples[1].b, samples[2].r, samples[2].g, samples[2].b),
+        colorDiff(samples[0].r, samples[0].g, samples[0].b, samples[2].r, samples[2].g, samples[2].b)
+    );
+
+    // 【核心锁 1】：如果上下颜色差异超过 50，说明这是带有纹理、光影的自然背景（如网球草地），坚决不替换！
+    if (maxSampleDiff > 50) {
+        console.log(`[ImgProc] ${filename} 左侧背景不平滑(方差为 ${maxSampleDiff})，视为自然图像，跳过。`);
+        return 0;
     }
 
-    // 2. 既然确定左侧是一大块纯绿幕，只需沿着中线向右寻找绿幕结束的切割点即可
+    // 2. 提取这张图左侧的“专属基准色”
+    const baseR = sumR / 3;
+    const baseG = sumG / 3;
+    const baseB = sumB / 3;
+
+    // 只要基准色大体上是绿色（G比R和B大30以上即可，不卡死绝对数值），就批准放行
+    if (!(baseG > baseR + 30 && baseG > baseB + 30 && baseG > 80)) {
+        console.log(`[ImgProc] ${filename} 提取的基准主色调非绿色，跳过。`);
+        return 0;
+    }
+
+    // 3. 基于“容差”向右蔓延扫描
     const scanY = Math.floor(height * 0.5);
     let boundX = 0;
+    // 宽容度 60：足以包容 JPEG 压缩导致的糊边和色块杂波
+    const TOLERANCE = 60;
 
     for (let x = startX; x < Math.floor(width * 0.6); x++) {
         const idx = (scanY * width + x) * channels;
-        const r = data[idx];
-        const g = data[idx + 1];
-        const b = data[idx + 2];
+        const diff = colorDiff(data[idx], data[idx + 1], data[idx + 2], baseR, baseG, baseB);
 
-        const isGreen = g > 180 && r < 80 && b < 80;
-
-        if (!isGreen) {
-            // 向前看 5 个像素防噪点，确保真真切切碰到真实游戏外盒了
-            let isSolid = true;
+        // 如果当前像素与基准色的色差大于宽容度，说明撞墙了（碰到真实外盒了）
+        if (diff > TOLERANCE) {
+            // 防抖验证：再往右看 5 个像素，如果确实全都跟绿幕长得不一样，才确定是真边界
+            let isSolidBreak = true;
             for (let step = 1; step <= 5; step++) {
                 const nx = x + step;
                 if (nx >= width) break;
                 const nIdx = (scanY * width + nx) * channels;
-                if (data[nIdx + 1] > 180 && data[nIdx] < 80 && data[nIdx + 2] < 80) {
-                    isSolid = false;
+                const nDiff = colorDiff(data[nIdx], data[nIdx + 1], data[nIdx + 2], baseR, baseG, baseB);
+                if (nDiff <= TOLERANCE) {
+                    isSolidBreak = false; // 前方又是绿幕色，说明刚才只是个大号噪点，继续走
                     break;
                 }
             }
-            if (isSolid) {
+            if (isSolidBreak) {
                 boundX = x;
-                console.log(`[ImgProc] 完美定位垂直切割线: X=${boundX} (${filename})`);
+                console.log(`[ImgProc] 色差断层定位边界: X=${boundX} (${filename})`);
                 break;
             }
         }
     }
 
-    // 3. 【面积兜底】：算出来的绿色宽度必须大于整张图的 20%，否则放弃
+    // 4. 面积兜底：蔓延出的宽度必须大于总宽度的 20%
     return boundX < width * 0.2 ? 0 : boundX;
 }
-
 /**
  * 辅助函数：生成工业标准的条形码 SVG 元素
  */
