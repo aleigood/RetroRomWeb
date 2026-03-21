@@ -7,40 +7,37 @@
  * 3. [Feat] 完美兼容：同时支持识别 绿幕、纯黑幕 以及 透明幕。
  * 4. [UI] 视觉体量终极调优：大幅放宽 Logo 尺寸上限使其更具视觉冲击力，适度缩小截图使其回归配角体量，并重新校准文字对齐。
  * 5. [UI] 完美居中：重构下半部“截图+文本”区域，实现整体水平居中，并让文本绝对垂直居中于截图。
+ * 6. [Fix] 拆分文本清理与 XML 转义逻辑，实现先换行后转义，彻底解决特殊符号被截断导致的 SVG 渲染崩溃问题。
  */
 const sharp = require('sharp');
 const fs = require('fs-extra');
 const path = require('path');
 
-/**
- * 清理并转义准备渲染到 SVG 的文本
- * 核心修复：增加 XML 实体转义，防止 & < > 等字符导致 sharp(SVG) 渲染崩溃
- */
-function sanitizeSvgText (text, maxLength = 600) {
-    if (!text) return '';
-
-    // 将包含控制字符的正则单独提取，并精准应用 ESLint 豁免规则
-    // eslint-disable-next-line no-control-regex
-    const ctrlRegex = /[\x00-\x1F\x7F-\x9F]/g;
-
-    // 1. 基础清理：去掉多余换行和不可见控制字符
-    let clean = text
-        .replace(/[\r\n]+/g, ' ')
-        .replace(ctrlRegex, '')
-        .trim();
-
-    // 2. 长度截断
-    if (clean.length > maxLength) {
-        clean = clean.substring(0, maxLength) + '...';
-    }
-
-    // 3. 【核心修复】：转义 XML/SVG 保留字符
-    return clean
+// 拆分1：专门用于彻底的安全 XML 实体转义
+function escapeXml (unsafe) {
+    if (!unsafe) return '';
+    return unsafe
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
+}
+
+// 拆分2：仅做基础文本清理（去除控制字符和回车），不提前做转义
+function cleanRawText (text, maxLength = 600) {
+    if (!text) return '';
+    // 单独提取正则并豁免 ESLint 检查
+    // eslint-disable-next-line no-control-regex
+    const ctrlRegex = /[\x00-\x1F\x7F-\x9F]/g;
+    let clean = text
+        .replace(/[\r\n]+/g, ' ')
+        .replace(ctrlRegex, '')
+        .trim();
+    if (clean.length > maxLength) {
+        clean = clean.substring(0, maxLength) + '...';
+    }
+    return clean;
 }
 
 /**
@@ -187,7 +184,8 @@ async function processBoxTexture (texturePath, marqueePath, screenshotPath, intr
         .basename(texturePath, path.extname(texturePath))
         .replace(/\[.*?\]|\(.*?\)/g, '')
         .trim();
-    cleanGameName = sanitizeSvgText(cleanGameName, 50);
+    // 【核心修复】：标题提取后，同样使用新的 escapeXml 和 cleanRawText，避免标题包含特殊字符导致崩溃
+    cleanGameName = escapeXml(cleanRawText(cleanGameName, 50));
 
     const hasValidLogo = marqueePath && fs.existsSync(marqueePath);
 
@@ -240,19 +238,21 @@ async function processBoxTexture (texturePath, marqueePath, screenshotPath, intr
         b64Screenshot = cropBuffer.toString('base64');
     }
 
-    // 4. 清理并准备介绍文本
+    // 4. 清理并准备介绍文本 (先换行后转义防切断报错)
     const defaultIntro =
         'ゲームの詳細情報がありません。未知の冒険が今、始まる！多彩なアクションを駆使して、立ちはだかる強敵を打ち倒せ。';
-    const introTextToPrint = introText ? sanitizeSvgText(introText, 600) : sanitizeSvgText(defaultIntro, 600);
+    const rawIntro = introText ? cleanRawText(introText, 600) : cleanRawText(defaultIntro, 600);
 
     const leftMargin = 28;
     const textAreaWidth = greenBoundaryX * 0.85 - leftMargin;
     const fontSize = 9.5;
-    const introLines = wrapSvgTextNode(introTextToPrint, textAreaWidth, fontSize).slice(0, 11);
+    const introLines = wrapSvgTextNode(rawIntro, textAreaWidth, fontSize).slice(0, 11);
 
     let introSvgSpan = '';
     introLines.forEach((line, idx) => {
-        introSvgSpan += `<tspan x="0" dy="${idx === 0 ? '0' : '1.6em'}">${line}</tspan>`;
+        // 【核心修复】：单行切好后，塞入 SVG 前的一瞬间，才执行转义，避免单引号等实体字符被切开
+        const safeLine = escapeXml(line);
+        introSvgSpan += `<tspan x="0" dy="${idx === 0 ? '0' : '1.6em'}">${safeLine}</tspan>`;
     });
 
     const paperTop = '#fdfdfa';
