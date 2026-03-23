@@ -2507,16 +2507,18 @@
                             progress.value = data.progress;
                             isSyncing.value = !!data.runningSystem;
 
-                            if (isSyncing.value || showLogPopup.value) {
-                                if (statusPollTimer) clearTimeout(statusPollTimer);
-                                statusPollTimer = setTimeout(pollStatus, 1500);
-                            }
+                            if (statusPollTimer) clearTimeout(statusPollTimer);
+
+                            // 【核心修复：动态心跳机制】
+                            // 同步中或打开了日志弹窗时，1.5秒高频刷新；平时闲置时，5秒低频保活。
+                            // 这样无论怎么刷新页面、路由怎么跳转，只要后台在动，前台立刻就能无缝衔接动画和日志！
+                            const interval = isSyncing.value || showLogPopup.value ? 1500 : 5000;
+                            statusPollTimer = setTimeout(pollStatus, interval);
                         } catch (e) {
                             console.error('Network error, retrying...', e);
-                            if (isSyncing.value || showLogPopup.value) {
-                                if (statusPollTimer) clearTimeout(statusPollTimer);
-                                statusPollTimer = setTimeout(pollStatus, 3000);
-                            }
+                            if (statusPollTimer) clearTimeout(statusPollTimer);
+                            // 断网情况下，坚持 5 秒探测一次，直到服务器恢复
+                            statusPollTimer = setTimeout(pollStatus, 5000);
                         }
                     };
 
@@ -3481,13 +3483,9 @@
                         showFabMenu,
                         onFabClick,
                         handleFabAction,
-                        virtualWrapperRef, // 暴露给模板
-                        lowResFlags,
-                        loadedFlags,
-                        getGamePoster,
+                        virtualWrapperRef,
                         isLogoOnlyMode,
-                        getCoverStyle,
-                        allGames
+                        getCoverStyle
                     };
                 }
             });
