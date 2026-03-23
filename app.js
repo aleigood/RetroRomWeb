@@ -212,7 +212,8 @@ router.get('/api/systems', async (ctx) => {
                     history: info.history || info.desc || 'No details available.',
                     ejs_core: info.ejs_core || '',
                     bios: info.bios || '',
-                    cover_crop: info.cover_crop || 0 // 👈 新增：将 cover_crop 字段下发给前端
+                    cover_crop: info.cover_crop || 0, // 👈 新增：将 cover_crop 字段下发给前端
+                    theme: info.theme || '' // 👈 新增：将主题颜色下发给前端
                 };
                 Object.keys(info).forEach((k) => {
                     if (k.startsWith('ejs_') && k !== 'ejs_core') sysObj[k] = info[k];

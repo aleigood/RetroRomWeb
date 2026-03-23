@@ -1596,7 +1596,7 @@
                             :id="'sys-card-' + sys.name"
                             @click="enterSystem(sys)"
                         >
-                            <div class="sys-card-bg" :style="{ background: getSysColor(sys.name) }"></div>
+                            <div class="sys-card-bg" :style="{ background: getSysColor(sys) }"></div>
 
                             <div class="sys-count-badge">
                                 <i
@@ -1653,7 +1653,7 @@
                     @scroll="handleGameScroll"
                 >
                     <div class="intro-header">
-                        <div class="intro-bg" :style="{ background: getSysColor(currentSystemObj.name) }"></div>
+                        <div class="intro-bg" :style="{ background: getSysColor(currentSystemObj) }"></div>
 
                         <div class="intro-image-box" v-if="!currentSystemObj.consoleImgError">
                             <img
@@ -3102,16 +3102,26 @@
                         window.history.back();
                     };
 
-                    const getSysColor = (sysName) => {
-                        const colors = [
-                            'linear-gradient(135deg, #ff5e57, #d63031)',
-                            'linear-gradient(135deg, #a29bfe, #6c5ce7)',
-                            'linear-gradient(135deg, #00b894, #00cec9)',
-                            'linear-gradient(135deg, #fdcb6e, #e17055)',
-                            'linear-gradient(135deg, #74b9ff, #0984e3)',
-                            'linear-gradient(135deg, #fd79a8, #e84393)',
-                            'linear-gradient(135deg, #badc58, #6ab04c)'
-                        ];
+                    const getSysColor = (sys) => {
+                        // 将预设颜色转换为键值对字典，方便通过名称指定
+                        const colorMap = {
+                            red: 'linear-gradient(135deg, #ff5e57, #d63031)',
+                            purple: 'linear-gradient(135deg, #a29bfe, #6c5ce7)',
+                            teal: 'linear-gradient(135deg, #00b894, #00cec9)',
+                            orange: 'linear-gradient(135deg, #fdcb6e, #e17055)',
+                            blue: 'linear-gradient(135deg, #74b9ff, #0984e3)',
+                            pink: 'linear-gradient(135deg, #fd79a8, #e84393)',
+                            green: 'linear-gradient(135deg, #badc58, #6ab04c)'
+                        };
+
+                        // 如果在系统中显式定义了 theme 且包含在我们定义的颜色字典中，直接返回该颜色
+                        if (sys && sys.theme && colorMap[sys.theme]) {
+                            return colorMap[sys.theme];
+                        }
+
+                        // 否则退回基于主机名称进行 Hash 计算分配颜色的模式
+                        const sysName = sys && sys.name ? sys.name : String(sys);
+                        const colors = Object.values(colorMap);
                         let hash = 0;
                         for (let i = 0; i < sysName.length; i++) hash = sysName.charCodeAt(i) + ((hash << 5) - hash);
                         return colors[Math.abs(hash) % colors.length];

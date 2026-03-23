@@ -97,9 +97,13 @@ async function downloadFile (url, savePath) {
 
             writer.on('finish', () => {
                 clearTimeout(downloadTimeout);
-                // 👇 4. 只有完整无误下载结束，才将 .tmp 重命名为正式文件
-                fs.renameSync(tmpPath, savePath);
-                resolve();
+                // 【核心修复】：确保文件没有因为网络异常(ECONNRESET)被提前删除，再进行重命名，杜绝 ENOENT 报错
+                if (fs.existsSync(tmpPath)) {
+                    fs.renameSync(tmpPath, savePath);
+                    resolve();
+                } else {
+                    reject(new Error('下载异常：临时文件不存在，疑似网络断流'));
+                }
             });
 
             writer.on('error', (err) => {
@@ -146,8 +150,18 @@ async function fetchGameInfo (system, filename, fullPath, explicitSystemId = nul
     }
 
     let romSize = 0;
+    let isDir = false; // 【修改点1】：增加一个判断是否为文件夹的标志位
     try {
-        if (fs.existsSync(fullPath)) romSize = fs.statSync(fullPath).size;
+        if (fs.existsSync(fullPath)) {
+            const stat = fs.statSync(fullPath);
+            isDir = stat.isDirectory();
+            // 如果是文件，记录大小；如果是文件夹，保留大小为0，仅打印日志
+            if (!isDir) {
+                romSize = stat.size;
+            } else {
+                console.log(`[Scraper] 📁 "${filename}" 是文件夹，将基于目录名进行抓取。`);
+            }
+        }
     } catch (e) {
         return null;
     }
@@ -165,8 +179,8 @@ async function fetchGameInfo (system, filename, fullPath, explicitSystemId = nul
     const ext = path.extname(filename).toLowerCase();
     const isLargeFormat = LARGE_FILE_EXTS.includes(ext);
 
-    // 如果是街机(通常 zip 很小)或者普通小文件，先算 MD5
-    if (!isLargeFormat && romSize <= MD5_THRESHOLD) {
+    // 【修改点2】：如果是文件夹（!isDir 为 false），绝对不要进入 MD5 计算逻辑，从而彻底根治 EISDIR 崩溃
+    if (!isDir && !isLargeFormat && romSize <= MD5_THRESHOLD) {
         console.log(`[Scraper] SystemID: ${systemId}, 计算 MD5 进行精准匹配...`);
         try {
             const romMD5 = await calculateMD5(fullPath);
@@ -179,7 +193,11 @@ async function fetchGameInfo (system, filename, fullPath, explicitSystemId = nul
             console.error(`[Scraper] MD5 流程出错: ${e.message}`);
         }
     } else {
-        console.log('[Scraper] 文件较大或格式特殊，跳过 MD5 计算...');
+        if (isDir) {
+            console.log('[Scraper] 📁 当前为文件夹，安全跳过 MD5 计算流程...');
+        } else {
+            console.log('[Scraper] 📦 文件较大或格式特殊，跳过 MD5 计算...');
+        }
     }
 
     // === Level 2: 文件名精确匹配 (romnom) ===
@@ -191,7 +209,6 @@ async function fetchGameInfo (system, filename, fullPath, explicitSystemId = nul
     }
 
     // Inspiration #1: 如果是街机或者短文件名，到此为止，不进行模糊搜索
-    // 因为模糊搜索对于 "kof97" 这种短词或街机文件名效果极差，容易匹配错
     if (isArcade) {
         console.log('[Scraper] ⚠️ 街机平台/MAME 不进行模糊搜索，以避免错误匹配。');
         if (logger) logger(`⚠️ 街机跳过模糊搜索: "${cleanName}"`);
@@ -207,7 +224,7 @@ async function fetchGameInfo (system, filename, fullPath, explicitSystemId = nul
     console.log('[Scraper] 文件名匹配失败，尝试文本模糊搜索...');
     const fallbackResult = await searchWithFallback(systemId, filename, ssConfig);
 
-    // 【核心修改】只有所有层级都匹配失败后，才会向前端吐出实际被检索的词，提示用户修正
+    // 只有所有层级都匹配失败后，才会向前端吐出实际被检索的词，提示用户修正
     if (!fallbackResult && logger) {
         logger(`❌ 未匹配到游戏，搜索词: "${cleanName}"`);
     }

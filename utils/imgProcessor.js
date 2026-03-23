@@ -238,7 +238,7 @@ async function processBoxTexture (texturePath, marqueePath, screenshotPath, intr
         b64Screenshot = cropBuffer.toString('base64');
     }
 
-    // 4. 清理并准备介绍文本 (先换行后转义防切断报错)
+    // 4. 清理并准备介绍文本 (动态防溢出截断)
     const defaultIntro =
         'ゲームの詳細情報がありません。未知の冒険が今、始まる！多彩なアクションを駆使して、立ちはだかる強敵を打ち倒せ。';
     const rawIntro = introText ? cleanRawText(introText, 600) : cleanRawText(defaultIntro, 600);
@@ -246,13 +246,29 @@ async function processBoxTexture (texturePath, marqueePath, screenshotPath, intr
     const leftMargin = 28;
     const textAreaWidth = greenBoundaryX * 0.85 - leftMargin;
     const fontSize = 9.5;
-    const introLines = wrapSvgTextNode(rawIntro, textAreaWidth, fontSize).slice(0, 11);
+    const lineHeight = 15.2; // 绝对行高 (9.5 * 1.6)
+
+    // 【核心修复：动态限高算法】
+    // 计算文本区域的安全物理高度（扣除顶部红色标题占用的约 34px 空间）
+    const availableTextHeight = highlightY - descY - 34;
+    // 动态计算这块空间最多能装下几行文字（强制最高不超过 11 行）
+    const maxLines = Math.min(11, Math.max(1, Math.floor(availableTextHeight / lineHeight)));
+
+    // 拿到所有排版好的文字，然后根据算出的最大安全行数进行截断
+    const allLines = wrapSvgTextNode(rawIntro, textAreaWidth, fontSize);
+    const introLines = allLines.slice(0, maxLines);
 
     let introSvgSpan = '';
     introLines.forEach((line, idx) => {
-        // 【核心修复】：单行切好后，塞入 SVG 前的一瞬间，才执行转义，避免单引号等实体字符被切开
-        const safeLine = escapeXml(line);
-        introSvgSpan += `<tspan x="0" dy="${idx === 0 ? '0' : '1.6em'}">${safeLine}</tspan>`;
+        let safeLine = escapeXml(line);
+
+        // 如果文本超长因为空间不足被截断，在最后一行的末尾优雅地补上省略号
+        if (idx === maxLines - 1 && allLines.length > maxLines) {
+            safeLine = safeLine.replace(/(?:\.\.\.|…|\.|。| |!|\?)+$/, '') + '...';
+        }
+
+        // 弃用不稳定的 1.6em，强制使用绝对像素(px)控制行距，防止 SVG 引擎缩放导致行高失控
+        introSvgSpan += `<tspan x="0" dy="${idx === 0 ? '0' : lineHeight + 'px'}">${safeLine}</tspan>`;
     });
 
     const paperTop = '#fdfdfa';
