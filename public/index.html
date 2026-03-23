@@ -512,7 +512,7 @@
                 min-height: 160px; /* 解除卡片整体无法变矮的限制 */
             }
             .sys-card:active {
-                transform: scale(0.95);
+                transform: scale(0.98);
                 filter: brightness(0.75);
             }
 
@@ -821,7 +821,7 @@
                     filter 0.2s;
             }
             .game-card:active {
-                transform: scale(0.95);
+                transform: scale(0.98);
                 /* 👇 加上轻微的变暗反馈，提升物理按压感 */
                 filter: brightness(0.8);
             }
@@ -1592,7 +1592,7 @@
                         <div
                             v-for="sys in sortedSystems"
                             :key="sys.name"
-                            class="sys-card anim-item"
+                            class="sys-card"
                             :id="'sys-card-' + sys.name"
                             @click="enterSystem(sys)"
                         >
@@ -1626,6 +1626,7 @@
                                     v-if="!sys.logoError"
                                     :src="`/logos/${sys.name}.svg`"
                                     class="sys-card-logo"
+                                    loading="lazy"
                                     @error="sys.logoError = true"
                                 />
                                 <div v-else class="sys-fallback-abbr">{{ sys.abbr }}</div>
@@ -1722,7 +1723,7 @@
                         >Loading Index...</van-loading
                     >
 
-                    <van-empty v-if="!loading && allGames.length === 0" description="暂无数据">
+                    <van-empty v-else-if="allGames.length === 0" description="暂无数据">
                         <template #image
                             ><i class="ri-gamepad-line" style="font-size: 90px; color: rgba(255, 255, 255, 0.15)"></i
                         ></template>
@@ -2528,6 +2529,7 @@
                         allGames.value = [];
                         virtualRows.value = [];
                         visibleVirtualRows.value = [];
+                        totalVirtualHeight.value = 0; // 👈 核心修复：切换时立即重置虚拟列表高度
 
                         cachedWrapperOffsetTop = -1; // 👈 新增：切换主机加载游戏时，重置高度缓存
 
