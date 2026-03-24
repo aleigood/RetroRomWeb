@@ -1587,6 +1587,7 @@
                     key="home"
                     ref="homeContainerRef"
                     @scroll="handleScroll"
+                    :style="{ overflowY: systems.length === 0 ? 'hidden' : 'auto' }"
                 >
                     <div class="sys-group" v-if="systems.length > 0">
                         <div
@@ -1652,6 +1653,7 @@
                     key="gamelist"
                     ref="gameListContainerRef"
                     @scroll="handleGameScroll"
+                    :style="{ overflowY: (loading || allGames.length === 0) ? 'hidden' : 'auto' }"
                 >
                     <div class="intro-header">
                         <div class="intro-bg" :style="{ background: getSysColor(currentSystemObj) }"></div>
@@ -1796,10 +1798,9 @@
                     <div style="height: 40px"></div>
                 </div>
             </transition>
-
             <div
                 class="index-hint"
-                v-show="!showDetail && !showLogPopup"
+                v-show="!showDetail && !showLogPopup && (currentSystemObj ? (!loading && allGames.length > 0) : systems.length > 0)"
                 :class="{ 'active-scroll': isScrollingPage || isTouchingIndex }"
                 :style="{ top: indicatorTop + 'px' }"
             ></div>
@@ -2259,13 +2260,17 @@
                             entries.forEach((entry) => {
                                 const el = entry.target;
                                 const state = elementStateMap.get(el);
-                                if (entry.isIntersecting && !state.loaded) {
+                                // 增加 state 的存在性校验
+                                if (entry.isIntersecting && state && !state.loaded) {
                                     if (loadedUrls.has(state.src)) {
                                         el.src = state.src;
                                         // 🎯 UX 核心修正：即便在缓存中，也强制延迟 15 毫秒添加 loaded 类名。
-                                        // 这 15 毫秒是为了骗过浏览器，让它先渲染出 opacity: 0 的初始状态，从而完美触发渐显动画。
                                         setTimeout(() => {
-                                            el.classList.add('loaded');
+                                            // 修复：15ms 后，仍需检查该 DOM 是否被虚拟列表挪用
+                                            const currentState = elementStateMap.get(el);
+                                            if (currentState && currentState.src === state.src) {
+                                                el.classList.add('loaded');
+                                            }
                                         }, 15);
 
                                         state.loaded = true;
@@ -2288,16 +2293,27 @@
                     img.src = src;
                     img.decode()
                         .then(() => {
-                            el.src = src;
-                            el.classList.add('loaded');
-                            loadedUrls.add(src);
-                        })
-                        .catch(() => {
-                            el.src = src;
-                            el.onload = () => {
+                            // 🚀 核心修复：异步回调完成后，核对 DOM 的归属权
+                            const state = elementStateMap.get(el);
+                            if (state && state.src === src) {
+                                el.src = src;
                                 el.classList.add('loaded');
                                 loadedUrls.add(src);
-                            };
+                            }
+                        })
+                        .catch(() => {
+                            // 🚀 核心修复：应对 decode 不支持的情况（如某些 SVG），同样需要核对
+                            const state = elementStateMap.get(el);
+                            if (state && state.src === src) {
+                                el.src = src;
+                                el.onload = () => {
+                                    const currentState = elementStateMap.get(el);
+                                    if (currentState && currentState.src === src) {
+                                        el.classList.add('loaded');
+                                        loadedUrls.add(src);
+                                    }
+                                };
+                            }
                         });
                 };
 
