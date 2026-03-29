@@ -2251,7 +2251,6 @@
             const useLazyObserver = () => {
                 let observer = null;
                 const elementStateMap = new WeakMap();
-                const loadedUrls = new Set(); // 依然保留记忆库，用于节省 CPU 解码开销
 
                 const initObserver = () => {
                     if (observer) return;
@@ -2260,24 +2259,7 @@
                             entries.forEach((entry) => {
                                 const el = entry.target;
                                 const state = elementStateMap.get(el);
-                                // 增加 state 的存在性校验
                                 if (entry.isIntersecting && state && !state.loaded) {
-                                    if (loadedUrls.has(state.src)) {
-                                        el.src = state.src;
-                                        // 🎯 UX 核心修正：即便在缓存中，也强制延迟 15 毫秒添加 loaded 类名。
-                                        setTimeout(() => {
-                                            // 修复：15ms 后，仍需检查该 DOM 是否被虚拟列表挪用
-                                            const currentState = elementStateMap.get(el);
-                                            if (currentState && currentState.src === state.src) {
-                                                el.classList.add('loaded');
-                                            }
-                                        }, 15);
-
-                                        state.loaded = true;
-                                        observer.unobserve(el);
-                                        return;
-                                    }
-
                                     loadImage(el, state.src);
                                     state.loaded = true;
                                     observer.unobserve(el);
@@ -2289,32 +2271,40 @@
                 };
 
                 const loadImage = (el, src) => {
-                    const img = new Image();
-                    img.src = src;
-                    img.decode()
-                        .then(() => {
-                            // 🚀 核心修复：异步回调完成后，核对 DOM 的归属权
-                            const state = elementStateMap.get(el);
-                            if (state && state.src === src) {
-                                el.src = src;
+                    // 1. 直接将 src 赋值给真实的 DOM 元素开始下载。
+                    // 此时因为移除了 loaded 类名，元素的 opacity 为 0，完全不可见，不会暴露下载过程。
+                    el.src = src;
+
+                    const applyLoaded = () => {
+                        const state = elementStateMap.get(el);
+                        // 2. 核心修复：核对 DOM 归属权，防止虚拟列表快速滑动时的复用导致图片错乱
+                        if (state && state.src === src) {
+                            // 3. 核心修复：使用 requestAnimationFrame 确保 src 的变更已被浏览器渲染管线确认，
+                            // 这样再添加 loaded 类名时，100% 会触发 CSS 的 opacity 过渡动画。
+                            requestAnimationFrame(() => {
                                 el.classList.add('loaded');
-                                loadedUrls.add(src);
-                            }
-                        })
-                        .catch(() => {
-                            // 🚀 核心修复：应对 decode 不支持的情况（如某些 SVG），同样需要核对
-                            const state = elementStateMap.get(el);
-                            if (state && state.src === src) {
-                                el.src = src;
-                                el.onload = () => {
-                                    const currentState = elementStateMap.get(el);
-                                    if (currentState && currentState.src === src) {
-                                        el.classList.add('loaded');
-                                        loadedUrls.add(src);
-                                    }
-                                };
-                            }
-                        });
+                            });
+                        }
+                    };
+
+                    // 如果图片瞬间加载完毕（例如来自浏览器强缓存）
+                    if (el.complete) {
+                        applyLoaded();
+                        return;
+                    }
+
+                    // 4. 利用 DOM 元素自身的 decode 方法确保位图解码完成再显示，避免掉帧和突然闪现
+                    if ('decode' in el) {
+                        el.decode()
+                            .then(applyLoaded)
+                            .catch(() => {
+                                // 降级处理：某些浏览器或特定格式（如部分 SVG）可能不支持 decode
+                                el.onload = applyLoaded;
+                            });
+                    } else {
+                        // 更古老浏览器的最终降级
+                        el.onload = applyLoaded;
+                    }
                 };
 
                 return {
@@ -2332,15 +2322,17 @@
 
             const lazyManager = useLazyObserver();
 
-            // 🎯 恢复极其干净的指令逻辑，确保每次复用必定重置透明度
+            // 🎯 优化指令逻辑，确保每次虚拟列表复用必定重置状态
             const vLazy = {
                 mounted: (el, binding) => {
+                    el.classList.remove('loaded');
                     lazyManager.observe(el, binding.value);
                 },
                 updated: (el, binding) => {
                     if (binding.value !== binding.oldValue) {
                         // 虚拟列表复用时，剥夺 loaded 状态，强制回到透明
                         el.classList.remove('loaded');
+                        // 移除 src，切断旧图片的显示，防止复用瞬间的闪烁
                         el.removeAttribute('src');
 
                         lazyManager.unobserve(el);
@@ -3132,7 +3124,7 @@
                             blue: 'linear-gradient(135deg, #74b9ff, #0984e3)',
                             pink: 'linear-gradient(135deg, #fd79a8, #e84393)',
                             green: 'linear-gradient(135deg, #badc58, #6ab04c)',
-                            yellow: 'linear-gradient(135deg, #fff04a, #ffdb00)'
+                            yellow: 'linear-gradient(135deg, #ffe94a, #ffd400)'
                         };
 
                         // 如果在系统中显式定义了 theme 且包含在我们定义的颜色字典中，直接返回该颜色
